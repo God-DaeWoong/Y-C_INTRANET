@@ -1,0 +1,72 @@
+# Compiled class files
+*.class
+
+# Log files
+*.log
+*.log.*
+hs_err_pid*.log
+replay_pid*.log
+
+# Package Files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Eclipse
+.settings/
+.classpath
+.project
+.factorypath
+bin/
+.metadata
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# VS Code
+.vscode/
+.history/
+
+# Operating System
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Application Configuration (if contains sensitive data)
+# Uncomment if you want to ignore sensitive config files
+# src/main/resources/application.yml
+# src/main/resources/application.properties
+
+# Database
+*.db
+
+# Temporary files
+*.tmp
+*.bak
+*.cache
+
+# Build output
+build/
+dist/
