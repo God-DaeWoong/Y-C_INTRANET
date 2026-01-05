@@ -1,0 +1,2372 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>일정/휴가 관리 - Y&C Intranet</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23ffffff' rx='8'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-size='40' font-weight='900' font-family='Arial,sans-serif' fill='%23667eea'%3EY%3C/text%3E%3C/svg%3E"/>
+
+    <!-- FullCalendar -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet"/>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f7fafc;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left h1 {
+            color: #667eea;
+            font-size: 24px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .btn-logout {
+            padding: 8px 16px;
+            background: #f56565;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .page-header {
+            background: white;
+            border-radius: 16px;
+            padding: 24px 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-header h2 {
+            color: #2d3748;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .page-header h2::before {
+            content: "📅";
+            font-size: 32px;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .calendar-container {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 24px;
+        }
+
+        /* FullCalendar 스타일 */
+        .fc {
+            --fc-border-color: #e2e8f0;
+            --fc-today-bg-color: rgba(102, 126, 234, 0.1);
+        }
+
+        .fc .fc-button {
+            border-radius: 8px;
+            font-weight: 700;
+            text-transform: none;
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            color: #2d3748;
+        }
+
+        .fc .fc-button-primary:not(:disabled).fc-button-active {
+            color: #2d3748;
+        }
+
+        /* FullCalendar 버튼 효과 제거 */
+        .fc .fc-button-primary:hover {
+            background-color: white !important;
+            border-color: #e2e8f0 !important;
+            color: #2d3748 !important;
+        }
+
+        .fc .fc-button-primary:focus {
+            box-shadow: none !important;
+        }
+
+        .fc .fc-button:focus {
+            box-shadow: none !important;
+            outline: none !important;
+        }
+
+        .fc .fc-button-primary:not(:disabled).fc-button-active,
+        .fc .fc-button-primary:not(:disabled):active {
+            background-color: white !important;
+            border-color: #e2e8f0 !important;
+            color: #2d3748 !important;
+        }
+
+        .fc-event {
+            border: none;
+            border-radius: 6px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        /* 이벤트 제목 말줄임 및 툴팁 */
+        .fc-event-title {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .fc-event:hover .fc-event-title {
+            overflow: visible;
+            white-space: normal;
+            word-break: break-word;
+        }
+
+        .fc-event.event-vacation {
+            background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+        }
+
+        .fc-event.event-half-day {
+            background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+        }
+
+        .fc-event.event-business {
+            background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+        }
+
+        .fc-event.event-meeting {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+        }
+
+        .legend {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        /* 모달 */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 600px;
+            width: 100%;
+            padding: 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 16px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 2px solid #edf2f7;
+        }
+
+        .btn-cancel {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+
+        .btn-cancel:hover {
+            background: #cbd5e0;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:active {
+            transform: translateY(0);
+        }
+
+        /* 결재 모달 스타일 */
+        .approval-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .approval-modal.show {
+            display: flex;
+        }
+
+        .approval-modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .approval-modal-header {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .approval-modal-body {
+            margin-bottom: 24px;
+        }
+
+        .approval-info-row {
+            display: flex;
+            padding: 12px 0;
+            border-bottom: 1px solid #f7fafc;
+        }
+
+        .approval-info-label {
+            flex: 0 0 120px;
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 14px;
+        }
+
+        .approval-info-value {
+            flex: 1;
+            color: #2d3748;
+            font-size: 14px;
+        }
+
+        .approval-content-box {
+            background: #f7fafc;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            color: #2d3748;
+            font-size: 14px;
+            line-height: 1.6;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .form-group-modal {
+            margin-bottom: 20px;
+        }
+
+        .form-group-modal label {
+            display: block;
+            color: #2d3748;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .form-group-modal textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-group-modal textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .approval-modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 2px solid #e2e8f0;
+        }
+
+        .btn-modal-cancel {
+            padding: 12px 24px;
+            background: #e2e8f0;
+            color: #2d3748;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-modal-cancel:hover {
+            background: #cbd5e0;
+        }
+
+        .btn-modal-approve {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-modal-approve:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-modal-reject {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-modal-reject:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <h1 onclick="location.href='/intranet-main.html'">Y&C Intranet</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-avatar" id="userAvatar">U</div>
+            <button class="btn-logout" onclick="logout()">로그아웃</button>
+        </div>
+    </header>
+
+    <div class="container" style="display: flex; gap: 24px;">
+        <!-- 사이드바 -->
+        <aside style="width: 320px; flex-shrink: 0;">
+            <!-- 필터 -->
+            <div class="sidebar-card" style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
+                <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #2d3748;">🔍 필터</h3>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div>
+                        <label style="display: block; font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 6px;">본부</label>
+                        <select id="filterDivision" onchange="handleDivisionChange()" style="width: 100%; padding: 8px 12px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 13px;">
+                            <option value="">전체</option>
+                            <!-- 동적으로 로드됨 -->
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 6px;">부서</label>
+                        <select id="filterDepartment" onchange="handleDepartmentChange()" style="width: 100%; padding: 8px 12px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 13px;">
+                            <option value="">전체</option>
+                            <!-- 동적으로 로드됨 -->
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 6px;">구성원</label>
+                        <select id="filterMember" onchange="console.log('[필터] filterMember 변경됨'); applyFilters()" style="width: 100%; padding: 8px 12px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 13px;">
+                            <option value="">전체</option>
+                            <!-- 동적으로 로드됨 -->
+                        </select>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <button onclick="showMySchedule()" style="padding: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;">내 일정 보기</button>
+                        <button onclick="resetFilters()" style="padding: 8px; background: #f7fafc; color: #2d3748; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;">필터 초기화</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 내 휴가 현황 -->
+            <div class="sidebar-card" style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
+                <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #2d3748;">📊 내 휴가 현황</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+                    <div style="text-align: center; padding: 12px; background: linear-gradient(135deg, #dbeafe, #e0f2fe); border-radius: 8px;">
+                        <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">부여</div>
+                        <div style="font-size: 20px; font-weight: 800; color: #2d3748;" id="leaveGranted">15</div>
+                    </div>
+                    <div style="text-align: center; padding: 12px; background: linear-gradient(135deg, #fce7f3, #fce7f3); border-radius: 8px;">
+                        <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">사용</div>
+                        <div style="font-size: 20px; font-weight: 800; color: #2d3748;" id="leaveUsed">0</div>
+                    </div>
+                    <div style="text-align: center; padding: 12px; background: linear-gradient(135deg, #d1fae5, #d1fae5); border-radius: 8px;">
+                        <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">잔여</div>
+                        <div style="font-size: 20px; font-weight: 800; color: #2d3748;" id="leaveRemaining">15</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 결재 대기 -->
+            <div class="sidebar-card" style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
+                <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #2d3748;">
+                    📋 결재 대기
+                    <span id="approvalBadge" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 12px; margin-left: 8px;">0</span>
+                </h3>
+                <div id="approvalList">
+                    <div style="text-align: center; padding: 20px; color: #a0aec0; font-size: 13px;">결재 요청이 없습니다</div>
+                </div>
+            </div>
+
+            <!-- 내 일정 목록 -->
+            <div class="sidebar-card" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); max-height: 500px; overflow-y: auto;">
+                <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #2d3748;">📝 내 일정</h3>
+                <div id="myScheduleList">
+                    <div style="text-align: center; padding: 20px; color: #a0aec0; font-size: 13px;">등록된 일정이 없습니다</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 메인 영역 -->
+        <div style="flex: 1; min-width: 0;">
+            <div class="page-header">
+                <h2>일정 및 휴가 관리</h2>
+                <div class="header-buttons">
+                    <button class="btn btn-success" onclick="openEventModal()">+ 새 일정</button>
+                </div>
+            </div>
+
+            <div class="calendar-container">
+                <div id="calendar"></div>
+            </div>
+
+            <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);"></div>
+                <span>연차</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);"></div>
+                <span>반차</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);"></div>
+                <span>출장</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #10b981 0%, #34d399 100%);"></div>
+                <span>회의</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 일정 추가/수정 모달 -->
+    <div id="eventModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="modalHeaderTitle">일정 추가</div>
+            <form id="eventForm">
+                <div class="form-group">
+                    <label>일정 유형</label>
+                    <select id="eventType" required onchange="handleEventTypeChange()">
+                        <option value="VACATION">연차</option>
+                        <option value="HALF_DAY">반차</option>
+                        <option value="BUSINESS_TRIP">출장</option>
+                        <option value="MEETING">회의</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="halfDayTypeGroup" style="display: none;">
+                    <label>반차 구분</label>
+                    <select id="halfDayType">
+                        <option value="AM">오전 반차 (09:00-13:00)</option>
+                        <option value="PM">오후 반차 (13:00-18:00)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>제목</label>
+                    <input type="text" id="eventTitle" required placeholder="일정 제목을 입력하세요">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>시작일</label>
+                        <input type="date" id="eventStartDate" required onchange="handleStartDateChange()">
+                    </div>
+                    <div class="form-group">
+                        <label>종료일</label>
+                        <input type="date" id="eventEndDate" required>
+                    </div>
+                </div>
+
+                <div class="form-row" id="timeGroup" style="display: none;">
+                    <div class="form-group">
+                        <label>시작 시간</label>
+                        <input type="time" id="eventStartTime">
+                    </div>
+                    <div class="form-group">
+                        <label>종료 시간</label>
+                        <input type="time" id="eventEndTime">
+                    </div>
+                </div>
+
+                <div class="form-group" id="daysUsedGroup" style="display: none;">
+                    <label>사용 일수</label>
+                    <input type="number" id="eventDaysUsed" step="0.5" min="0" placeholder="예: 1, 0.5">
+                </div>
+
+                <div class="form-group">
+                    <label>설명</label>
+                    <textarea id="eventDescription" placeholder="상세 내용을 입력하세요"></textarea>
+                </div>
+
+                <div class="form-group" id="approverGroup" style="display: none;">
+                    <label>결재 대상자</label>
+                    <select id="approverId">
+                        <option value="">선택하세요</option>
+                    </select>
+                </div>
+
+                <!-- 결재 상태 표시 영역 (수정 모드에만 표시) -->
+                <div id="approvalStatusSection" style="display: none; margin-top: 20px; padding: 16px; background: #f7fafc; border-radius: 8px;">
+                    <div style="font-weight: 600; color: #2d3748; margin-bottom: 12px;">결재 진행 상황</div>
+                    <div id="approvalStatusContent"></div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" id="btnDeleteEvent" class="btn btn-danger" style="display: none; margin-right: auto;">삭제</button>
+                    <button type="button" id="btnCancelRequest" class="btn btn-danger" style="display: none; margin-right: auto;">취소 신청</button>
+                    <button type="button" class="btn btn-cancel" onclick="closeEventModal()">취소</button>
+                    <button type="submit" class="btn btn-success">저장 및 결재요청</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <script>
+        let calendar;
+        let currentUser;
+
+        function checkLogin() {
+            const user = sessionStorage.getItem('user');
+            if (!user) {
+                window.location.href = '/intranet-login.html';
+                return null;
+            }
+            return JSON.parse(user);
+        }
+
+        function displayUserInfo() {
+            currentUser = checkLogin();
+            if (!currentUser) return;
+            document.getElementById('userAvatar').textContent = currentUser.name.charAt(0);
+        }
+
+        // 대한민국 공휴일 데이터 (2024-2026)
+        const koreanHolidays = {
+            '2024-01-01': '신정',
+            '2024-02-09': '설날 연휴',
+            '2024-02-10': '설날',
+            '2024-02-11': '설날 연휴',
+            '2024-02-12': '대체공휴일',
+            '2024-03-01': '삼일절',
+            '2024-04-10': '국회의원 선거',
+            '2024-05-05': '어린이날',
+            '2024-05-06': '대체공휴일',
+            '2024-05-15': '부처님 오신 날',
+            '2024-06-06': '현충일',
+            '2024-08-15': '광복절',
+            '2024-09-16': '추석 연휴',
+            '2024-09-17': '추석',
+            '2024-09-18': '추석 연휴',
+            '2024-10-03': '개천절',
+            '2024-10-09': '한글날',
+            '2024-12-25': '크리스마스',
+            '2025-01-01': '신정',
+            '2025-01-28': '설날 연휴',
+            '2025-01-29': '설날',
+            '2025-01-30': '설날 연휴',
+            '2025-03-01': '삼일절',
+            '2025-03-03': '대체공휴일',
+            '2025-05-05': '어린이날',
+            '2025-05-06': '부처님 오신 날',
+            '2025-06-06': '현충일',
+            '2025-08-15': '광복절',
+            '2025-10-03': '개천절',
+            '2025-10-05': '추석 연휴',
+            '2025-10-06': '추석',
+            '2025-10-07': '추석 연휴',
+            '2025-10-08': '대체공휴일',
+            '2025-10-09': '한글날',
+            '2025-12-25': '크리스마스',
+            '2026-01-01': '신정',
+            '2026-02-16': '설날 연휴',
+            '2026-02-17': '설날',
+            '2026-02-18': '설날 연휴',
+            '2026-03-01': '삼일절',
+            '2026-03-03': '대체공휴일',
+            '2026-05-05': '어린이날',
+            '2026-05-25': '부처님 오신 날',
+            '2026-06-06': '현충일',
+            '2026-08-15': '광복절',
+            '2026-09-24': '추석 연휴',
+            '2026-09-25': '추석',
+            '2026-09-26': '추석 연휴',
+            '2026-10-03': '개천절',
+            '2026-10-05': '대체공휴일',
+            '2026-10-09': '한글날',
+            '2026-12-25': '크리스마스'
+        };
+
+        function isHoliday(date) {
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            return koreanHolidays[dateStr];
+        }
+
+        function initCalendar() {
+            const calendarEl = document.getElementById('calendar');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'ko',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,listWeek'
+                },
+                buttonText: {
+                    today: '오늘',
+                    month: '월',
+                    week: '주',
+                    list: '목록'
+                },
+                // 시간 설정 (주 탭용)
+                slotMinTime: '08:00:00',
+                slotMaxTime: '20:00:00',
+                slotDuration: '00:30:00',
+                slotLabelInterval: '01:00',
+                slotLabelFormat: {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    meridiem: false,
+                    hour12: false
+                },
+                // 선택 기능
+                selectable: true,
+                selectMirror: true,
+                selectOverlap: true,
+                select: function(info) {
+                    // 선택한 날짜/시간 정보로 모달 열기
+                    const start = info.start;
+                    let end = info.end;
+
+                    // 날짜 형식으로 변환 (로컬 시간대 유지)
+                    const formatDate = (date) => {
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        return `${year}-${month}-${day}`;
+                    };
+
+                    let startDate = formatDate(start);
+                    let endDate;
+
+                    // allDay 이벤트인 경우, FullCalendar의 end는 exclusive (다음날 00:00)
+                    // 따라서 실제 종료일은 end - 1일
+                    if (info.allDay) {
+                        const actualEnd = new Date(end);
+                        actualEnd.setDate(actualEnd.getDate() - 1);
+                        endDate = formatDate(actualEnd);
+                    } else {
+                        endDate = formatDate(end);
+                    }
+
+                    console.log('[달력 선택]', {
+                        원본_start: start,
+                        원본_end: end,
+                        allDay: info.allDay,
+                        최종_startDate: startDate,
+                        최종_endDate: endDate
+                    });
+
+                    // 시간 정보 추출 (allDay가 아닐 때)
+                    if (!info.allDay) {
+                        const startTime = start.toTimeString().substring(0, 5);
+                        const endTime = end.toTimeString().substring(0, 5);
+                        openEventModal(startDate, endDate, startTime, endTime);
+                    } else {
+                        openEventModal(startDate, endDate);
+                    }
+
+                    calendar.unselect();
+                },
+                // 이벤트 클릭
+                eventClick: function(info) {
+                    showEventDetail(info.event);
+                },
+                // 이벤트 표시
+                events: function(fetchInfo, successCallback, failureCallback) {
+                    loadEvents(fetchInfo)
+                        .then(events => {
+                            console.log('[달력] successCallback 호출, 이벤트 개수:', events.length);
+                            successCallback(events);
+                        })
+                        .catch(error => {
+                            console.error('[달력] 이벤트 로드 실패:', error);
+                            failureCallback(error);
+                        });
+                },
+                eventTimeFormat: {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    meridiem: false,
+                    hour12: false
+                },
+                // 이벤트 표시 개선
+                displayEventTime: false, // 기본 시간 표시 끄기 (커스텀으로 표시)
+                displayEventEnd: false,
+                // 커스텀 이벤트 렌더링 (시간을 아이콘 다음에 표시)
+                eventContent: function(arg) {
+                    const event = arg.event;
+                    const timeText = arg.timeText;
+
+                    // 이벤트 유형별 아이콘
+                    let icon = '';
+                    if (event.extendedProps.scheduleType === 'VACATION') {
+                        icon = '🌴';
+                    } else if (event.extendedProps.scheduleType === 'HALF_DAY') {
+                        icon = '⏰';
+                    } else if (event.extendedProps.scheduleType === 'MEETING') {
+                        icon = '📄';
+                    } else if (event.extendedProps.scheduleType === 'BUSINESS_TRIP') {
+                        icon = '💼';
+                    }
+
+                    // 시간이 있는 경우: 아이콘 시간 제목
+                    // 시간이 없는 경우: 아이콘 제목
+                    let displayText = '';
+                    if (timeText) {
+                        displayText = `${icon} ${timeText} ${event.title.replace(/^[🌴⏰📄💼]\s*/, '')}`;
+                    } else {
+                        displayText = event.title;
+                    }
+
+                    return { html: `<div class="fc-event-main-frame"><div class="fc-event-title-container"><div class="fc-event-title">${displayText}</div></div></div>` };
+                },
+                // 주 탭 설정
+                allDaySlot: true,
+                nowIndicator: true,
+                scrollTime: '09:00:00',
+                // 높이 자동 조정
+                height: 'auto',
+                contentHeight: 600,
+                // 날짜 셀 스타일링 (토요일/일요일/공휴일)
+                dayCellDidMount: function(info) {
+                    const date = info.date;
+                    const dayOfWeek = date.getDay();
+                    const holiday = isHoliday(date);
+                    const dayNumber = info.el.querySelector('.fc-daygrid-day-number');
+                    const dayTop = info.el.querySelector('.fc-daygrid-day-top');
+
+                    if (dayNumber) {
+                        // 공휴일 (빨간색)
+                        if (holiday) {
+                            dayNumber.style.color = '#e53e3e';
+                            dayNumber.style.fontWeight = '700';
+
+                            // 공휴일 이름 표시
+                            if (dayTop) {
+                                const holidayLabel = document.createElement('span');
+                                holidayLabel.textContent = holiday;
+                                holidayLabel.style.cssText = 'color: #e53e3e; font-size: 11px; font-weight: 600; margin-right: 6px;';
+                                dayTop.insertBefore(holidayLabel, dayNumber);
+                            }
+                        }
+                        // 일요일 (빨간색)
+                        else if (dayOfWeek === 0) {
+                            dayNumber.style.color = '#e53e3e';
+                            dayNumber.style.fontWeight = '700';
+                        }
+                        // 토요일 (파란색)
+                        else if (dayOfWeek === 6) {
+                            dayNumber.style.color = '#3182ce';
+                            dayNumber.style.fontWeight = '700';
+                        }
+                    }
+                }
+            });
+
+            calendar.render();
+        }
+
+        async function loadEvents(fetchInfo) {
+            try {
+                // 필터 값 가져오기
+                const filters = getActiveFilters();
+
+                // API URL 생성
+                let url = '/api/intranet/schedules?';
+                const params = new URLSearchParams();
+
+                // 날짜 범위 추가
+                if (fetchInfo && fetchInfo.startStr && fetchInfo.endStr) {
+                    params.append('startDate', fetchInfo.startStr.split('T')[0]);
+                    params.append('endDate', fetchInfo.endStr.split('T')[0]);
+                }
+
+                // 필터 추가 (빈 문자열이 아닌 경우에만)
+                console.log('[달력] 필터 값:', filters);
+                if (filters.member && filters.member !== '') {
+                    params.append('memberId', filters.member);
+                } else if (filters.department && filters.department !== '') {
+                    params.append('departmentId', filters.department);
+                }
+                // division 필터는 백엔드에서 직접 지원하지 않으므로 무시
+
+                url += params.toString();
+
+                console.log('[달력] 일정 조회 URL:', url);
+
+                const response = await fetch(url, {
+                    credentials: 'include'
+                });
+
+                console.log('[달력] 응답 상태:', response.status);
+
+                if (!response.ok) {
+                    console.error('[달력] 일정 조회 실패:', response.status);
+                    return [];
+                }
+
+                const schedules = await response.json();
+                console.log('[달력] 조회된 일정 개수:', schedules.length);
+                console.log('[달력] 조회된 일정:', schedules);
+
+                if (schedules.length === 0) {
+                    console.log('[달력] 일정이 없어서 빈 배열 반환');
+                    return [];
+                }
+
+                // FullCalendar 이벤트 형식으로 변환
+                console.log('[달력] 이벤트 변환 시작');
+                const events = schedules.map(schedule => {
+                    const event = {
+                        id: schedule.id,
+                        title: schedule.title,
+                        allDay: !schedule.startTime, // 시간 정보가 없으면 종일 이벤트
+                        extendedProps: {
+                            scheduleType: schedule.scheduleType,
+                            description: schedule.description,
+                            status: schedule.status,
+                            documentId: schedule.documentId,
+                            daysUsed: schedule.daysUsed,
+                            startTime: schedule.startTime,
+                            endTime: schedule.endTime,
+                            memberName: schedule.memberName,
+                            departmentName: schedule.departmentName
+                        }
+                    };
+
+                    // 날짜를 YYYY-MM-DD 형식으로 변환하는 헬퍼 함수
+                    const formatDate = (dateValue) => {
+                        if (!dateValue) return null;
+                        // 이미 문자열 형식인 경우 (YYYY-MM-DD)
+                        if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
+                            return dateValue.split('T')[0];
+                        }
+                        // Date 객체나 타임스탬프인 경우
+                        const d = new Date(dateValue);
+                        return d.toISOString().split('T')[0];
+                    };
+
+                    const startDateStr = formatDate(schedule.startDate);
+                    const endDateStr = formatDate(schedule.endDate);
+
+                    // 시작일/종료일 설정
+                    if (schedule.startTime && schedule.endTime) {
+                        // 시간 정보가 있으면 날짜+시간 형식으로
+                        event.start = `${startDateStr}T${schedule.startTime}:00`;
+                        event.end = `${endDateStr}T${schedule.endTime}:00`;
+                    } else {
+                        // 시간 정보가 없으면 날짜만 (종일 이벤트)
+                        event.start = startDateStr;
+                        // FullCalendar는 종일 이벤트의 종료일을 exclusive로 처리하므로 +1일
+                        const endDate = new Date(endDateStr);
+                        endDate.setDate(endDate.getDate() + 1);
+                        event.end = endDate.toISOString().split('T')[0];
+                    }
+
+                    // 일정 유형별 색상
+                    switch (schedule.scheduleType) {
+                        case 'VACATION':
+                            event.backgroundColor = '#ec4899';
+                            event.borderColor = '#ec4899';
+                            event.className = 'event-vacation';
+                            break;
+                        case 'HALF_DAY':
+                            event.backgroundColor = '#8b5cf6';
+                            event.borderColor = '#8b5cf6';
+                            event.className = 'event-half-day';
+                            break;
+                        case 'BUSINESS_TRIP':
+                            event.backgroundColor = '#3b82f6';
+                            event.borderColor = '#3b82f6';
+                            event.className = 'event-business';
+                            break;
+                        case 'MEETING':
+                            event.backgroundColor = '#10b981';
+                            event.borderColor = '#10b981';
+                            event.className = 'event-meeting';
+                            break;
+                        default:
+                            event.backgroundColor = '#6b7280';
+                            event.borderColor = '#6b7280';
+                    }
+
+                    // 제목 포맷 (아이콘 먼저)
+                    let displayTitle = '';
+                    if (schedule.scheduleType === 'VACATION') {
+                        // 연차: 🌴 연차 이름
+                        displayTitle = `🌴 연차 ${schedule.memberName || ''}`;
+                    } else if (schedule.scheduleType === 'HALF_DAY') {
+                        // 반차: ⏰ 반차 이름
+                        displayTitle = `⏰ 반차 ${schedule.memberName || ''}`;
+                    } else if (schedule.scheduleType === 'MEETING') {
+                        // 회의: 📄 제목 (이름)
+                        displayTitle = `📄 ${schedule.title}`;
+                        if (schedule.memberName) {
+                            displayTitle += ` (${schedule.memberName})`;
+                        }
+                    } else if (schedule.scheduleType === 'BUSINESS_TRIP') {
+                        // 출장: 💼 제목 (이름)
+                        displayTitle = `💼 ${schedule.title}`;
+                        if (schedule.memberName) {
+                            displayTitle += ` (${schedule.memberName})`;
+                        }
+                    } else {
+                        displayTitle = schedule.title;
+                        if (schedule.memberName) {
+                            displayTitle += ` (${schedule.memberName})`;
+                        }
+                    }
+
+                    event.title = displayTitle;
+
+                    console.log('[달력] 변환된 이벤트:', event);
+                    return event;
+                });
+
+                console.log('[달력] 최종 반환할 이벤트 목록:', events);
+                return events;
+
+            } catch (error) {
+                console.error('[달력] 일정 로드 오류:', error);
+                return [];
+            }
+        }
+
+        async function openEventModal(startDate = null, endDate = null, startTime = null, endTime = null) {
+            const modal = document.getElementById('eventModal');
+            modal.classList.add('show');
+
+            // 모달 제목을 "일정 추가"로 설정
+            document.getElementById('modalHeaderTitle').textContent = '일정 추가';
+
+            // 결재 상태 영역 숨기기
+            document.getElementById('approvalStatusSection').style.display = 'none';
+
+            if (startDate) {
+                document.getElementById('eventStartDate').value = startDate;
+
+                if (endDate) {
+                    // select 콜백에서 이미 날짜 변환이 완료되었으므로 그대로 사용
+                    document.getElementById('eventEndDate').value = endDate;
+                } else {
+                    document.getElementById('eventEndDate').value = startDate;
+                }
+            }
+
+            // 시간 정보가 있으면 자동으로 설정 (주 탭에서 드래그한 경우)
+            if (startTime && endTime) {
+                // 회의 유형으로 자동 설정
+                document.getElementById('eventType').value = 'MEETING';
+                await handleEventTypeChange();
+
+                // 시간 입력
+                document.getElementById('eventStartTime').value = startTime;
+                document.getElementById('eventEndTime').value = endTime;
+            } else {
+                // 유형 변경 핸들러 초기화
+                await handleEventTypeChange();
+            }
+        }
+
+        function closeEventModal() {
+            document.getElementById('eventModal').classList.remove('show');
+            document.getElementById('eventForm').reset();
+            // 숨겨진 필드들 초기화
+            document.getElementById('timeGroup').style.display = 'none';
+            document.getElementById('halfDayTypeGroup').style.display = 'none';
+            document.getElementById('daysUsedGroup').style.display = 'none';
+            document.getElementById('approverGroup').style.display = 'none';
+            // 삭제 버튼 및 취소 신청 버튼 숨기기
+            document.getElementById('btnDeleteEvent').style.display = 'none';
+            document.getElementById('btnCancelRequest').style.display = 'none';
+            // 폼 제출 이벤트 초기화 (기본 저장 동작으로)
+            document.getElementById('eventForm').onsubmit = null;
+        }
+
+        // 이벤트 상세 보기 (수정 모드)
+        async function showEventDetail(event) {
+            const scheduleId = event.id;
+            console.log('일정 ID:', scheduleId);
+
+            try {
+                // API에서 전체 데이터 가져오기
+                const response = await fetch(`/api/intranet/schedules/${scheduleId}`, {
+                    credentials: 'include'
+                });
+
+                console.log('응답 상태:', response.status);
+
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    console.error('API 에러:', errorData);
+                    alert(`일정 조회에 실패했습니다. (${response.status})`);
+                    return;
+                }
+
+                const schedule = await response.json();
+                console.log('조회된 일정 데이터:', schedule);
+
+                // 모달 열기 (수정 모드)
+                const modal = document.getElementById('eventModal');
+                modal.classList.add('show');
+
+                // 모달 제목 변경
+                document.getElementById('modalHeaderTitle').textContent = '일정 수정';
+
+                // 폼 데이터 채우기
+                document.getElementById('eventType').value = schedule.scheduleType;
+                await handleEventTypeChange();
+
+                document.getElementById('eventTitle').value = schedule.title || '';
+                document.getElementById('eventDescription').value = schedule.description || '';
+
+                // 날짜 설정
+                const formatDate = (dateValue) => {
+                    if (!dateValue) return '';
+                    if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
+                        return dateValue.split('T')[0];
+                    }
+                    const d = new Date(dateValue);
+                    return d.toISOString().split('T')[0];
+                };
+
+                document.getElementById('eventStartDate').value = formatDate(schedule.startDate);
+                document.getElementById('eventEndDate').value = formatDate(schedule.endDate);
+
+                if (schedule.startTime) {
+                    document.getElementById('eventStartTime').value = schedule.startTime;
+                }
+                if (schedule.endTime) {
+                    document.getElementById('eventEndTime').value = schedule.endTime;
+                }
+
+                if (schedule.daysUsed) {
+                    document.getElementById('eventDaysUsed').value = schedule.daysUsed;
+                }
+
+                // 삭제/취소 신청 버튼 표시 여부 결정
+                const deleteBtn = document.getElementById('btnDeleteEvent');
+                const cancelRequestBtn = document.getElementById('btnCancelRequest');
+                const isVacationOrHalfDay = schedule.scheduleType === 'VACATION' || schedule.scheduleType === 'HALF_DAY';
+
+                // 회의/출장: 언제든지 삭제 가능
+                // 연차/반차: 결재 전(DRAFT/null) 또는 반려(REJECTED)된 경우만 삭제 가능
+                // 연차/반차: 승인(APPROVED)된 경우 취소 신청 가능
+
+                if (isVacationOrHalfDay) {
+                    // 연차/반차인 경우
+                    if (schedule.status === 'APPROVED') {
+                        // 승인된 연차/반차: 취소 신청 버튼 표시
+                        deleteBtn.style.display = 'none';
+                        cancelRequestBtn.style.display = 'inline-block';
+                        cancelRequestBtn.onclick = async () => {
+                            if (confirm('이 일정에 대한 취소를 신청하시겠습니까?\n결재가 필요합니다.')) {
+                                await requestCancellation(scheduleId);
+                            }
+                        };
+                    } else if (!schedule.status || schedule.status === 'DRAFT' || schedule.status === 'REJECTED') {
+                        // 결재 전 또는 반려된 연차/반차: 삭제 가능
+                        deleteBtn.style.display = 'inline-block';
+                        cancelRequestBtn.style.display = 'none';
+                        deleteBtn.onclick = () => {
+                            if (confirm('이 일정을 삭제하시겠습니까?')) {
+                                deleteSchedule(scheduleId);
+                            }
+                        };
+                    } else {
+                        // 진행중(PENDING): 삭제/취소 불가
+                        deleteBtn.style.display = 'none';
+                        cancelRequestBtn.style.display = 'none';
+                    }
+                } else {
+                    // 회의/출장: 언제든지 삭제 가능
+                    deleteBtn.style.display = 'inline-block';
+                    cancelRequestBtn.style.display = 'none';
+                    deleteBtn.onclick = () => {
+                        if (confirm('이 일정을 삭제하시겠습니까?')) {
+                            deleteSchedule(scheduleId);
+                        }
+                    };
+                }
+
+                // 저장 버튼을 수정 버튼으로 변경
+                const form = document.getElementById('eventForm');
+                const submitBtn = form.querySelector('button[type="submit"]');
+
+                // 수정 가능 여부 판단:
+                // - 회의/출장: 항상 수정 가능
+                // - 연차/반차: DRAFT, null, REJECTED 상태만 수정 가능
+                //            PENDING/SUBMITTED(진행중), APPROVED(승인완료)는 수정 불가
+                let canEdit = true;
+                let disabledReason = '';
+
+                if (isVacationOrHalfDay) {
+                    if (schedule.status === 'PENDING' || schedule.status === 'SUBMITTED') {
+                        canEdit = false;
+                        disabledReason = '결재 진행 중 (수정 불가)';
+                    } else if (schedule.status === 'APPROVED') {
+                        canEdit = false;
+                        disabledReason = '승인 완료 (수정 불가)';
+                    } else {
+                        // DRAFT, null, REJECTED는 수정 가능
+                        canEdit = true;
+                    }
+                }
+
+                if (canEdit) {
+                    submitBtn.textContent = '수정';
+                    submitBtn.disabled = false;
+                    submitBtn.style.background = '';
+                    submitBtn.style.cursor = '';
+                    // 모든 입력 필드 활성화
+                    form.querySelectorAll('input, select, textarea').forEach(field => {
+                        field.disabled = false;
+                    });
+                    form.onsubmit = async (e) => {
+                        e.preventDefault();
+                        await updateSchedule(scheduleId);
+                    };
+                } else {
+                    submitBtn.textContent = disabledReason;
+                    submitBtn.disabled = true;
+                    submitBtn.style.background = '#cbd5e0';
+                    submitBtn.style.cursor = 'not-allowed';
+                    // 모든 입력 필드 비활성화
+                    form.querySelectorAll('input, select, textarea').forEach(field => {
+                        field.disabled = true;
+                    });
+                }
+
+                // 결재 상태 표시 (연차/반차이고 documentId가 있는 경우)
+                const statusSection = document.getElementById('approvalStatusSection');
+                const statusContent = document.getElementById('approvalStatusContent');
+
+                console.log('결재 상태 표시 체크:', {
+                    isVacationOrHalfDay,
+                    documentId: schedule.documentId,
+                    scheduleType: schedule.scheduleType
+                });
+
+                if (isVacationOrHalfDay && schedule.documentId) {
+                    console.log('결재 상태 조회 시작:', schedule.documentId);
+                    try {
+                        const docResponse = await fetch(`/api/intranet/approvals/document/${schedule.documentId}`, {
+                            credentials: 'include'
+                        });
+                        console.log('결재 API 응답 상태:', docResponse.status, docResponse.ok);
+
+                        if (docResponse.ok) {
+                            const approvalData = await docResponse.json();
+                            console.log('결재 데이터:', approvalData);
+
+                            // API는 배열을 직접 반환함
+                            if (Array.isArray(approvalData) && approvalData.length > 0) {
+                                console.log('결재 정보 표시 시작, 결재자 수:', approvalData.length);
+                                const getDecisionBadge = (decision) => {
+                                    const badges = {
+                                        'PENDING': '<span style="padding: 4px 8px; background: #edf2f7; color: #718096; border-radius: 4px; font-size: 12px; font-weight: 600;">⏳ 대기중</span>',
+                                        'APPROVED': '<span style="padding: 4px 8px; background: #c6f6d5; color: #22543d; border-radius: 4px; font-size: 12px; font-weight: 600;">✓ 승인</span>',
+                                        'REJECTED': '<span style="padding: 4px 8px; background: #fed7d7; color: #742a2a; border-radius: 4px; font-size: 12px; font-weight: 600;">✗ 반려</span>'
+                                    };
+                                    return badges[decision] || badges['PENDING'];
+                                };
+
+                                const getDateText = (date) => {
+                                    if (!date) return '';
+                                    const d = new Date(date);
+                                    return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                                };
+
+                                statusContent.innerHTML = approvalData.map((approval, index) => {
+                                    const comment = approval.approvalComment ? `<div style="font-size: 11px; color: #718096; margin-top: 4px;">💬 ${approval.approvalComment}</div>` : '';
+                                    const dateText = approval.decidedAt ? `<div style="font-size: 11px; color: #a0aec0; margin-top: 2px;">${getDateText(approval.decidedAt)}</div>` : '';
+                                    return `
+                                        <div style="padding: 10px 0; ${index < approvalData.length - 1 ? 'border-bottom: 1px solid #e2e8f0;' : ''}">
+                                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                                <div>
+                                                    <div style="font-size: 13px; color: #2d3748; font-weight: 600;">${index + 1}단계: ${approval.approverName} ${approval.approverPosition || ''}</div>
+                                                    ${dateText}
+                                                </div>
+                                                ${getDecisionBadge(approval.decision)}
+                                            </div>
+                                            ${comment}
+                                        </div>
+                                    `;
+                                }).join('');
+
+                                statusSection.style.display = 'block';
+                                console.log('결재 상태 섹션 표시 완료');
+                            } else {
+                                console.log('결재 데이터 없음 또는 조건 불만족:', approvalData);
+                                statusSection.style.display = 'none';
+                            }
+                        } else {
+                            console.log('결재 API 응답 실패:', docResponse.status);
+                            statusSection.style.display = 'none';
+                        }
+                    } catch (error) {
+                        console.error('결재 상태 조회 실패:', error);
+                        statusSection.style.display = 'none';
+                    }
+                } else {
+                    console.log('결재 상태 표시 조건 불만족');
+                    statusSection.style.display = 'none';
+                }
+
+            } catch (error) {
+                console.error('일정 상세 조회 오류 상세:', error.message, error.stack);
+                alert('일정을 불러오는데 실패했습니다: ' + error.message);
+            }
+        }
+
+        // 일정 수정
+        async function updateSchedule(scheduleId) {
+            const eventData = {
+                scheduleType: document.getElementById('eventType').value,
+                title: document.getElementById('eventTitle').value,
+                description: document.getElementById('eventDescription').value,
+                startDate: document.getElementById('eventStartDate').value,
+                endDate: document.getElementById('eventEndDate').value,
+                status: 'DRAFT'
+            };
+
+            const type = eventData.scheduleType;
+
+            if (type === 'MEETING' || type === 'BUSINESS_TRIP') {
+                eventData.startTime = document.getElementById('eventStartTime').value;
+                eventData.endTime = document.getElementById('eventEndTime').value;
+            }
+
+            if (type === 'VACATION' || type === 'HALF_DAY') {
+                eventData.daysUsed = parseFloat(document.getElementById('eventDaysUsed').value) || 0;
+            }
+
+            try {
+                const response = await fetch(`/api/intranet/schedules/${scheduleId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(eventData),
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('일정이 수정되었습니다!');
+                    closeEventModal();
+                    calendar.refetchEvents();
+                    loadSidebarData();
+                } else {
+                    alert(data.message || '수정에 실패했습니다');
+                }
+            } catch (error) {
+                console.error('수정 오류:', error);
+                alert('서버 오류가 발생했습니다');
+            }
+        }
+
+        // 일정 삭제
+        async function deleteSchedule(scheduleId) {
+            try {
+                const response = await fetch(`/api/intranet/schedules/${scheduleId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('일정이 삭제되었습니다.');
+                    closeEventModal();
+                    calendar.refetchEvents();
+                    loadSidebarData();
+                } else {
+                    alert(data.message || '삭제에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('삭제 오류:', error);
+                alert('서버 오류가 발생했습니다.');
+            }
+        }
+
+        // 일정 취소 신청 (승인된 연차/반차)
+        async function requestCancellation(scheduleId) {
+            try {
+                const response = await fetch(`/api/intranet/schedules/${scheduleId}/cancel`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('취소 신청이 완료되었습니다.\n결재 후 취소됩니다.');
+                    closeEventModal();
+                    calendar.refetchEvents();
+                    loadSidebarData();
+                } else {
+                    alert(data.message || '취소 신청에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('취소 신청 오류:', error);
+                alert('서버 오류가 발생했습니다.');
+            }
+        }
+
+        // 일정 유형 변경 핸들러
+        async function handleEventTypeChange() {
+            const type = document.getElementById('eventType').value;
+            const timeGroup = document.getElementById('timeGroup');
+            const halfDayTypeGroup = document.getElementById('halfDayTypeGroup');
+            const daysUsedGroup = document.getElementById('daysUsedGroup');
+            const approverGroup = document.getElementById('approverGroup');
+            const startDateInput = document.getElementById('eventStartDate');
+            const endDateInput = document.getElementById('eventEndDate');
+            const submitBtn = document.querySelector('.modal-footer .btn-success');
+
+            // 모든 추가 필드 초기 숨김
+            timeGroup.style.display = 'none';
+            halfDayTypeGroup.style.display = 'none';
+            daysUsedGroup.style.display = 'none';
+            approverGroup.style.display = 'none';
+
+            if (type === 'MEETING' || type === 'BUSINESS_TRIP') {
+                // 회의나 출장: 시간 입력 표시
+                timeGroup.style.display = 'flex';
+
+                if (type === 'MEETING') {
+                    // 회의는 기본 시간 설정
+                    document.getElementById('eventStartTime').value = '14:00';
+                    document.getElementById('eventEndTime').value = '16:00';
+                }
+
+                // 버튼 텍스트를 "저장"으로 변경
+                submitBtn.textContent = '저장';
+            } else if (type === 'HALF_DAY') {
+                // 반차: 오전/오후 선택 표시
+                halfDayTypeGroup.style.display = 'block';
+                daysUsedGroup.style.display = 'block';
+                document.getElementById('eventDaysUsed').value = '0.5';
+
+                // 반차는 당일만
+                if (startDateInput.value) {
+                    endDateInput.value = startDateInput.value;
+                }
+
+                // 버튼 텍스트를 "저장 및 결재요청"으로 변경
+                submitBtn.textContent = '저장 및 결재요청';
+
+                // 결재자 정보 표시
+                approverGroup.style.display = 'block';
+                await loadApproverInfo();
+            } else if (type === 'VACATION') {
+                // 연차: 사용 일수 표시
+                daysUsedGroup.style.display = 'block';
+
+                // 일수 자동 계산
+                if (startDateInput.value && endDateInput.value) {
+                    const days = calculateDaysBetween(startDateInput.value, endDateInput.value);
+                    document.getElementById('eventDaysUsed').value = days;
+                }
+
+                // 버튼 텍스트를 "저장 및 결재요청"으로 변경
+                submitBtn.textContent = '저장 및 결재요청';
+
+                // 결재자 정보 표시
+                approverGroup.style.display = 'block';
+                await loadApproverInfo();
+            }
+        }
+
+        // 결재자 정보 로드
+        async function loadApproverInfo() {
+            try {
+                // 결재자 목록 조회
+                const [approverResponse, approversResponse] = await Promise.all([
+                    fetch('/api/intranet/auth/approver', { credentials: 'include' }),
+                    fetch('/api/intranet/auth/approvers', { credentials: 'include' })
+                ]);
+
+                if (!approversResponse.ok) {
+                    console.error('결재자 목록 조회 실패:', approversResponse.status);
+                    return;
+                }
+
+                const approversData = await approversResponse.json();
+                const approverSelect = document.getElementById('approverId');
+
+                // 기존 옵션 제거 (첫 번째 옵션 제외)
+                approverSelect.innerHTML = '<option value="">선택하세요</option>';
+
+                // 결재자 목록을 드롭다운에 추가
+                if (approversData.success && approversData.approvers) {
+                    approversData.approvers.forEach(approver => {
+                        const option = document.createElement('option');
+                        option.value = approver.id;
+                        option.textContent = `${approver.name} (${approver.position} · ${approver.departmentName})`;
+                        approverSelect.appendChild(option);
+                    });
+                }
+
+                // 기본 결재자 설정
+                if (approverResponse.ok) {
+                    const approverData = await approverResponse.json();
+                    if (approverData.success && approverData.approver && approverData.approver.id) {
+                        approverSelect.value = approverData.approver.id;
+                    }
+                }
+
+            } catch (error) {
+                console.error('결재자 정보 로드 오류:', error);
+            }
+        }
+
+        // 시작일 변경 핸들러
+        function handleStartDateChange() {
+            const type = document.getElementById('eventType').value;
+            const startDate = document.getElementById('eventStartDate').value;
+            const endDateInput = document.getElementById('eventEndDate');
+
+            if (!startDate) return;
+
+            // 반차는 무조건 당일
+            if (type === 'HALF_DAY') {
+                endDateInput.value = startDate;
+            } else {
+                // 종료일이 비어있거나 시작일보다 이전이면 자동 설정
+                if (!endDateInput.value || endDateInput.value < startDate) {
+                    endDateInput.value = startDate;
+                }
+            }
+
+            // 연차일 경우 사용 일수 자동 계산
+            if (type === 'VACATION' && endDateInput.value) {
+                const days = calculateDaysBetween(startDate, endDateInput.value);
+                document.getElementById('eventDaysUsed').value = days;
+            }
+        }
+
+        // 날짜 간 일수 계산 (주말 및 공휴일 제외)
+        function calculateDaysBetween(startDate, endDate) {
+            // 시간대 문제 방지: YYYY-MM-DD 형식을 직접 파싱
+            const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+            const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+
+            const start = new Date(startYear, startMonth - 1, startDay);
+            const end = new Date(endYear, endMonth - 1, endDay);
+            let days = 0;
+
+            // 시작일부터 종료일까지 순회 (종료일 포함)
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                const dayOfWeek = d.getDay();
+                const holiday = isHoliday(d);
+
+                // 주말 및 공휴일 제외 (0: 일요일, 6: 토요일)
+                if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holiday) {
+                    days++;
+                }
+            }
+
+            return days;
+        }
+
+        document.getElementById('eventForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const type = document.getElementById('eventType').value;
+            const eventData = {
+                scheduleType: type,
+                title: document.getElementById('eventTitle').value,
+                startDate: document.getElementById('eventStartDate').value,
+                endDate: document.getElementById('eventEndDate').value,
+                description: document.getElementById('eventDescription').value,
+                startTime: document.getElementById('eventStartTime').value || null,
+                endTime: document.getElementById('eventEndTime').value || null,
+                daysUsed: document.getElementById('eventDaysUsed').value || 0
+            };
+
+            // 연차/반차인 경우 결재자 ID 추가
+            if (type === 'VACATION' || type === 'HALF_DAY') {
+                const approverId = document.getElementById('approverId').value;
+                if (!approverId) {
+                    alert('결재자를 선택해주세요');
+                    return;
+                }
+                eventData.approverId = approverId;
+            }
+
+            // 반차인 경우 오전/오후 정보 추가
+            if (type === 'HALF_DAY') {
+                const halfDayType = document.getElementById('halfDayType').value;
+                eventData.startTime = halfDayType === 'AM' ? '09:00' : '13:00';
+                eventData.endTime = halfDayType === 'AM' ? '13:00' : '18:00';
+                eventData.title = `${eventData.title} (${halfDayType === 'AM' ? '오전' : '오후'}반차)`;
+            }
+
+            try {
+                // schedules_intranet에 저장 및 결재 요청
+                const response = await fetch('/api/intranet/schedules', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(eventData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // 회의/출장은 결재 불필요, 연차/반차만 결재 필요
+                    if (type === 'VACATION' || type === 'HALF_DAY') {
+                        alert('일정이 저장되고 결재 요청되었습니다!');
+                    } else {
+                        alert('일정이 저장되었습니다!');
+                    }
+                    closeEventModal();
+                    calendar.refetchEvents();
+                    loadSidebarData(); // 사이드바 데이터도 새로고침
+                } else {
+                    alert(data.message || '저장에 실패했습니다');
+                }
+            } catch (error) {
+                console.error('저장 오류:', error);
+                alert('서버 오류가 발생했습니다');
+            }
+        });
+
+        async function logout() {
+            if (!confirm('로그아웃 하시겠습니까?')) return;
+            try {
+                await fetch('/api/intranet/auth/logout', { method: 'POST' });
+            } finally {
+                sessionStorage.removeItem('user');
+                window.location.href = '/intranet-login.html';
+            }
+        }
+
+        // 모달 외부 클릭시 닫기
+        document.getElementById('eventModal').addEventListener('click', (e) => {
+            if (e.target.id === 'eventModal') {
+                closeEventModal();
+            }
+        });
+
+        // 사이드바 데이터 로드
+        async function loadSidebarData() {
+            await Promise.all([
+                loadDepartments(),
+                loadLeaveBalance(),
+                loadPendingApprovals(),
+                loadMySchedules()
+            ]);
+        }
+
+        // 전역 변수로 부서 데이터 저장
+        let allDepartments = [];
+
+        // 부서 목록 로드 (초기 로드)
+        async function loadDepartments() {
+            try {
+                const response = await fetch('/api/intranet/departments/active');
+                const data = await response.json();
+
+                if (data.success) {
+                    allDepartments = data.departments;
+
+                    // 본부 목록 로드
+                    loadDivisions();
+
+                    // 저장된 필터 복원 시도
+                    const restored = await restoreSavedFilters();
+
+                    // 저장된 필터가 없으면 로그인한 사용자 정보 기반으로 기본값 설정
+                    if (!restored) {
+                        await setDefaultFilters();
+                    }
+                }
+            } catch (error) {
+                console.error('부서 목록 조회 실패:', error);
+            }
+        }
+
+        // 본부 목록 로드 (1단계)
+        function loadDivisions() {
+            const divisionSelect = document.getElementById('filterDivision');
+
+            // 기존 옵션 제거 (전체 제외)
+            while (divisionSelect.options.length > 1) {
+                divisionSelect.remove(1);
+            }
+
+            // 본부만 필터링 (parent_id = 1, id != 1)
+            const divisions = allDepartments.filter(d =>
+                d.parentId === 1 && d.id !== 1
+            ).sort((a, b) => a.displayOrder - b.displayOrder);
+
+            // 본부 추가
+            divisions.forEach(division => {
+                const option = document.createElement('option');
+                option.value = division.id;
+                option.textContent = division.name;
+                divisionSelect.appendChild(option);
+            });
+        }
+
+        // 본부 변경시 부서 목록 로드 (2단계)
+        async function handleDivisionChange() {
+            console.log('[필터] handleDivisionChange 호출됨');
+            const divisionId = document.getElementById('filterDivision').value;
+            const deptSelect = document.getElementById('filterDepartment');
+
+            // 부서 선택 초기화
+            deptSelect.innerHTML = '<option value="">전체</option>';
+
+            // 구성원 선택 초기화
+            document.getElementById('filterMember').innerHTML = '<option value="">전체</option>';
+
+            if (divisionId) {
+                // 선택한 본부의 하위 부서(Unit) 찾기
+                const departments = allDepartments.filter(d =>
+                    d.parentId == divisionId
+                ).sort((a, b) => a.displayOrder - b.displayOrder);
+
+                // 부서 추가
+                departments.forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept.id;
+                    option.textContent = dept.name;
+                    deptSelect.appendChild(option);
+                });
+            }
+
+            console.log('[필터] handleDivisionChange 완료, applyFilters 호출');
+            applyFilters();
+        }
+
+        // 부서 변경시 구성원 목록 로드 (3단계)
+        async function handleDepartmentChange() {
+            console.log('[필터] handleDepartmentChange 호출됨');
+            const departmentId = document.getElementById('filterDepartment').value;
+            await loadMembers(departmentId);
+            console.log('[필터] handleDepartmentChange 완료, applyFilters 호출');
+            applyFilters();
+        }
+
+        // 구성원 목록 로드
+        async function loadMembers(departmentId = null) {
+            try {
+                let url = '/api/intranet/members/active';
+                if (departmentId) {
+                    url = `/api/intranet/members/department/${departmentId}`;
+                }
+
+                const response = await fetch(url);
+                const members = await response.json();
+
+                const select = document.getElementById('filterMember');
+
+                // 기존 옵션 제거 (전체 제외)
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+
+                // 구성원 추가 (직급 순서로 정렬)
+                if (Array.isArray(members)) {
+                    // 직급 우선순위 정의
+                    const positionOrder = {
+                        '본부장': 1,
+                        '자문/임원': 2,
+                        'Unit장': 3,
+                        '매니저': 4,
+                        '사원': 5
+                    };
+
+                    // 직급 순으로 정렬
+                    const sortedMembers = members.sort((a, b) => {
+                        const orderA = positionOrder[a.position] || 99;
+                        const orderB = positionOrder[b.position] || 99;
+                        if (orderA !== orderB) {
+                            return orderA - orderB;
+                        }
+                        // 같은 직급이면 이름순
+                        return a.name.localeCompare(b.name, 'ko-KR');
+                    });
+
+                    sortedMembers.forEach(member => {
+                        const option = document.createElement('option');
+                        option.value = member.id;
+                        option.textContent = `${member.name} (${member.position || ''})`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('구성원 목록 조회 실패:', error);
+            }
+        }
+
+        // 휴가 현황 로드
+        async function loadLeaveBalance() {
+            try {
+                // TODO: 실제 API 연동
+                // 임시로 하드코딩
+                document.getElementById('leaveGranted').textContent = '15';
+                document.getElementById('leaveUsed').textContent = '2';
+                document.getElementById('leaveRemaining').textContent = '13';
+            } catch (error) {
+                console.error('휴가 현황 조회 실패:', error);
+            }
+        }
+
+        // 결재 대기 목록 로드
+        async function loadPendingApprovals() {
+            try {
+                const response = await fetch('/api/intranet/approvals/pending');
+                const data = await response.json();
+
+                const badge = document.getElementById('approvalBadge');
+                const list = document.getElementById('approvalList');
+
+                if (!data.success || !data.approvals || data.approvals.length === 0) {
+                    badge.textContent = '0';
+                    list.innerHTML = '<div style="text-align: center; padding: 20px; color: #a0aec0; font-size: 13px;">결재 요청이 없습니다</div>';
+                    return;
+                }
+
+                badge.textContent = data.approvals.length;
+                list.innerHTML = data.approvals.map(approval => `
+                    <div style="padding: 12px; margin-bottom: 8px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                        <div style="font-size: 13px; font-weight: 700; color: #2d3748; margin-bottom: 4px;">${approval.document?.title || '제목 없음'}</div>
+                        <div style="font-size: 11px; color: #718096; margin-bottom: 8px;">${approval.document?.authorName || '알 수 없음'} · ${approval.stepOrder}단계</div>
+                        <div style="display: flex; gap: 6px;">
+                            <button onclick="approveFromSidebar(${approval.id})" style="flex: 1; padding: 6px; background: #10b981; color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;">승인</button>
+                            <button onclick="rejectFromSidebar(${approval.id})" style="flex: 1; padding: 6px; background: #ef4444; color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;">반려</button>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error('결재 대기 조회 실패:', error);
+            }
+        }
+
+        // 내 일정 목록 로드
+        async function loadMySchedules() {
+            try {
+                // TODO: 실제 API 연동
+                // 임시 데이터 (시간 정보 포함)
+                const schedules = [
+                    {
+                        type: 'VACATION',
+                        title: '연차',
+                        startDate: '2026-01-15',
+                        endDate: '2026-01-15',
+                        status: 'APPROVED'
+                    },
+                    {
+                        type: 'MEETING',
+                        title: '팀 회의',
+                        startDate: '2026-01-10',
+                        endDate: '2026-01-10',
+                        startTime: '14:00',
+                        endTime: '16:00',
+                        status: 'APPROVED'
+                    }
+                ];
+
+                const list = document.getElementById('myScheduleList');
+
+                if (schedules.length === 0) {
+                    list.innerHTML = '<div style="text-align: center; padding: 20px; color: #a0aec0; font-size: 13px;">등록된 일정이 없습니다</div>';
+                    return;
+                }
+
+                list.innerHTML = schedules.map(schedule => {
+                    const colors = {
+                        'VACATION': '#ec4899',
+                        'HALF_DAY': '#8b5cf6',
+                        'BUSINESS_TRIP': '#3b82f6',
+                        'MEETING': '#10b981'
+                    };
+
+                    let dateText = schedule.startDate;
+                    if (schedule.endDate && schedule.endDate !== schedule.startDate) {
+                        dateText += ` ~ ${schedule.endDate}`;
+                    }
+
+                    // 시간 정보가 있으면 추가
+                    if (schedule.startTime) {
+                        dateText += ` ${schedule.startTime}`;
+                        if (schedule.endTime) {
+                            dateText += `-${schedule.endTime}`;
+                        }
+                    }
+
+                    return `
+                        <div style="padding: 10px 12px; margin-bottom: 8px; background: #f7fafc; border-radius: 8px; border-left: 4px solid ${colors[schedule.type]};">
+                            <div style="font-size: 13px; font-weight: 700; color: #2d3748; margin-bottom: 4px;">${schedule.title}</div>
+                            <div style="font-size: 11px; color: #718096;">${dateText}</div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('내 일정 조회 실패:', error);
+            }
+        }
+
+        // 사이드바에서 승인
+        // 전역 변수: 현재 결재 정보
+        let currentApprovalId = null;
+        let currentApprovalAction = null;
+        let currentApprovalData = null;
+
+        // 결재 모달 열기
+        async function approveFromSidebar(approvalId) {
+            await openApprovalModal(approvalId, 'approve');
+        }
+
+        // 사이드바에서 반려
+        async function rejectFromSidebar(approvalId) {
+            await openApprovalModal(approvalId, 'reject');
+        }
+
+        // 결재 모달 열기 (상세 정보 로드)
+        async function openApprovalModal(approvalId, action) {
+            try {
+                // 결재 상세 정보 조회
+                const response = await fetch(`/api/intranet/approvals/pending`);
+                const data = await response.json();
+
+                if (!data.success || !data.approvals) {
+                    alert('결재 정보를 불러올 수 없습니다');
+                    return;
+                }
+
+                const approval = data.approvals.find(a => a.id === approvalId);
+                if (!approval) {
+                    alert('결재 정보를 찾을 수 없습니다');
+                    return;
+                }
+
+                currentApprovalId = approvalId;
+                currentApprovalAction = action;
+                currentApprovalData = approval;
+
+                // 모달 타이틀 및 버튼 설정
+                const modal = document.getElementById('approvalModal');
+                const modalTitle = document.getElementById('approvalModalTitle');
+                const confirmBtn = document.getElementById('approvalConfirmBtn');
+
+                if (action === 'approve') {
+                    modalTitle.textContent = '결재 승인';
+                    confirmBtn.textContent = '승인';
+                    confirmBtn.className = 'btn-modal-approve';
+                } else {
+                    modalTitle.textContent = '결재 반려';
+                    confirmBtn.textContent = '반려';
+                    confirmBtn.className = 'btn-modal-reject';
+                }
+
+                // 문서 정보 표시
+                document.getElementById('approvalDocTitle').textContent = approval.document?.title || '제목 없음';
+                document.getElementById('approvalDocAuthor').textContent = approval.document?.authorName || '알 수 없음';
+                document.getElementById('approvalDocDate').textContent = formatDateTime(approval.document?.createdAt || approval.submittedAt);
+                document.getElementById('approvalStep').textContent = `${approval.stepOrder}단계`;
+                document.getElementById('approvalDocContent').textContent = approval.document?.content || '내용 없음';
+                document.getElementById('approvalComment').value = '';
+
+                // 모달 표시
+                modal.classList.add('show');
+
+            } catch (error) {
+                console.error('결재 모달 열기 오류:', error);
+                alert('결재 정보를 불러올 수 없습니다');
+            }
+        }
+
+        // 결재 모달 닫기
+        function closeApprovalModal() {
+            document.getElementById('approvalModal').classList.remove('show');
+            currentApprovalId = null;
+            currentApprovalAction = null;
+            currentApprovalData = null;
+        }
+
+        // 결재 확인 (승인/반려)
+        async function confirmApproval() {
+            if (!currentApprovalId || !currentApprovalAction) return;
+
+            const comment = document.getElementById('approvalComment').value.trim();
+            const endpoint = currentApprovalAction === 'approve' ? 'approve' : 'reject';
+
+            // 반려 시 의견 필수
+            if (currentApprovalAction === 'reject' && !comment) {
+                alert('반려 사유를 입력해주세요');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/intranet/approvals/${currentApprovalId}/${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comment: comment || '' })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(data.message || (currentApprovalAction === 'approve' ? '승인되었습니다' : '반려되었습니다'));
+                    closeApprovalModal();
+                    loadPendingApprovals();
+                    calendar.refetchEvents();
+                } else {
+                    alert(data.message || '처리에 실패했습니다');
+                }
+            } catch (error) {
+                console.error('결재 처리 오류:', error);
+                alert('서버 오류가 발생했습니다');
+            }
+        }
+
+        // 날짜/시간 포맷 함수
+        function formatDateTime(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleString('ko-KR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // 필터 적용
+        function applyFilters() {
+            console.log('[필터] applyFilters 호출됨');
+            // 필터 값을 세션스토리지에 저장
+            const filters = getActiveFilters();
+            console.log('[필터] 현재 필터 값:', filters);
+            sessionStorage.setItem('scheduleFilters', JSON.stringify(filters));
+
+            // 캘린더 이벤트 새로고침
+            if (calendar) {
+                console.log('[필터] calendar.refetchEvents() 호출');
+                calendar.refetchEvents();
+            } else {
+                console.error('[필터] calendar 객체가 없습니다!');
+            }
+        }
+
+        // 저장된 필터 복원
+        async function restoreSavedFilters() {
+            try {
+                const savedFilters = sessionStorage.getItem('scheduleFilters');
+                if (savedFilters) {
+                    const filters = JSON.parse(savedFilters);
+
+                    // 본부 선택 복원
+                    if (filters.division) {
+                        document.getElementById('filterDivision').value = filters.division;
+                        await handleDivisionChange();
+                    }
+
+                    // 부서 선택 복원
+                    if (filters.department) {
+                        document.getElementById('filterDepartment').value = filters.department;
+                        await handleDepartmentChange();
+                    }
+
+                    // 구성원 선택 복원
+                    if (filters.member) {
+                        document.getElementById('filterMember').value = filters.member;
+                    }
+
+                    applyFilters();
+                    return true; // 복원 성공
+                }
+                return false; // 저장된 필터 없음
+            } catch (error) {
+                console.error('필터 복원 실패:', error);
+                return false;
+            }
+        }
+
+        // 로그인한 사용자 정보 기반으로 기본값 설정
+        async function setDefaultFilters() {
+            try {
+                // 세션에서 사용자 정보 가져오기
+                const response = await fetch('/api/intranet/auth/me');
+                const data = await response.json();
+
+                if (data.success && data.user) {
+                    const userId = data.user.id;
+
+                    // 사용자 상세 정보 조회
+                    const memberResponse = await fetch(`/api/intranet/members/${userId}`);
+                    const member = await memberResponse.json();
+
+                    if (member && member.departmentId) {
+                        // 사용자의 부서 찾기
+                        const userDepartment = allDepartments.find(d => d.id === member.departmentId);
+
+                        if (userDepartment) {
+                            // 상위 본부 찾기
+                            let divisionId = null;
+                            if (userDepartment.parentId === 1) {
+                                // 본인이 본부 소속
+                                divisionId = userDepartment.id;
+                            } else {
+                                // Unit 소속이면 상위 본부 찾기
+                                const parentDept = allDepartments.find(d => d.id === userDepartment.parentId);
+                                if (parentDept && parentDept.parentId === 1) {
+                                    divisionId = parentDept.id;
+                                }
+                            }
+
+                            // 본부 선택
+                            if (divisionId) {
+                                document.getElementById('filterDivision').value = divisionId;
+                                await handleDivisionChange();
+
+                                // 부서 선택
+                                document.getElementById('filterDepartment').value = member.departmentId;
+                                await handleDepartmentChange();
+
+                                // 구성원은 로그인한 사용자로 설정
+                                document.getElementById('filterMember').value = userId;
+                            }
+                        }
+                    }
+
+                    applyFilters();
+                }
+            } catch (error) {
+                console.error('기본 필터 설정 실패:', error);
+            }
+        }
+
+        // 내 일정 보기 (로그인 사용자 기본값으로 복원)
+        async function showMySchedule() {
+            await setDefaultFilters();
+        }
+
+        // 필터 초기화
+        function resetFilters() {
+            document.getElementById('filterDivision').value = '';
+            document.getElementById('filterDepartment').value = '';
+            document.getElementById('filterMember').value = '';
+
+            // 부서 및 구성원 선택 초기화
+            document.getElementById('filterDepartment').innerHTML = '<option value="">전체</option>';
+            document.getElementById('filterMember').innerHTML = '<option value="">전체</option>';
+
+            applyFilters();
+        }
+
+        // 필터 값 가져오기
+        function getActiveFilters() {
+            return {
+                division: document.getElementById('filterDivision').value,
+                department: document.getElementById('filterDepartment').value,
+                member: document.getElementById('filterMember').value
+            };
+        }
+
+        // 세션 체크 및 로그인 리다이렉트
+        async function checkSession() {
+            try {
+                const response = await fetch('/api/intranet/auth/session', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+
+                if (!response.ok || response.status === 401) {
+                    // 세션이 없으면 로그인 페이지로 리다이렉트
+                    window.location.href = '/intranet-login.html';
+                    return false;
+                }
+
+                const data = await response.json();
+                if (!data.authenticated) {
+                    window.location.href = '/intranet-login.html';
+                    return false;
+                }
+
+                return true;
+            } catch (error) {
+                console.error('세션 체크 실패:', error);
+                window.location.href = '/intranet-login.html';
+                return false;
+            }
+        }
+
+        window.addEventListener('load', async () => {
+            // 세션 체크 먼저 수행
+            const isAuthenticated = await checkSession();
+            if (!isAuthenticated) {
+                return; // 세션이 없으면 여기서 중단
+            }
+
+            displayUserInfo();
+            initCalendar();
+            await loadSidebarData();
+            // 구성원은 setDefaultFilters()에서 자동으로 로드됨
+        });
+    </script>
+
+    <!-- 결재 승인/반려 모달 -->
+    <div id="approvalModal" class="approval-modal" onclick="if(event.target === this) closeApprovalModal()">
+        <div class="approval-modal-content">
+            <div class="approval-modal-header" id="approvalModalTitle">결재 승인</div>
+            <div class="approval-modal-body">
+                <div class="approval-info-row">
+                    <div class="approval-info-label">문서 제목</div>
+                    <div class="approval-info-value" id="approvalDocTitle">-</div>
+                </div>
+                <div class="approval-info-row">
+                    <div class="approval-info-label">작성자</div>
+                    <div class="approval-info-value" id="approvalDocAuthor">-</div>
+                </div>
+                <div class="approval-info-row">
+                    <div class="approval-info-label">작성일</div>
+                    <div class="approval-info-value" id="approvalDocDate">-</div>
+                </div>
+                <div class="approval-info-row">
+                    <div class="approval-info-label">결재 단계</div>
+                    <div class="approval-info-value" id="approvalStep">-</div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <div style="font-weight: 600; color: #2d3748; margin-bottom: 8px; font-size: 14px;">문서 내용</div>
+                    <div class="approval-content-box" id="approvalDocContent">-</div>
+                </div>
+
+                <div class="form-group-modal">
+                    <label for="approvalComment">의견 <span style="color: #a0aec0; font-weight: 400;">(선택)</span></label>
+                    <textarea id="approvalComment" placeholder="의견을 입력하세요"></textarea>
+                </div>
+            </div>
+            <div class="approval-modal-footer">
+                <button class="btn-modal-cancel" onclick="closeApprovalModal()">취소</button>
+                <button id="approvalConfirmBtn" class="btn-modal-approve" onclick="confirmApproval()">승인</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

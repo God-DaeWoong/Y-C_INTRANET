@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>팀 휴가 및 일정 관리</title>
+
+  <!-- Google Fonts - Oswald -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap" rel="stylesheet">
+
+  <!-- ✅ Calendar Favicon (SVG, file 없이 사용) -->
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,
+    %3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E
+    %3Crect x='6' y='10' width='52' height='48' rx='12' fill='%235b6cff'/%3E
+    %3Crect x='6' y='18' width='52' height='40' rx='10' fill='%23ffffff'/%3E
+    %3Crect x='6' y='10' width='52' height='14' rx='12' fill='%238b5cf6'/%3E
+    %3Ccircle cx='20' cy='10' r='4' fill='%23ffffff'/%3E
+    %3Ccircle cx='44' cy='10' r='4' fill='%23ffffff'/%3E
+    %3Crect x='18' y='32' width='8' height='8' rx='2' fill='%235b6cff'/%3E
+    %3Crect x='30' y='32' width='8' height='8' rx='2' fill='%23e5e7eb'/%3E
+    %3Crect x='42' y='32' width='8' height='8' rx='2' fill='%23e5e7eb'/%3E
+    %3C/svg%3E">
+
+  <!-- FullCalendar -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet"/>
+
+  <style>
+    :root{
+      --bg:#f0f4f8;
+      --bg2:#ffffff;
+
+      --card:rgba(255,255,255,.95);
+      --border:rgba(15,23,42,.08);
+
+      --text:#1e293b;
+      --muted:#64748b;
+      --text-light:#94a3b8;
+
+      --primary:#6366f1;
+      --primary-dark:#4f46e5;
+      --primary-light:#818cf8;
+      --secondary:#8b5cf6;
+      --info:#06b6d4;
+      --success:#10b981;
+      --warning:#f59e0b;
+      --danger:#ef4444;
+
+      --leave:#ec4899;
+      --schedule:#3b82f6;
+
+      --dept-1:#6366f1;
+      --dept-2:#8b5cf6;
+      --dept-3:#06b6d4;
+      --dept-4:#10b981;
+
+      --r-xl:20px;
+      --r:14px;
+      --r-sm:10px;
+
+      --shadow:0 20px 50px rgba(15,23,42,.12);
+      --shadow2:0 8px 30px rgba(15,23,42,.08);
+      --shadow-sm:0 2px 8px rgba(15,23,42,.06);
+      --focus:0 0 0 4px rgba(99,102,241,.15);
+
+      --transition:all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    *{
+      box-sizing:border-box;
+      margin:0;
+      padding:0;
+    }
+
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",
+        "Apple SD Gothic Neo","Noto Sans KR",Roboto,Arial,sans-serif;
+      color:var(--text);
+      background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+      min-height:100vh;
+      line-height:1.6;
+    }
+
+    .container{
+      max-width:1400px;
+      margin:0 auto;
+      padding:24px;
+      display:flex;
+      gap:24px;
+    }
+
+    /* Sidebar */
+    .sidebar{
+      width:300px;
+      flex-shrink:0;
+    }
+
+    .main-area{
+      flex:1;
+      min-width:0;
+    }
+
+    .sidebar-section{
+      background:var(--card);
+      border-radius:var(--r-xl);
+      padding:20px;
+      box-shadow:var(--shadow);
+      margin-bottom:16px;
+      height:auto;
+    }
+
+    .sidebar-section h3{
+      font-size:16px;
+      font-weight:800;
+      margin:0 0 16px 0;
+      color:var(--text);
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+
+    .approval-badge{
+      background:linear-gradient(135deg,var(--danger),#dc2626);
+      color:white;
+      font-size:12px;
+      font-weight:800;
+      padding:2px 8px;
+      border-radius:12px;
+      min-width:20px;
+      text-align:center;
+    }
+
+    .approval-item{
+      padding:12px;
+      margin-bottom:8px;
+      background:white;
+      border-radius:var(--r-sm);
+      border-left:4px solid var(--warning);
+      cursor:pointer;
+      transition:var(--transition);
+    }
+
+    .approval-item:hover{
+      transform:translateX(4px);
+      box-shadow:var(--shadow-sm);
+    }
+
+    .approval-item-title{
+      font-size:13px;
+      font-weight:700;
+      margin:0 0 4px 0;
+      color:var(--text);
+    }
+
+    .approval-item-info{
+      font-size:11px;
+      color:var(--text-light);
+    }
+
+    .empty-approvals{
+      text-align:center;
+      padding:20px;
+      color:var(--text-light);
+      font-size:12px;
+    }
+
+    /* Header */
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:20px;
+      padding:32px 32px;
+      border-radius:var(--r-xl);
+      background:var(--card);
+      backdrop-filter:blur(10px);
+      box-shadow:var(--shadow);
+      margin-bottom:24px;
+    }
+
+    header h1{
+      font-size:24px;
+      font-weight:800;
+      letter-spacing:-0.5px;
+      display:flex;
+      align-items:center;
+      gap:12px;
+      background:linear-gradient(135deg,var(--primary),var(--secondary));
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      background-clip:text;
+    }
+    header h1::before{
+      content:"📅";
+      font-size:28px;
+      -webkit-text-fill-color:initial;
+    }
+
+    .header-controls{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      align-items:center;
+    }
+
+    .view-toggle{
+      display:flex;
+      gap:8px;
+      padding:4px;
+      background:var(--bg);
+      border-radius:12px;
+      margin-right:12px;
+    }
+
+    .view-toggle button{
+      padding:8px 16px;
+      border:none;
+      background:transparent;
+      border-radius:8px;
+      font-size:13px;
+      font-weight:700;
+      cursor:pointer;
+      color:var(--muted);
+      transition:var(--transition);
+    }
+
+    .view-toggle button.active{
+      background:white;
+      color:var(--primary);
+      box-shadow:var(--shadow-sm);
+    }
+
+    /* Inputs */
+    select,input,textarea{
+      border:2px solid var(--border);
+      border-radius:12px;
+      padding:10px 16px;
+      font-size:14px;
+      font-weight:500;
+      background:white;
+      color:var(--text);
+      outline:none;
+      transition:var(--transition);
+      box-shadow:var(--shadow-sm);
+    }
+    select{
+      cursor:pointer;
+      appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;
+      background-position:right 12px center;
+      padding-right:36px;
+    }
+    textarea{border-radius:var(--r);}
+    select:hover,input:hover,textarea:hover{
+      border-color:var(--primary-light);
+    }
+    select:focus,input:focus,textarea:focus{
+      border-color:var(--primary);
+      box-shadow:var(--focus);
+    }
+
+    /* Buttons */
+    .btn{
+      border-radius:12px;
+      padding:10px 20px;
+      font-size:14px;
+      font-weight:700;
+      cursor:pointer;
+      border:none;
+      transition:var(--transition);
+      box-shadow:var(--shadow-sm);
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+    }
+    .btn:hover{
+      transform:translateY(-2px);
+      box-shadow:var(--shadow2);
+    }
+    .btn:active{
+      transform:translateY(0);
+    }
+    .btn-primary{
+      background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+      color:white;
+    }
+    .btn-primary:hover{
+      background:linear-gradient(135deg,var(--primary-dark),var(--primary));
+    }
+    .btn-secondary{
+      background:white;
+      color:var(--text);
+      border:2px solid var(--border);
+    }
+    .btn-secondary:hover{
+      border-color:var(--primary);
+      color:var(--primary);
+    }
+    .btn-info{
+      background:linear-gradient(135deg,var(--info),#0891b2);
+      color:white;
+    }
+    .btn-success{
+      background:linear-gradient(135deg,var(--success),#059669);
+      color:white;
+    }
+    .btn-danger{
+      background:linear-gradient(135deg,var(--danger),#dc2626);
+      color:white;
+    }
+
+    /* Main */
+    .main-content{
+      background:var(--card);
+      border-radius:var(--r-xl);
+      box-shadow:var(--shadow);
+      padding:24px;
+      min-height:600px;
+    }
+
+    #teamView{
+      display:none;
+    }
+
+    #teamView.active{
+      display:block;
+    }
+
+    /* FullCalendar */
+    .fc{
+      --fc-border-color:var(--border);
+      --fc-page-bg-color:transparent;
+      --fc-today-bg-color:rgba(99,102,241,.1);
+      --fc-button-bg-color:white;
+      --fc-button-text-color:var(--text);
+      --fc-button-border-color:var(--border);
+      --fc-button-active-bg-color:var(--primary);
+      --fc-button-active-text-color:white;
+      --fc-button-hover-bg-color:var(--bg);
+    }
+
+    .fc .fc-button{
+      border-radius:10px;
+      font-weight:700;
+      text-transform:none;
+      padding:8px 16px;
+      transition:var(--transition);
+    }
+
+    .fc-button-group > button{
+      border-color:#6366f1;
+    }
+
+    .fc-event{
+      border:none;
+      border-radius:8px;
+      font-size:12px;
+      font-weight:700;
+      padding:4px 8px;
+      cursor:pointer;
+      transition:var(--transition);
+    }
+
+    .fc-event:hover{
+      transform:scale(1.02);
+      box-shadow:var(--shadow-sm);
+    }
+
+    /* 리스트 이벤트 호버 효과 제거 */
+    .fc .fc-list-event:hover td{
+      background-color:transparent !important;
+    }
+
+    /* 리스트 이벤트 스타일 */
+    .fc-event.fc-list-event{
+      color:#5f5f5f;
+    }
+
+    /* 리스트 이벤트 dot 원상복구 */
+    .fc-list-event-dot{
+      border:calc(var(--fc-list-event-dot-width) / 2) solid var(--fc-event-border-color);
+      border-radius:calc(var(--fc-list-event-dot-width) / 2);
+      background-color:var(--fc-event-bg-color);
+    }
+
+    /* 연차 dot 색상 */
+    .event-full-day .fc-list-event-dot{
+      background-color:rgb(236, 72, 153) !important;
+      border-color:rgb(236, 72, 153) !important;
+    }
+
+    /* 반차 dot 색상 */
+    .event-half-day .fc-list-event-dot{
+      background-color:rgba(76, 91, 106, 0.5) !important;
+      border-color:rgba(76, 91, 106, 0.5) !important;
+    }
+
+    /* 회의 dot 색상 */
+    .event-meeting .fc-list-event-dot{
+      background-color:rgb(59, 130, 246) !important;
+      border-color:rgb(59, 130, 246) !important;
+    }
+
+    /* 반려/취소 dot 색상 */
+    .event-rejected .fc-list-event-dot{
+      background-color:rgba(76, 91, 106, 0.5) !important;
+      border-color:rgba(76, 91, 106, 0.5) !important;
+    }
+
+    /* .v span에 Oswald 폰트 적용 */
+    .v span{
+      font-family:"Oswald", sans-serif;
+      font-optical-sizing:auto;
+      font-weight:bold;
+      font-style:normal;
+    }
+
+    .fc-daygrid-day.fc-day-today{
+      background:rgba(99,102,241,.05) !important;
+    }
+
+    .fc-highlight{
+      background:rgba(99,102,241,.15) !important;
+      opacity:0.8;
+    }
+
+    .fc-daygrid-day:hover{
+      background:rgba(99,102,241,.05);
+      cursor:pointer;
+    }
+
+    /* Legend */
+    .legend{
+      margin-top:24px;
+      display:flex;
+      gap:16px;
+      flex-wrap:wrap;
+      background:var(--card);
+      border-radius:var(--r);
+      padding:20px 24px;
+      box-shadow:var(--shadow-sm);
+      align-items:center;
+    }
+    .legend-item{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:13px;
+      font-weight:600;
+      color:var(--text);
+    }
+    .legend-color{
+      width:12px;
+      height:12px;
+      border-radius:4px;
+      box-shadow:var(--shadow-sm);
+    }
+    .leave-color{background:linear-gradient(135deg,var(--leave),#f472b6);}
+    .schedule-color{background:linear-gradient(135deg,var(--schedule),#60a5fa);}
+    .legend-status{
+      padding:6px 14px;
+      border-radius:8px;
+      font-size:12px;
+      font-weight:700;
+      box-shadow:var(--shadow-sm);
+    }
+    .legend-status.submitted{
+      background:#e0f2fe;
+      color:#0369a1;
+    }
+    .legend-status.approved{
+      background:#d1fae5;
+      color:#065f46;
+    }
+    .legend-status.rejected{
+      background:#fee2e2;
+      color:#991b1b;
+    }
+
+    /* Modal */
+    .modal{
+      display:none;
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.25);
+      z-index:999;
+      padding:20px;
+      overflow-y:auto;
+    }
+    .modal.show{display:block;}
+    .modal-content{
+      background:#fff;
+      border-radius:var(--r-xl);
+      max-width:720px;
+      max-height:calc(100vh - 80px);
+      margin:40px auto;
+      padding:18px;
+      box-shadow:0 30px 80px rgba(0,0,0,.25);
+      position:relative;
+      overflow-y:auto;
+    }
+    .close{
+      position:absolute;
+      top:12px;
+      right:14px;
+      cursor:pointer;
+      font-size:22px;
+      color:#64748b;
+    }
+
+    .form-group{margin-bottom:12px;}
+    .form-group label{
+      display:block;
+      font-size:12px;
+      font-weight:800;
+      margin-bottom:4px;
+    }
+
+    .form-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+      padding-top:12px;
+      border-top:1px solid var(--border);
+    }
+
+    /* Team View */
+    .team-section{
+      margin-bottom:32px;
+    }
+
+    .team-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:16px 20px;
+      background:linear-gradient(135deg,var(--primary),var(--secondary));
+      border-radius:var(--r);
+      margin-bottom:16px;
+      cursor:pointer;
+      transition:var(--transition);
+    }
+
+    .team-header:hover{
+      transform:translateY(-2px);
+      box-shadow:var(--shadow2);
+    }
+
+    .team-header h3{
+      color:white;
+      font-size:18px;
+      font-weight:800;
+      margin:0;
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+
+    .team-badge{
+      background:rgba(255,255,255,.2);
+      color:white;
+      padding:4px 12px;
+      border-radius:20px;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    .team-content{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+      gap:16px;
+      padding:0 8px;
+    }
+
+    .team-content.collapsed{
+      display:none;
+    }
+
+    .member-card{
+      background:white;
+      border-radius:var(--r);
+      padding:16px;
+      box-shadow:var(--shadow-sm);
+      border:2px solid var(--border);
+      transition:var(--transition);
+    }
+
+    .member-card:hover{
+      border-color:var(--primary);
+      box-shadow:var(--shadow2);
+      transform:translateY(-4px);
+    }
+
+    .member-card-header{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      margin-bottom:12px;
+      padding-bottom:12px;
+      border-bottom:2px solid var(--bg);
+    }
+
+    .member-avatar{
+      width:40px;
+      height:40px;
+      border-radius:50%;
+      background:linear-gradient(135deg,var(--primary),var(--secondary));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:white;
+      font-weight:800;
+      font-size:16px;
+    }
+
+    .member-info h4{
+      font-size:15px;
+      font-weight:800;
+      color:var(--text);
+      margin:0 0 4px 0;
+    }
+
+    .member-info p{
+      font-size:12px;
+      color:var(--text-light);
+      margin:0;
+    }
+
+    .event-list{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    .event-item{
+      background:var(--bg);
+      padding:10px 12px;
+      border-radius:8px;
+      border-left:4px solid var(--primary);
+      transition:var(--transition);
+    }
+
+    .event-item:hover{
+      background:#e8eaf6;
+      transform:translateX(4px);
+    }
+
+    .event-item.leave{
+      border-left-color:var(--leave);
+    }
+
+    .event-item.schedule{
+      border-left-color:var(--schedule);
+    }
+
+    .event-title{
+      font-size:13px;
+      font-weight:700;
+      color:var(--text);
+      margin:0 0 4px 0;
+    }
+
+    .event-date{
+      font-size:11px;
+      color:var(--text-light);
+      margin:0;
+    }
+
+    .empty-state{
+      text-align:center;
+      padding:40px 20px;
+      color:var(--text-light);
+    }
+
+    .empty-state-icon{
+      font-size:48px;
+      margin-bottom:12px;
+      opacity:0.5;
+    }
+
+    /* Member Management */
+    .member-item{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:16px;
+      margin-bottom:12px;
+      background:white;
+      border-radius:var(--r);
+      border:2px solid var(--border);
+      transition:var(--transition);
+    }
+
+    .member-item:hover{
+      border-color:var(--primary);
+      box-shadow:var(--shadow-sm);
+      transform:translateX(4px);
+    }
+
+    .member-info h4{
+      font-size:16px;
+      font-weight:800;
+      margin:0 0 6px 0;
+      color:var(--text);
+    }
+
+    .member-info p{
+      font-size:13px;
+      color:var(--text-light);
+      margin:0;
+    }
+
+    .member-actions{
+      display:flex;
+      gap:8px;
+    }
+
+    /* Leave Balance */
+    .balance-item{
+      padding:20px;
+      margin-bottom:16px;
+      background:white;
+      border-radius:var(--r);
+      border:2px solid var(--border);
+      transition:var(--transition);
+    }
+
+    .balance-item:hover{
+      border-color:var(--primary);
+      box-shadow:var(--shadow2);
+      transform:translateY(-2px);
+    }
+
+    .balance-item h4{
+      font-size:16px;
+      font-weight:800;
+      margin:0 0 16px 0;
+      color:var(--text);
+    }
+
+    .balance-info{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:16px;
+    }
+
+    .balance-stat{
+      text-align:center;
+      padding:16px;
+      border-radius:var(--r-sm);
+      background:var(--bg);
+    }
+
+    .balance-stat.granted{
+      background:linear-gradient(135deg,#dbeafe,#e0f2fe);
+    }
+
+    .balance-stat.used{
+      background:linear-gradient(135deg,#fce7f3,#fce7f3);
+    }
+
+    .balance-stat.remaining{
+      background:linear-gradient(135deg,#d1fae5,#d1fae5);
+    }
+
+    .balance-stat .label{
+      display:block;
+      font-size:12px;
+      font-weight:700;
+      color:var(--text-light);
+      margin-bottom:8px;
+    }
+
+    .balance-stat .value{
+      display:block;
+      font-size:24px;
+      font-weight:800;
+      color:var(--text);
+    }
+
+    /* Schedule Tabs */
+    .schedule-tabs{
+      display:flex;
+      gap:4px;
+      background:var(--bg);
+      padding:4px;
+      border-radius:10px;
+    }
+
+    .schedule-tab{
+      flex:1;
+      padding:8px 12px;
+      background:transparent;
+      border:none;
+      border-radius:8px;
+      font-size:13px;
+      font-weight:600;
+      color:var(--muted);
+      cursor:pointer;
+      transition:var(--transition);
+    }
+
+    .schedule-tab:hover{
+      background:rgba(99,102,241,0.1);
+      color:var(--primary);
+    }
+
+    .schedule-tab.active{
+      background:var(--primary);
+      color:white;
+      box-shadow:0 2px 8px rgba(99,102,241,0.3);
+    }
+
+    @media(max-width:720px){
+      header{
+        flex-direction:column;
+        align-items:flex-start;
+        padding:20px;
+      }
+      .header-controls{
+        width:100%;
+      }
+      .btn{
+        width:100%;
+      }
+      .team-content{
+        grid-template-columns:1fr;
+      }
+      .view-toggle{
+        width:100%;
+        margin:0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <!-- 내 일정 보기 -->
+    <div class="sidebar-section">
+      <h3 style="margin: 0 0 12px 0;">📅 내 일정 보기</h3>
+      <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+        <a href="#" id="expenseReportLink"
+           style="flex: 1; padding: 8px 10px; background: linear-gradient(135deg, #10b981, #059669); color: white;
+                  text-decoration: none; border-radius: 8px; font-size: 11px; font-weight: 700;
+                  text-align: center; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+                  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); white-space: nowrap;"
+           onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(16, 185, 129, 0.4)';"
+           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(16, 185, 129, 0.3)';">
+          💰 지출보고서
+        </a>
+        <a href="http://70.90.150.126:8080/map.html" target="_blank"
+           style="flex: 1; padding: 8px 10px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white;
+                  text-decoration: none; border-radius: 8px; font-size: 11px; font-weight: 700;
+                  text-align: center; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+                  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); white-space: nowrap;"
+           onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(245, 158, 11, 0.4)';"
+           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(245, 158, 11, 0.3)';">
+          🍽️ 맛집 찾기
+        </a>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <select id="myScheduleParentDept" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 8px;">
+          <option value="">전체 본부</option>
+        </select>
+        <select id="myScheduleChildDept" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 8px;">
+          <option value="">전체 팀</option>
+        </select>
+        <select id="myScheduleMember" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+          <option value="">전체 멤버</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 결재 대기 -->
+    <div class="sidebar-section">
+      <h3>
+        📋 결재 대기
+        <span id="approvalCount" class="approval-badge">0</span>
+      </h3>
+      <div id="approvalList">
+        <div class="empty-approvals">결재 요청이 없습니다</div>
+      </div>
+    </div>
+
+    <!-- 내 일정 목록 -->
+    <div class="sidebar-section" style="height: auto; display: flex; flex-direction: column; margin-bottom: 0; max-height: 731px;">
+      <h3 id="scheduleListTitle">📝 일정</h3>
+
+      <!-- Tabs -->
+      <div class="schedule-tabs" id="scheduleTabs" style="display: none;">
+        <button class="schedule-tab active" data-tab="member">개인</button>
+        <button class="schedule-tab" data-tab="team">팀</button>
+        <button class="schedule-tab" data-tab="dept">본부</button>
+      </div>
+
+      <!-- Tab Contents -->
+      <div id="myScheduleList" style="flex: 1; display: flex; flex-direction: column; padding-top: 8px; overflow-y: auto;">
+        <div class="empty-approvals">멤버를 선택해주세요</div>
+      </div>
+    </div>
+   </aside> 
+
+  <!-- Main Area -->
+  <div class="main-area">
+    <header>
+      <h1>팀 휴가 및 일정 관리</h1>
+      <div class="header-controls">
+        <div class="view-toggle">
+          <button id="btnCalendarView" class="active">달력</button>
+          <button id="btnTeamView">팀별</button>
+        </div>
+        <button id="btnNewEvent" class="btn btn-primary">+ 새 일정</button>
+        <button id="btnManageMembers" class="btn btn-secondary">👥 멤버 관리</button>
+        <button id="btnLeaveBalance" class="btn btn-info">📊 휴가 현황</button>
+      </div>
+    </header>
+
+    <div class="main-content">
+      <div id="calendarView">
+        <div id="calendar"></div>
+      </div>
+      <div id="teamView"></div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="legend-color leave-color"></span>휴가</div>
+      <div class="legend-item"><span class="legend-color schedule-color"></span>일정</div>
+      <div class="legend-item"><span class="legend-status">초안</span></div>
+      <div class="legend-item"><span class="legend-status submitted">제출</span></div>
+      <div class="legend-item"><span class="legend-status approved">승인</span></div>
+      <div class="legend-item"><span class="legend-status rejected">반려</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Event Modal -->
+<div id="eventModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2 id="modalTitle">일정 관리</h2>
+    <form id="eventForm">
+      <input type="hidden" id="eventId"/>
+      <div class="form-group">
+        <label>상위 부서</label>
+        <select id="eventParentDept"></select>
+      </div>
+      <div class="form-group">
+        <label>하위 부서</label>
+        <select id="eventChildDept"></select>
+      </div>
+      <div class="form-group">
+        <label>멤버</label>
+        <select id="eventMember" required></select>
+      </div>
+      <div class="form-group">
+        <label>유형</label>
+        <select id="eventType" required>
+          <option value="LEAVE">휴가</option>
+          <option value="SCHEDULE">일정</option>
+          <option value="EXPENSE">지출보고서</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>세부 유형</label>
+        <select id="eventSubtype" required>
+          <option value="연차">연차</option>
+          <option value="반차">반차</option>
+          <option value="병가">병가</option>
+          <option value="회의">회의</option>
+          <option value="출장">출장</option>
+        </select>
+      </div>
+       <div style="display: flex; gap: 10px; margin-bottom: 5px;">
+        <div style="display: flex; flex-direction: column;">
+          <label style="margin-bottom: 5px; font-weight: 600; color: #555; font-size: 14px;">시작일</label>
+          <input type="date" id="eventStartDate" required style="padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"/>
+        </div>
+       <div style="display: flex; flex-direction: column;">
+          <label style="margin-bottom: 5px; font-weight: 600; color: #555; font-size: 14px;">종료일</label>
+          <input type="date" id="eventEndDate" required style="padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"/>
+        </div>
+      </div>
+      <div id="timeGroup" style="display:none; gap: 10px; margin-bottom: 15px;">
+        <div style="display: flex; flex-direction: column;">
+          <label style="margin-bottom: 5px; font-weight: 600; color: #555; font-size: 14px;">시작 시간</label>
+          <input type="time" id="eventStartTime" style="padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"/>
+        </div>
+       <div style="display: flex; flex-direction: column;" id="endTimeGroup">
+          <label style="margin-bottom: 5px; font-weight: 600; color: #555; font-size: 14px;">종료 시간</label>
+          <input type="time" id="eventEndTime" style="padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"/>
+        </div>
+      </div>
+      <div class="form-group" id="leaveAmountGroup">
+        <label>사용 일수</label>
+        <input type="number" id="eventLeaveAmount" step="0.5" min="0"/>
+      </div>
+
+      <!-- 지출보고서 전용 필드 -->
+      <div id="expenseFieldsGroup" style="display:none;">
+        <div class="form-group">
+          <label>사용일자 *</label>
+          <input type="date" id="expenseUsageDate" />
+        </div>
+        <div class="form-group">
+          <label>업소명</label>
+          <input type="text" id="expenseVendor" placeholder="예: 스타벅스" />
+        </div>
+        <div class="form-group">
+          <label>금액 *</label>
+          <input type="number" id="expenseAmount" min="0" step="1" />
+        </div>
+        <div class="form-group">
+          <label>계정 *</label>
+          <select id="expenseAccount">
+            <option value="">선택하세요</option>
+            <option value="야특근식비">야특근식비</option>
+            <option value="회식비">회식비</option>
+            <option value="접대비">접대비</option>
+            <option value="교통비">교통비</option>
+            <option value="통신비">통신비</option>
+            <option value="사무비">사무비</option>
+            <option value="출장일비">출장일비</option>
+            <option value="복리후생비">복리후생비</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>경비코드</label>
+          <select id="expenseCostCode">
+            <option value="">선택하세요</option>
+            <option value="법인(법인)">법인(법인)</option>
+            <option value="법인(개인)">법인(개인)</option>
+            <option value="개인(개인)">개인(개인)</option>
+            <option value="현금">현금</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>프로젝트코드</label>
+          <input type="text" id="expenseProjectCode" value="PJ00000000" />
+        </div>
+        <div class="form-group">
+          <label>사용 내용 *</label>
+          <input type="text" id="expenseDescription" placeholder="예: 점심 식사" />
+        </div>
+        <div class="form-group">
+          <label>메모</label>
+          <textarea id="expenseNote" rows="3" placeholder="7만원 이상 비용 발생 시 사용 용도/참석자 기입"></textarea>
+        </div>
+      </div>
+
+      <div class="form-group" id="titleGroup">
+        <label>제목</label>
+        <input type="text" id="eventTitle" required/>
+      </div>
+      <div class="form-group" id="descriptionGroup">
+        <label>설명</label>
+        <textarea id="eventDescription" rows="3"></textarea>
+      </div>
+
+      <!-- 결재 정보 영역 -->
+      <div id="approvalSection" style="display:none; margin-top:20px; padding:16px; background:#f8f9fa; border-radius:8px;">
+        <h3 style="font-size:14px; font-weight:700; margin:0 0 12px 0; color:var(--text);">결재 정보</h3>
+        <div id="approvalInfo"></div>
+        <div id="approvalActions" style="display:none; margin-top:12px; gap:8px;">
+          <button type="button" id="btnApprove" class="btn btn-success">승인</button>
+          <button type="button" id="btnReject" class="btn btn-danger">반려</button>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" id="btnDeleteEvent" class="btn btn-danger" style="display:none;">삭제</button>
+        <button type="button" id="btnRequestCancellation" class="btn btn-warning" style="display:none;">취소 신청</button>
+        <button type="button" id="btnCloseEventModal" class="btn btn-secondary">취소</button>
+        <button type="submit" class="btn btn-primary">저장</button>
+        <button type="button" id="btnSubmitEvent" class="btn btn-success" style="display:none;">결재 요청</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Member Modal -->
+<div id="memberModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>멤버 관리</h2>
+    <button id="btnAddMember" class="btn btn-primary" style="margin-bottom:12px;">멤버 추가</button>
+    <div id="memberList"></div>
+  </div>
+</div>
+
+<!-- Add/Edit Member Modal -->
+<div id="addMemberModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2 id="memberModalTitle">멤버 추가</h2>
+    <form id="memberForm">
+      <input type="hidden" id="memberId"/>
+      <div class="form-group">
+        <label>이름</label>
+        <input type="text" id="memberName" required/>
+      </div>
+      <div class="form-group">
+        <label>상위 부서</label>
+        <select id="memberParentDept" required></select>
+      </div>
+      <div class="form-group">
+        <label>하위 부서</label>
+        <select id="memberChildDept" required></select>
+      </div>
+      <div class="form-group">
+        <label>직급</label>
+        <input type="text" id="memberPosition" required/>
+      </div>
+      <div class="form-group">
+        <label>입사일</label>
+        <input type="date" id="memberHireDate"/>
+      </div>
+      <div class="form-group">
+        <label>이메일</label>
+        <input type="email" id="memberEmail" required/>
+      </div>
+      <div class="form-group">
+        <label>전화번호</label>
+        <input type="text" id="memberPhone"/>
+      </div>
+      <div class="form-group">
+        <label>연차 일수</label>
+        <input type="number" id="memberAnnualLeave" step="0.5" min="0" value="15" required/>
+      </div>
+      <div class="form-group">
+        <label>SMTP 비밀번호 (이메일 발송용)</label>
+        <input type="password" id="memberSmtpPassword" placeholder="이메일 발송 시 사용할 SMTP 비밀번호"/>
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="memberIsActive" checked/>
+          활성 상태
+        </label>
+      </div>
+      <div class="form-actions">
+        <button type="button" id="btnCancelMember" class="btn btn-secondary">취소</button>
+        <button type="submit" class="btn btn-primary">저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Leave Balance Modal -->
+<div id="leaveBalanceModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>휴가 현황</h2>
+    <div style="margin-bottom:12px;">
+      <label>조회 연도: </label>
+      <input type="number" id="balanceYear" value="2025" min="2020" max="2030" style="width:100px;"/>
+      <button id="btnLoadBalance" class="btn btn-primary">조회</button>
+    </div>
+    <div id="leaveBalanceList"></div>
+  </div>
+</div>
+
+<!-- FullCalendar -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+
+<!-- 기존 JS 그대로 연결 -->
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+// 지출보고서 링크 클릭 시 현재 선택된 본부/팀/멤버 정보 전달
+document.getElementById('expenseReportLink')?.addEventListener('click', function(e) {
+  e.preventDefault();
+
+  const parentDeptId = document.getElementById('myScheduleParentDept')?.value;
+  const childDeptId = document.getElementById('myScheduleChildDept')?.value;
+  const memberId = document.getElementById('myScheduleMember')?.value;
+
+  // sessionStorage에 현재 선택값 저장
+  if(parentDeptId) sessionStorage.setItem('selectedParentDepartmentId', parentDeptId);
+  if(childDeptId) sessionStorage.setItem('selectedDepartmentId', childDeptId);
+  if(memberId) sessionStorage.setItem('selectedMemberId', memberId);
+
+  // 지출보고서 페이지로 이동
+  window.location.href = 'expense-report.html';
+});
+</script>
+</body>
+</html>

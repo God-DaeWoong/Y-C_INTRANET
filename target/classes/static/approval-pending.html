@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>결재 대기함 - Y&C Intranet</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f7fafc;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left h1 {
+            color: #667eea;
+            font-size: 24px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .btn-logout {
+            padding: 8px 16px;
+            background: #f56565;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-logout:hover {
+            background: #e53e3e;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 16px;
+        }
+
+        .page-header {
+            margin-bottom: 32px;
+        }
+
+        .page-header h2 {
+            color: #2d3748;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: #718096;
+            font-size: 16px;
+        }
+
+        .approval-list {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .approval-item {
+            padding: 24px;
+            border-bottom: 1px solid #edf2f7;
+            transition: background 0.2s ease;
+        }
+
+        .approval-item:last-child {
+            border-bottom: none;
+        }
+
+        .approval-item:hover {
+            background: #f7fafc;
+        }
+
+        .approval-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .approval-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .approval-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 14px;
+            color: #718096;
+            margin-bottom: 12px;
+        }
+
+        .approval-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .approval-content {
+            color: #4a5568;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .approval-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-approve {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-approve:hover {
+            background: #38a169;
+        }
+
+        .btn-reject {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-reject:hover {
+            background: #e53e3e;
+        }
+
+        .btn-detail {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-detail:hover {
+            background: #5a67d8;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-pending {
+            background: #fef5e7;
+            color: #d69e2e;
+        }
+
+        .badge-step {
+            background: #e6f7ff;
+            color: #2c5aa0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 64px 24px;
+            color: #a0aec0;
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 16px;
+        }
+
+        .modal-body {
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #2d3748;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .btn-cancel {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+
+        .btn-cancel:hover {
+            background: #cbd5e0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 48px;
+            color: #718096;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <h1 onclick="location.href='/intranet-main.html'">Y&C Intranet</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">U</div>
+            </div>
+            <button class="btn-logout" onclick="logout()">로그아웃</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>결재 대기함</h2>
+            <p>승인 또는 반려가 필요한 문서 목록입니다</p>
+        </div>
+
+        <div id="approvalList" class="approval-list">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <p style="margin-top: 16px;">로딩 중...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 승인/반려 모달 -->
+    <div id="approvalModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="modalTitle">결재 승인</div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="comment">의견 (선택)</label>
+                    <textarea id="comment" placeholder="의견을 입력하세요"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cancel" onclick="closeModal()">취소</button>
+                <button class="btn" id="modalConfirmBtn" onclick="confirmAction()">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentApprovalId = null;
+        let currentAction = null;
+
+        function checkLogin() {
+            const user = sessionStorage.getItem('user');
+            if (!user) {
+                window.location.href = '/intranet-login.html';
+                return null;
+            }
+            return JSON.parse(user);
+        }
+
+        function displayUserInfo() {
+            const user = checkLogin();
+            if (!user) return;
+            const initial = user.name.charAt(0);
+            document.getElementById('userAvatar').textContent = initial;
+        }
+
+        async function loadApprovals() {
+            try {
+                const response = await fetch('/api/intranet/approvals/pending');
+                const data = await response.json();
+
+                const listContainer = document.getElementById('approvalList');
+
+                if (!data.success || !data.approvals || data.approvals.length === 0) {
+                    listContainer.innerHTML = `
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <p>대기 중인 결재가 없습니다</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                listContainer.innerHTML = data.approvals.map(approval => `
+                    <div class="approval-item">
+                        <div class="approval-header">
+                            <div>
+                                <div class="approval-title">${approval.document?.title || '제목 없음'}</div>
+                                <div class="approval-meta">
+                                    <span>📝 작성자: ${approval.document?.authorName || '알 수 없음'}</span>
+                                    <span>🔢 문서번호: #${approval.documentId}</span>
+                                    <span>📅 ${formatDate(approval.document?.createdAt || approval.submittedAt)}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <span class="badge badge-step">${approval.stepOrder}단계</span>
+                                <span class="badge badge-pending">대기중</span>
+                            </div>
+                        </div>
+                        <div class="approval-content">
+                            ${approval.document?.content ? approval.document.content.substring(0, 150) + '...' : '내용 없음'}
+                        </div>
+                        <div class="approval-actions">
+                            <button class="btn btn-approve" onclick="openApprovalModal(${approval.id}, 'approve')">
+                                ✓ 승인
+                            </button>
+                            <button class="btn btn-reject" onclick="openApprovalModal(${approval.id}, 'reject')">
+                                ✗ 반려
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error('결재 목록 조회 실패:', error);
+                document.getElementById('approvalList').innerHTML = `
+                    <div class="empty-state">
+                        <p>데이터를 불러올 수 없습니다</p>
+                    </div>
+                `;
+            }
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ko-KR');
+        }
+
+        function openApprovalModal(approvalId, action) {
+            currentApprovalId = approvalId;
+            currentAction = action;
+
+            const modal = document.getElementById('approvalModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const confirmBtn = document.getElementById('modalConfirmBtn');
+
+            if (action === 'approve') {
+                modalTitle.textContent = '결재 승인';
+                confirmBtn.textContent = '승인';
+                confirmBtn.className = 'btn btn-approve';
+            } else {
+                modalTitle.textContent = '결재 반려';
+                confirmBtn.textContent = '반려';
+                confirmBtn.className = 'btn btn-reject';
+            }
+
+            document.getElementById('comment').value = '';
+            modal.classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('approvalModal').classList.remove('show');
+            currentApprovalId = null;
+            currentAction = null;
+        }
+
+        async function confirmAction() {
+            if (!currentApprovalId || !currentAction) return;
+
+            const comment = document.getElementById('comment').value.trim();
+            const endpoint = currentAction === 'approve' ? 'approve' : 'reject';
+
+            try {
+                const response = await fetch(`/api/intranet/approvals/${currentApprovalId}/${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ comment: comment || '' })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(data.message);
+                    closeModal();
+                    loadApprovals();
+                } else {
+                    alert(data.message || '처리에 실패했습니다');
+                }
+            } catch (error) {
+                console.error('결재 처리 오류:', error);
+                alert('서버 오류가 발생했습니다');
+            }
+        }
+
+        async function logout() {
+            if (!confirm('로그아웃 하시겠습니까?')) return;
+            try {
+                await fetch('/api/intranet/auth/logout', { method: 'POST' });
+            } catch (error) {
+                console.error('로그아웃 오류:', error);
+            } finally {
+                sessionStorage.removeItem('user');
+                window.location.href = '/intranet-login.html';
+            }
+        }
+
+        window.addEventListener('load', () => {
+            displayUserInfo();
+            loadApprovals();
+        });
+
+        // 모달 외부 클릭시 닫기
+        document.getElementById('approvalModal').addEventListener('click', (e) => {
+            if (e.target.id === 'approvalModal') {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>

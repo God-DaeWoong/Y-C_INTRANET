@@ -1,0 +1,53 @@
+server:
+  port: 8083
+
+spring:
+  datasource:
+    url: jdbc:oracle:thin:@localhost:1522/XEPDB1
+    username: system
+    password: ync1234!
+    driver-class-name: oracle.jdbc.OracleDriver
+    hikari:
+      maximum-pool-size: 10
+
+  mail:
+    host: smtp.worksmobile.com
+    port: 465
+    username: moods2@yncsmart.com
+    password: yj4R4r5uLJYA
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          ssl:
+            enable: true
+          socketFactory:
+            class: javax.net.ssl.SSLSocketFactory
+            fallback: false
+            port: 465
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.ync.schedule.domain,com.ync.intranet.domain
+  configuration:
+    map-underscore-to-camel-case: true
+
+# 네이버웍스 OAuth 설정
+naverworks:
+  oauth:
+    client-id: PvaWvlQ6uWrTwFJIpHdw
+    client-secret: eDFdM8LQaH
+    redirect-uri: https://partridgelike-emilie-calorescent.ngrok-free.dev/api/intranet/auth/naver-works/callback
+    authorization-uri: https://auth.worksmobile.com/oauth2/v2.0/authorize
+    token-uri: https://auth.worksmobile.com/oauth2/v2.0/token
+    user-info-uri: https://www.worksapis.com/v1.0/users/me
+
+logging:
+  level:
+    org.mybatis: DEBUG
+    org.springframework.jdbc.core: DEBUG
+    com.ync.schedule: DEBUG
+    com.ync.intranet: DEBUG

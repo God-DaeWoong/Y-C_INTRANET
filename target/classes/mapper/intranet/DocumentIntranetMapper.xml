@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.intranet.mapper.DocumentIntranetMapper">
+
+    <resultMap id="DocumentIntranetResultMap" type="com.ync.intranet.domain.DocumentIntranet">
+        <id property="id" column="id"/>
+        <result property="documentType" column="document_type"/>
+        <result property="authorId" column="author_id"/>
+        <result property="authorName" column="author_name"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="status" column="status"/>
+        <result property="metadata" column="metadata"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="submittedAt" column="submitted_at"/>
+        <result property="approvedAt" column="approved_at"/>
+    </resultMap>
+
+    <!-- 문서 조회 (ID) -->
+    <select id="findById" resultMap="DocumentIntranetResultMap">
+        SELECT d.*, m.name as author_name
+        FROM documents_intranet d
+        LEFT JOIN members_intranet m ON d.author_id = m.id
+        WHERE d.id = #{id}
+    </select>
+
+    <!-- 작성자별 문서 조회 -->
+    <select id="findByAuthorId" resultMap="DocumentIntranetResultMap">
+        SELECT d.*, m.name as author_name
+        FROM documents_intranet d
+        LEFT JOIN members_intranet m ON d.author_id = m.id
+        WHERE d.author_id = #{authorId}
+        ORDER BY d.created_at DESC
+    </select>
+
+    <!-- 문서 유형별 조회 -->
+    <select id="findByDocumentType" resultMap="DocumentIntranetResultMap">
+        SELECT d.*, m.name as author_name
+        FROM documents_intranet d
+        LEFT JOIN members_intranet m ON d.author_id = m.id
+        WHERE d.document_type = #{documentType}
+        ORDER BY d.created_at DESC
+    </select>
+
+    <!-- 상태별 문서 조회 -->
+    <select id="findByStatus" resultMap="DocumentIntranetResultMap">
+        SELECT d.*, m.name as author_name
+        FROM documents_intranet d
+        LEFT JOIN members_intranet m ON d.author_id = m.id
+        WHERE d.status = #{status}
+        ORDER BY d.created_at DESC
+    </select>
+
+    <!-- 작성자 + 상태 조합 조회 -->
+    <select id="findByAuthorIdAndStatus" resultMap="DocumentIntranetResultMap">
+        SELECT d.*, m.name as author_name
+        FROM documents_intranet d
+        LEFT JOIN members_intranet m ON d.author_id = m.id
+        WHERE d.author_id = #{authorId}
+          AND d.status = #{status}
+        ORDER BY d.created_at DESC
+    </select>
+
+    <!-- 문서 유형 + 상태 조합 조회 -->
+    <select id="findByDocumentTypeAndStatus" resultMap="DocumentIntranetResultMap">
+        SELECT d.*, m.name as author_name
+        FROM documents_intranet d
+        LEFT JOIN members_intranet m ON d.author_id = m.id
+        WHERE d.document_type = #{documentType}
+          AND d.status = #{status}
+        ORDER BY d.created_at DESC
+    </select>
+
+    <!-- 전체 문서 조회 (최신순) -->
+    <select id="findAllOrderByCreatedAtDesc" resultMap="DocumentIntranetResultMap">
+        SELECT d.*, m.name as author_name
+        FROM documents_intranet d
+        LEFT JOIN members_intranet m ON d.author_id = m.id
+        ORDER BY d.created_at DESC
+    </select>
+
+    <!-- 문서 등록 -->
+    <insert id="insert" parameterType="com.ync.intranet.domain.DocumentIntranet">
+        <selectKey keyProperty="id" resultType="long" order="BEFORE">
+            SELECT documents_intranet_seq.NEXTVAL FROM dual
+        </selectKey>
+        INSERT INTO documents_intranet (
+            id, document_type, author_id, title, content, status, metadata,
+            created_at, updated_at, submitted_at
+        )
+        VALUES (
+            #{id}, #{documentType}, #{authorId}, #{title}, #{content},
+            #{status}, #{metadata, jdbcType=VARCHAR}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+            #{submittedAt, jdbcType=TIMESTAMP}
+        )
+    </insert>
+
+    <!-- 문서 수정 -->
+    <update id="update" parameterType="com.ync.intranet.domain.DocumentIntranet">
+        UPDATE documents_intranet
+        SET title = #{title},
+            content = #{content},
+            metadata = #{metadata, jdbcType=VARCHAR},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 문서 상태 변경 -->
+    <update id="updateStatus">
+        UPDATE documents_intranet
+        SET status = #{status},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 문서 결재 상신 -->
+    <update id="submit">
+        UPDATE documents_intranet
+        SET status = 'PENDING',
+            submitted_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 문서 최종 승인 -->
+    <update id="approve">
+        UPDATE documents_intranet
+        SET status = 'APPROVED',
+            approved_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 문서 반려 -->
+    <update id="reject">
+        UPDATE documents_intranet
+        SET status = 'REJECTED',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 문서 삭제 -->
+    <delete id="deleteById">
+        DELETE FROM documents_intranet WHERE id = #{id}
+    </delete>
+
+</mapper>

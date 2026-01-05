@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.intranet.mapper.MemberIntranetMapper">
+
+    <resultMap id="MemberIntranetResultMap" type="com.ync.intranet.domain.MemberIntranet">
+        <id property="id" column="id"/>
+        <result property="email" column="email"/>
+        <result property="password" column="password"/>
+        <result property="name" column="name"/>
+        <result property="phone" column="phone"/>
+        <result property="departmentId" column="department_id"/>
+        <result property="departmentName" column="department_name"/>
+        <result property="position" column="position"/>
+        <result property="role" column="role"/>
+        <result property="hireDate" column="hire_date"/>
+        <result property="annualLeaveGranted" column="annual_leave_granted"/>
+        <result property="isActive" column="is_active"/>
+        <result property="smtpPassword" column="smtp_password"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- 전체 사원 조회 -->
+    <select id="findAll" resultMap="MemberIntranetResultMap">
+        SELECT m.*, d.name as department_name
+        FROM members_intranet m
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        ORDER BY m.id
+    </select>
+
+    <!-- ID로 사원 조회 -->
+    <select id="findById" resultMap="MemberIntranetResultMap">
+        SELECT m.*, d.name as department_name
+        FROM members_intranet m
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE m.id = #{id}
+    </select>
+
+    <!-- 이메일로 사원 조회 (로그인용) -->
+    <select id="findByEmail" resultMap="MemberIntranetResultMap">
+        SELECT m.*, d.name as department_name
+        FROM members_intranet m
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE m.email = #{email}
+    </select>
+
+    <!-- 활성화된 사원만 조회 -->
+    <select id="findByIsActiveTrue" resultMap="MemberIntranetResultMap">
+        SELECT m.*, d.name as department_name
+        FROM members_intranet m
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE m.is_active = 1
+        ORDER BY d.name, m.name
+    </select>
+
+    <!-- 부서별 사원 조회 -->
+    <select id="findByDepartmentId" resultMap="MemberIntranetResultMap">
+        SELECT m.*, d.name as department_name
+        FROM members_intranet m
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE m.department_id = #{departmentId}
+        ORDER BY m.name
+    </select>
+
+    <!-- 권한별 사원 조회 -->
+    <select id="findByRole" resultMap="MemberIntranetResultMap">
+        SELECT m.*, d.name as department_name
+        FROM members_intranet m
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE m.role = #{role}
+        ORDER BY m.name
+    </select>
+
+    <!-- 사원 등록 -->
+    <insert id="insert" parameterType="com.ync.intranet.domain.MemberIntranet">
+        <selectKey keyProperty="id" resultType="long" order="BEFORE">
+            SELECT members_intranet_seq.NEXTVAL FROM dual
+        </selectKey>
+        INSERT INTO members_intranet (
+            id, email, password, name, phone, department_id, position, role,
+            hire_date, annual_leave_granted, is_active, smtp_password,
+            created_at, updated_at
+        )
+        VALUES (
+            #{id}, #{email}, #{password}, #{name}, #{phone}, #{departmentId}, #{position}, #{role},
+            #{hireDate}, #{annualLeaveGranted}, #{isActive}, #{smtpPassword},
+            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <!-- 사원 수정 -->
+    <update id="update" parameterType="com.ync.intranet.domain.MemberIntranet">
+        UPDATE members_intranet
+        SET name = #{name},
+            email = #{email},
+            phone = #{phone},
+            department_id = #{departmentId},
+            position = #{position},
+            role = #{role},
+            hire_date = #{hireDate},
+            annual_leave_granted = #{annualLeaveGranted},
+            is_active = #{isActive},
+            smtp_password = #{smtpPassword},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 비밀번호 변경 -->
+    <update id="updatePassword">
+        UPDATE members_intranet
+        SET password = #{password},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 사원 삭제 (물리 삭제) -->
+    <delete id="deleteById">
+        DELETE FROM members_intranet WHERE id = #{id}
+    </delete>
+
+    <!-- 사원 비활성화 (논리 삭제) -->
+    <update id="deactivate">
+        UPDATE members_intranet
+        SET is_active = 0,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+</mapper>

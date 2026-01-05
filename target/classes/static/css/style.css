@@ -1,0 +1,576 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+header h1 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+}
+
+.header-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+#memberSelect {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 200px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.btn-primary {
+    background-color: #3498db;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+}
+
+.btn-secondary {
+    background-color: #95a5a6;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #7f8c8d;
+}
+
+.btn-info {
+    background-color: #1abc9c;
+    color: white;
+}
+
+.btn-info:hover {
+    background-color: #16a085;
+}
+
+.btn-success {
+    background-color: #27ae60;
+    color: white;
+}
+
+.btn-success:hover {
+    background-color: #229954;
+}
+
+.btn-danger {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c0392b;
+}
+
+.main-content {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#calendar {
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+.legend {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-top: 20px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+}
+
+.leave-color {
+    background-color: #3498db;
+}
+
+.schedule-color {
+    background-color: #e67e22;
+}
+
+.legend-status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    background-color: #95a5a6;
+    color: white;
+}
+
+.legend-status.submitted {
+    background-color: #f39c12;
+}
+
+.legend-status.approved {
+    background-color: #27ae60;
+}
+
+.legend-status.rejected {
+    background-color: #e74c3c;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: 5% auto;
+    padding: 30px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover,
+.close:focus {
+    color: #000;
+}
+
+.modal-content h2 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #555;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.form-group textarea {
+    resize: vertical;
+}
+
+.form-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.fc-event {
+    cursor: pointer;
+}
+
+.fc-event.event-DRAFT {
+    opacity: 0.7;
+    border-left: 4px solid #95a5a6 !important;
+}
+
+.fc-event.event-SUBMITTED {
+    border-left: 4px solid #f39c12 !important;
+}
+
+.fc-event.event-APPROVED {
+    border-left: 4px solid #27ae60 !important;
+}
+
+.fc-event.event-REJECTED {
+    background-color: rgba(76, 91, 106, 0.5) !important;
+    border-left: 4px solid #e74c3c !important;
+}
+
+.fc-event.event-CANCELED {
+    background-color: rgba(76, 91, 106, 0.5) !important;
+    border-left: 4px solid rgb(231, 76, 60) !important;
+}
+
+.fc-event.event-LEAVE {
+    background-color: #ec4899 !important;
+}
+
+.fc-event.event-SCHEDULE {
+    background-color: #3b82f6 !important;
+    color: var(--fc-event-text-color) !important;
+}
+
+/* FullCalendar - 버튼 그룹 클릭 시 색상 */
+.fc-button-group .fc-button:active,
+.fc-button-group .fc-button.fc-button-active {
+    color: #ffffff !important;
+    border: none !important;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+/*     color: #ffffff !important; */
+    border-color: var(--fc-button-border-color);
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active:focus,
+.fc .fc-button-primary:not(:disabled):active:focus {
+    box-shadow: none;
+}
+
+#memberList {
+/*     margin-bottom: 20px; */
+}
+
+.member-item {
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.member-info {
+    flex: 1;
+}
+
+.member-info h4 {
+    margin-bottom: 5px;
+    color: #2c3e50;
+}
+
+.member-info p {
+    font-size: 14px;
+    color: #7f8c8d;
+    margin: 2px 0;
+}
+
+.member-actions {
+    display: flex;
+    gap: 5px;
+}
+
+#leaveBalanceList {
+    margin-top: 20px;
+}
+
+.balance-item {
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.balance-item h4 {
+    margin-bottom: 8px;
+    color: #2c3e50;
+}
+
+.balance-info {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    font-size: 14px;
+}
+
+.balance-stat {
+    text-align: center;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.balance-stat .label {
+    display: block;
+    font-size: 12px;
+    color: #7f8c8d;
+    margin-bottom: 5px;
+}
+
+.balance-stat .value {
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.balance-stat.granted .value {
+    color: #3498db;
+}
+
+.balance-stat.used .value {
+    color: #e67e22;
+}
+
+.balance-stat.remaining .value {
+    color: #27ae60;
+}
+
+/* FullCalendar - 오늘 날짜 강조 */
+.fc .fc-day-today {
+    background-color: #fff3cd !important;
+}
+
+.fc .fc-day-today .fc-daygrid-day-number {
+    background-color: #6366f1 !important;
+    color: white !important;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+/* FullCalendar - 주말 배경색 및 글씨 색 */
+.fc .fc-day-sun {
+    background-color: #ffebee !important;
+}
+
+.fc-theme-standard .fc-day-sun a.fc-daygrid-day-number,
+.fc .fc-daygrid-day.fc-day-sun a.fc-daygrid-day-number {
+    color: #d32f2f !important;
+    font-weight: 600 !important;
+}
+
+.fc-theme-standard .fc-col-header-cell.fc-day-sun a.fc-col-header-cell-cushion,
+.fc .fc-col-header-cell.fc-day-sun a.fc-col-header-cell-cushion {
+    color: #d32f2f !important;
+    font-weight: 600 !important;
+}
+
+.fc .fc-day-sat {
+    background-color: #e3f2fd !important;
+}
+
+.fc-theme-standard .fc-day-sat a.fc-daygrid-day-number,
+.fc .fc-daygrid-day.fc-day-sat a.fc-daygrid-day-number {
+    color: #1976d2 !important;
+    font-weight: 600 !important;
+}
+
+.fc-theme-standard .fc-col-header-cell.fc-day-sat a.fc-col-header-cell-cushion,
+.fc .fc-col-header-cell.fc-day-sat a.fc-col-header-cell-cushion {
+    color: #1976d2 !important;
+    font-weight: 600 !important;
+}
+
+/* FullCalendar - 공휴일 배경색 및 글씨 색 */
+.fc .fc-day.holiday {
+    background-color: #ffebee !important;
+}
+
+.fc-theme-standard .fc-day.holiday a.fc-daygrid-day-number,
+.fc .fc-daygrid-day.holiday a.fc-daygrid-day-number {
+    color: #d32f2f !important;
+    font-weight: 700 !important;
+}
+
+/* FullCalendar - 이벤트 제목 스크롤 애니메이션 */
+.fc-event-title-container {
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+}
+
+.fc-event-title {
+    display: inline-block;
+    padding-right: 10px;
+    transition: transform 0.3s ease;
+}
+
+.fc-event:hover .fc-event-title {
+    animation: scrollText 3s linear infinite;
+}
+
+@keyframes scrollText {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
+/* 공휴일 이름 스타일 */
+.fc-daygrid-day-top {
+    position: relative;
+}
+
+.holiday-name {
+    font-size: 0.8em;
+    color: #d32f2f;
+    font-weight: bold;
+    display: block;
+    text-align: center;
+    line-height: 2.6em;
+    padding-right: 4.5px;
+}
+
+/* 일정 아이템 스타일 */
+.approval-item {
+    padding: 12px;
+    margin-bottom: 10px;
+    background: #ffffff;
+    border-radius: 8px;
+    border-left: 4px solid #3b82f6;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+}
+
+.approval-item:hover {
+    box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+.approval-item-title {
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 6px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    position: relative;
+}
+
+.approval-item-title:hover {
+    overflow: visible;
+    white-space: normal;
+}
+
+.approval-item-info {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* 텍스트 스크롤 애니메이션 */
+.text-scroll-container {
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+    width: 100%;
+    max-width: 250px;
+}
+
+.text-scroll-content {
+    display: inline-block;
+    padding-right: 50px;
+    font-weight: 600;
+    color: #1f2937;
+    white-space: nowrap;
+}
+
+/* 호버 시 애니메이션 */
+.approval-item:hover .text-scroll-content {
+    animation: scrollTextMove 8s linear infinite;
+}
+
+@keyframes scrollTextMove {
+    0% {
+        transform: translateX(0);
+    }
+    50% {
+        transform: translateX(-50%);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+@media (max-width: 768px) {
+    .header-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #memberSelect,
+    .btn {
+        width: 100%;
+    }
+
+    .modal-content {
+        width: 95%;
+        margin: 10% auto;
+        padding: 20px;
+    }
+
+    .balance-info {
+        grid-template-columns: 1fr;
+    }
+}

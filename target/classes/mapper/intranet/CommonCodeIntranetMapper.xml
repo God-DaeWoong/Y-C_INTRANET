@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.intranet.mapper.CommonCodeIntranetMapper">
+
+    <resultMap id="CommonCodeIntranetResultMap" type="com.ync.intranet.domain.CommonCodeIntranet">
+        <result property="codeType" column="code_type"/>
+        <result property="code" column="code"/>
+        <result property="name" column="name"/>
+        <result property="displayOrder" column="display_order"/>
+        <result property="isActive" column="is_active"/>
+        <result property="description" column="description"/>
+    </resultMap>
+
+    <!-- 코드 타입별 조회 -->
+    <select id="findByCodeType" resultMap="CommonCodeIntranetResultMap">
+        SELECT *
+        FROM common_codes_intranet
+        WHERE code_type = #{codeType}
+        ORDER BY display_order, code
+    </select>
+
+    <!-- 코드 타입 + 코드로 조회 -->
+    <select id="findByCodeTypeAndCode" resultMap="CommonCodeIntranetResultMap">
+        SELECT *
+        FROM common_codes_intranet
+        WHERE code_type = #{codeType}
+          AND code = #{code}
+    </select>
+
+    <!-- 활성화된 코드만 조회 -->
+    <select id="findActiveByCodeType" resultMap="CommonCodeIntranetResultMap">
+        SELECT *
+        FROM common_codes_intranet
+        WHERE code_type = #{codeType}
+          AND is_active = 1
+        ORDER BY display_order, code
+    </select>
+
+    <!-- 전체 공통 코드 조회 -->
+    <select id="findAll" resultMap="CommonCodeIntranetResultMap">
+        SELECT *
+        FROM common_codes_intranet
+        ORDER BY code_type, display_order, code
+    </select>
+
+    <!-- 공통 코드 등록 -->
+    <insert id="insert" parameterType="com.ync.intranet.domain.CommonCodeIntranet">
+        INSERT INTO common_codes_intranet (
+            code_type, code, name, display_order, is_active, description
+        )
+        VALUES (
+            #{codeType}, #{code}, #{name}, #{displayOrder}, #{isActive}, #{description}
+        )
+    </insert>
+
+    <!-- 공통 코드 수정 -->
+    <update id="update" parameterType="com.ync.intranet.domain.CommonCodeIntranet">
+        UPDATE common_codes_intranet
+        SET name = #{name},
+            display_order = #{displayOrder},
+            is_active = #{isActive},
+            description = #{description}
+        WHERE code_type = #{codeType}
+          AND code = #{code}
+    </update>
+
+    <!-- 공통 코드 삭제 -->
+    <delete id="delete">
+        DELETE FROM common_codes_intranet
+        WHERE code_type = #{codeType}
+          AND code = #{code}
+    </delete>
+
+</mapper>

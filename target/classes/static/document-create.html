@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>문서 작성 - Y&C Intranet</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f7fafc;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left h1 {
+            color: #667eea;
+            font-size: 24px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .btn-logout {
+            padding: 8px 16px;
+            background: #f56565;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 32px 16px;
+        }
+
+        .page-header {
+            margin-bottom: 32px;
+        }
+
+        .page-header h2 {
+            color: #2d3748;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: #718096;
+        }
+
+        .form-card {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #2d3748;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .form-group label .required {
+            color: #f56565;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            min-height: 200px;
+            resize: vertical;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .approval-line {
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .approval-line-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .approval-line-title {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .btn-add {
+            padding: 6px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .approval-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f7fafc;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .approval-step-number {
+            width: 32px;
+            height: 32px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .approval-step select {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+
+        .btn-remove {
+            padding: 6px 12px;
+            background: #f56565;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 2px solid #edf2f7;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-cancel {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+
+        .btn-cancel:hover {
+            background: #cbd5e0;
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-submit:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .help-text {
+            font-size: 13px;
+            color: #718096;
+            margin-top: 6px;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <h1 onclick="location.href='/intranet-main.html'">Y&C Intranet</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-avatar" id="userAvatar">U</div>
+            <button class="btn-logout" onclick="logout()">로그아웃</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>문서 작성</h2>
+            <p>새로운 결재 문서를 작성합니다</p>
+        </div>
+
+        <div class="form-card">
+            <form id="documentForm">
+                <div class="form-group">
+                    <label for="title">문서 제목 <span class="required">*</span></label>
+                    <input type="text" id="title" required placeholder="문서 제목을 입력하세요">
+                </div>
+
+                <div class="form-group">
+                    <label for="documentType">문서 유형 <span class="required">*</span></label>
+                    <select id="documentType" required>
+                        <option value="">선택하세요</option>
+                        <option value="EXPENSE">지출결의서</option>
+                        <option value="VACATION">휴가신청서</option>
+                        <option value="BUSINESS_TRIP">출장신청서</option>
+                        <option value="PURCHASE">구매요청서</option>
+                        <option value="GENERAL">일반기안서</option>
+                    </select>
+                </div>
+
+                <!-- 휴가신청서 선택 시 나타나는 필드들 -->
+                <div id="vacationFields" style="display: none;">
+                    <div class="form-group">
+                        <label for="leaveType">휴가 유형 <span class="required">*</span></label>
+                        <select id="leaveType">
+                            <option value="">선택하세요</option>
+                            <option value="FULL_DAY">연차</option>
+                            <option value="HALF_DAY">반차</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="halfDayTypeGroup" style="display: none;">
+                        <label for="halfDayType">반차 구분 <span class="required">*</span></label>
+                        <select id="halfDayType">
+                            <option value="">선택하세요</option>
+                            <option value="AM">오전 반차</option>
+                            <option value="PM">오후 반차</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="content">문서 내용 <span class="required">*</span></label>
+                    <textarea id="content" required placeholder="문서 내용을 입력하세요"></textarea>
+                    <div class="help-text">상세한 내용을 작성해주세요</div>
+                </div>
+
+                <div class="form-group">
+                    <label>결재선 설정 <span class="required">*</span></label>
+                    <div class="approval-line">
+                        <div class="approval-line-header">
+                            <span class="approval-line-title">결재자 순서</span>
+                            <button type="button" class="btn-add" onclick="addApprovalStep()">+ 추가</button>
+                        </div>
+                        <div id="approvalSteps">
+                            <!-- 동적으로 추가됨 -->
+                        </div>
+                    </div>
+                    <div class="help-text">결재자를 순서대로 선택하세요</div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-cancel" onclick="location.href='/intranet-main.html'">
+                        취소
+                    </button>
+                    <button type="submit" class="btn btn-submit" id="submitBtn">
+                        결재 상신
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let approvalStepCount = 0;
+        let members = [];
+
+        function checkLogin() {
+            const user = sessionStorage.getItem('user');
+            if (!user) {
+                window.location.href = '/intranet-login.html';
+                return null;
+            }
+            return JSON.parse(user);
+        }
+
+        function displayUserInfo() {
+            const user = checkLogin();
+            if (!user) return;
+            document.getElementById('userAvatar').textContent = user.name.charAt(0);
+        }
+
+        // 문서 유형 변경 시 휴가 필드 표시/숨김
+        document.addEventListener('DOMContentLoaded', () => {
+            const documentType = document.getElementById('documentType');
+            const vacationFields = document.getElementById('vacationFields');
+            const leaveType = document.getElementById('leaveType');
+            const halfDayTypeGroup = document.getElementById('halfDayTypeGroup');
+
+            documentType.addEventListener('change', () => {
+                if (documentType.value === 'VACATION') {
+                    vacationFields.style.display = 'block';
+                    leaveType.required = true;
+                } else {
+                    vacationFields.style.display = 'none';
+                    leaveType.required = false;
+                    leaveType.value = '';
+                    halfDayTypeGroup.style.display = 'none';
+                    document.getElementById('halfDayType').value = '';
+                }
+            });
+
+            leaveType.addEventListener('change', () => {
+                if (leaveType.value === 'HALF_DAY') {
+                    halfDayTypeGroup.style.display = 'block';
+                    document.getElementById('halfDayType').required = true;
+                } else {
+                    halfDayTypeGroup.style.display = 'none';
+                    document.getElementById('halfDayType').required = false;
+                    document.getElementById('halfDayType').value = '';
+                }
+            });
+        });
+
+        async function loadMembers() {
+            try {
+                const response = await fetch('/api/intranet/members/active');
+                const data = await response.json();
+                members = data || [];
+                addApprovalStep(); // 첫 결재자 추가
+            } catch (error) {
+                console.error('사원 목록 조회 실패:', error);
+                alert('사원 목록을 불러올 수 없습니다');
+            }
+        }
+
+        function addApprovalStep() {
+            approvalStepCount++;
+            const stepDiv = document.createElement('div');
+            stepDiv.className = 'approval-step';
+            stepDiv.id = `step-${approvalStepCount}`;
+
+            stepDiv.innerHTML = `
+                <div class="approval-step-number">${approvalStepCount}</div>
+                <select name="approver-${approvalStepCount}" required>
+                    <option value="">결재자 선택</option>
+                    ${members.map(m => `<option value="${m.id}">${m.name} (${m.position || ''} / ${m.departmentName || ''})</option>`).join('')}
+                </select>
+                ${approvalStepCount > 1 ? `<button type="button" class="btn-remove" onclick="removeApprovalStep(${approvalStepCount})">삭제</button>` : ''}
+            `;
+
+            document.getElementById('approvalSteps').appendChild(stepDiv);
+        }
+
+        function removeApprovalStep(stepNum) {
+            const step = document.getElementById(`step-${stepNum}`);
+            if (step) {
+                step.remove();
+                renumberSteps();
+            }
+        }
+
+        function renumberSteps() {
+            const steps = document.querySelectorAll('.approval-step');
+            steps.forEach((step, index) => {
+                const number = step.querySelector('.approval-step-number');
+                if (number) {
+                    number.textContent = index + 1;
+                }
+            });
+        }
+
+        document.getElementById('documentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const title = document.getElementById('title').value.trim();
+            const documentType = document.getElementById('documentType').value;
+            const content = document.getElementById('content').value.trim();
+
+            // 휴가신청서인 경우 유형 확인
+            if (documentType === 'VACATION') {
+                const leaveType = document.getElementById('leaveType').value;
+                if (!leaveType) {
+                    alert('휴가 유형을 선택해주세요');
+                    return;
+                }
+                if (leaveType === 'HALF_DAY') {
+                    const halfDayType = document.getElementById('halfDayType').value;
+                    if (!halfDayType) {
+                        alert('반차 구분을 선택해주세요');
+                        return;
+                    }
+                }
+            }
+
+            // 결재선 수집
+            const approverSelects = document.querySelectorAll('[name^="approver-"]');
+            const approvers = Array.from(approverSelects)
+                .map(select => select.value)
+                .filter(val => val);
+
+            if (approvers.length === 0) {
+                alert('결재자를 최소 1명 이상 선택해주세요');
+                return;
+            }
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '상신 중...';
+
+            try {
+                // 기본 데이터
+                const requestData = {
+                    title,
+                    documentType,
+                    content,
+                    approverIds: approvers
+                };
+
+                // 휴가신청서인 경우 추가 정보
+                if (documentType === 'VACATION') {
+                    requestData.leaveType = document.getElementById('leaveType').value;
+                    if (requestData.leaveType === 'HALF_DAY') {
+                        requestData.halfDayType = document.getElementById('halfDayType').value;
+                    }
+                }
+
+                const response = await fetch('/api/intranet/documents', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('문서가 성공적으로 상신되었습니다');
+                    location.href = '/intranet-main.html';
+                } else {
+                    alert(data.message || '문서 상신에 실패했습니다');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '결재 상신';
+                }
+            } catch (error) {
+                console.error('문서 작성 오류:', error);
+                alert('서버 오류가 발생했습니다');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '결재 상신';
+            }
+        });
+
+        async function logout() {
+            if (!confirm('로그아웃 하시겠습니까?')) return;
+            try {
+                await fetch('/api/intranet/auth/logout', { method: 'POST' });
+            } finally {
+                sessionStorage.removeItem('user');
+                window.location.href = '/intranet-login.html';
+            }
+        }
+
+        window.addEventListener('load', () => {
+            displayUserInfo();
+            loadMembers();
+        });
+    </script>
+</body>
+</html>

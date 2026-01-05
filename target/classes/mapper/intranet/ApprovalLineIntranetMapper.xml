@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.intranet.mapper.ApprovalLineIntranetMapper">
+
+    <resultMap id="ApprovalLineIntranetResultMap" type="com.ync.intranet.domain.ApprovalLineIntranet">
+        <id property="id" column="id"/>
+        <result property="documentId" column="document_id"/>
+        <result property="stepOrder" column="step_order"/>
+        <result property="approverId" column="approver_id"/>
+        <result property="approverName" column="approver_name"/>
+        <result property="approverPosition" column="approver_position"/>
+        <result property="decision" column="decision"/>
+        <result property="approvalComment" column="approval_comment"/>
+        <result property="submittedAt" column="submitted_at"/>
+        <result property="decidedAt" column="decided_at"/>
+        <association property="document" javaType="com.ync.intranet.domain.DocumentIntranet">
+            <id property="id" column="doc_id"/>
+            <result property="title" column="doc_title"/>
+            <result property="content" column="doc_content"/>
+            <result property="documentType" column="doc_type"/>
+            <result property="status" column="doc_status"/>
+            <result property="authorId" column="doc_author_id"/>
+            <result property="authorName" column="doc_author_name"/>
+            <result property="createdAt" column="doc_created_at"/>
+        </association>
+    </resultMap>
+
+    <!-- 결재선 조회 (ID) -->
+    <select id="findById" resultMap="ApprovalLineIntranetResultMap">
+        SELECT a.*,
+               d.id as doc_id, d.title as doc_title, d.content as doc_content,
+               d.document_type as doc_type, d.status as doc_status, d.author_id as doc_author_id,
+               d.created_at as doc_created_at,
+               m.name as doc_author_name
+        FROM approval_lines_intranet a
+        LEFT JOIN documents_intranet d ON a.document_id = d.id
+        LEFT JOIN members_intranet m ON d.author_id = m.id
+        WHERE a.id = #{id}
+    </select>
+
+    <!-- 문서별 결재선 조회 (순서대로) -->
+    <select id="findByDocumentId" resultMap="ApprovalLineIntranetResultMap">
+        SELECT a.*,
+               d.id as doc_id, d.title as doc_title, d.content as doc_content,
+               d.document_type as doc_type, d.status as doc_status, d.author_id as doc_author_id,
+               d.created_at as doc_created_at,
+               m.name as doc_author_name
+        FROM approval_lines_intranet a
+        LEFT JOIN documents_intranet d ON a.document_id = d.id
+        LEFT JOIN members_intranet m ON d.author_id = m.id
+        WHERE a.document_id = #{documentId}
+        ORDER BY a.step_order
+    </select>
+
+    <!-- 결재자별 대기중인 결재 조회 -->
+    <select id="findPendingByApproverId" resultMap="ApprovalLineIntranetResultMap">
+        SELECT a.*,
+               d.id as doc_id, d.title as doc_title, d.content as doc_content,
+               d.document_type as doc_type, d.status as doc_status, d.author_id as doc_author_id,
+               d.created_at as doc_created_at,
+               m.name as doc_author_name
+        FROM approval_lines_intranet a
+        LEFT JOIN documents_intranet d ON a.document_id = d.id
+        LEFT JOIN members_intranet m ON d.author_id = m.id
+        WHERE a.approver_id = #{approverId}
+          AND a.decision = 'PENDING'
+        ORDER BY a.submitted_at DESC
+    </select>
+
+    <!-- 결재자별 모든 결재 조회 -->
+    <select id="findByApproverId" resultMap="ApprovalLineIntranetResultMap">
+        SELECT a.*,
+               d.id as doc_id, d.title as doc_title, d.content as doc_content,
+               d.document_type as doc_type, d.status as doc_status, d.author_id as doc_author_id,
+               d.created_at as doc_created_at,
+               m.name as doc_author_name
+        FROM approval_lines_intranet a
+        LEFT JOIN documents_intranet d ON a.document_id = d.id
+        LEFT JOIN members_intranet m ON d.author_id = m.id
+        WHERE a.approver_id = #{approverId}
+        ORDER BY a.submitted_at DESC
+    </select>
+
+    <!-- 문서 + 결재 순서로 조회 -->
+    <select id="findByDocumentIdAndStepOrder" resultMap="ApprovalLineIntranetResultMap">
+        SELECT a.*
+        FROM approval_lines_intranet a
+        WHERE a.document_id = #{documentId}
+          AND a.step_order = #{stepOrder}
+    </select>
+
+    <!-- 결재선 등록 -->
+    <insert id="insert" parameterType="com.ync.intranet.domain.ApprovalLineIntranet">
+        <selectKey keyProperty="id" resultType="long" order="BEFORE">
+            SELECT approval_lines_intranet_seq.NEXTVAL FROM dual
+        </selectKey>
+        INSERT INTO approval_lines_intranet (
+            id, document_id, step_order, approver_id,
+            approver_name, approver_position, decision,
+            approval_comment, submitted_at
+        )
+        VALUES (
+            #{id}, #{documentId}, #{stepOrder}, #{approverId},
+            #{approverName}, #{approverPosition}, #{decision},
+            #{approvalComment, jdbcType=VARCHAR}, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <!-- 결재선 일괄 등록 -->
+    <insert id="insertBatch">
+        INSERT ALL
+        <foreach collection="approvalLines" item="line">
+            INTO approval_lines_intranet (
+                id, document_id, step_order, approver_id,
+                approver_name, approver_position, decision,
+                submitted_at
+            )
+            VALUES (
+                approval_lines_intranet_seq.NEXTVAL,
+                #{line.documentId}, #{line.stepOrder}, #{line.approverId},
+                #{line.approverName}, #{line.approverPosition}, 'PENDING',
+                CURRENT_TIMESTAMP
+            )
+        </foreach>
+        SELECT 1 FROM DUAL
+    </insert>
+
+    <!-- 결재 처리 (승인/반려) -->
+    <update id="update" parameterType="com.ync.intranet.domain.ApprovalLineIntranet">
+        UPDATE approval_lines_intranet
+        SET decision = #{decision},
+            approval_comment = #{approvalComment, jdbcType=VARCHAR},
+            decided_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 결재선 삭제 -->
+    <delete id="deleteById">
+        DELETE FROM approval_lines_intranet WHERE id = #{id}
+    </delete>
+
+    <!-- 문서의 모든 결재선 삭제 -->
+    <delete id="deleteByDocumentId">
+        DELETE FROM approval_lines_intranet WHERE document_id = #{documentId}
+    </delete>
+
+</mapper>

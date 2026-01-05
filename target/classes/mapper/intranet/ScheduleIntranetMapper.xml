@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.intranet.mapper.ScheduleIntranetMapper">
+
+    <resultMap id="ScheduleIntranetResultMap" type="com.ync.intranet.domain.ScheduleIntranet">
+        <id property="id" column="id"/>
+        <result property="memberId" column="member_id"/>
+        <result property="scheduleType" column="schedule_type"/>
+        <result property="title" column="title"/>
+        <result property="description" column="description"/>
+        <result property="startDate" column="start_date"/>
+        <result property="endDate" column="end_date"/>
+        <result property="startTime" column="start_time"/>
+        <result property="endTime" column="end_time"/>
+        <result property="daysUsed" column="days_used"/>
+        <result property="approverId" column="approver_id"/>
+        <result property="documentId" column="document_id"/>
+        <result property="status" column="status"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="memberName" column="member_name"/>
+        <result property="memberEmail" column="member_email"/>
+        <result property="departmentName" column="department_name"/>
+    </resultMap>
+
+    <!-- 일정 등록 -->
+    <insert id="insert" parameterType="com.ync.intranet.domain.ScheduleIntranet">
+        <selectKey keyProperty="id" resultType="long" order="BEFORE">
+            SELECT schedules_intranet_seq.NEXTVAL FROM dual
+        </selectKey>
+        INSERT INTO schedules_intranet (
+            id, member_id, schedule_type, title, description,
+            start_date, end_date, start_time, end_time, days_used,
+            approver_id, document_id, status, created_at, updated_at
+        )
+        VALUES (
+            #{id}, #{memberId}, #{scheduleType}, #{title}, #{description, jdbcType=CLOB},
+            #{startDate}, #{endDate}, #{startTime, jdbcType=VARCHAR}, #{endTime, jdbcType=VARCHAR}, #{daysUsed},
+            #{approverId, jdbcType=NUMERIC}, #{documentId, jdbcType=NUMERIC}, #{status}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <!-- 일정 수정 -->
+    <update id="update" parameterType="com.ync.intranet.domain.ScheduleIntranet">
+        UPDATE schedules_intranet
+        SET schedule_type = #{scheduleType},
+            title = #{title},
+            description = #{description, jdbcType=CLOB},
+            start_date = #{startDate},
+            end_date = #{endDate},
+            start_time = #{startTime, jdbcType=VARCHAR},
+            end_time = #{endTime, jdbcType=VARCHAR},
+            days_used = #{daysUsed},
+            status = #{status},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 일정 삭제 -->
+    <delete id="delete">
+        DELETE FROM schedules_intranet WHERE id = #{id}
+    </delete>
+
+    <!-- ID로 일정 조회 -->
+    <select id="findById" resultMap="ScheduleIntranetResultMap">
+        SELECT s.*, m.name as member_name, m.email as member_email, d.name as department_name
+        FROM schedules_intranet s
+        LEFT JOIN members_intranet m ON s.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE s.id = #{id}
+    </select>
+
+    <!-- 전체 일정 조회 -->
+    <select id="findAll" resultMap="ScheduleIntranetResultMap">
+        SELECT s.*, m.name as member_name, m.email as member_email, d.name as department_name
+        FROM schedules_intranet s
+        LEFT JOIN members_intranet m ON s.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        ORDER BY s.start_date DESC
+    </select>
+
+    <!-- 사용자별 일정 조회 -->
+    <select id="findByMemberId" resultMap="ScheduleIntranetResultMap">
+        SELECT s.*, m.name as member_name, m.email as member_email, d.name as department_name
+        FROM schedules_intranet s
+        LEFT JOIN members_intranet m ON s.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE s.member_id = #{memberId}
+        ORDER BY s.start_date DESC
+    </select>
+
+    <!-- 기간별 일정 조회 -->
+    <select id="findByDateRange" resultMap="ScheduleIntranetResultMap">
+        <![CDATA[
+        SELECT s.*, m.name as member_name, m.email as member_email, d.name as department_name
+        FROM schedules_intranet s
+        LEFT JOIN members_intranet m ON s.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE s.start_date <= #{endDate}
+          AND s.end_date >= #{startDate}
+        ORDER BY s.start_date
+        ]]>
+    </select>
+
+    <!-- 부서별 + 기간별 일정 조회 -->
+    <select id="findByDepartmentAndDateRange" resultMap="ScheduleIntranetResultMap">
+        <![CDATA[
+        SELECT s.*, m.name as member_name, m.email as member_email, d.name as department_name
+        FROM schedules_intranet s
+        LEFT JOIN members_intranet m ON s.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE m.department_id = #{departmentId}
+          AND s.start_date <= #{endDate}
+          AND s.end_date >= #{startDate}
+        ORDER BY s.start_date
+        ]]>
+    </select>
+
+</mapper>

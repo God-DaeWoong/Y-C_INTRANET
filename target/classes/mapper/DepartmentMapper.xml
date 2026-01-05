@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.schedule.mapper.DepartmentMapper">
+
+    <resultMap id="DepartmentResultMap" type="com.ync.schedule.domain.Department">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="depth" column="depth"/>
+        <result property="isActive" column="is_active"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="DepartmentResultMap">
+        SELECT * FROM departments
+        ORDER BY depth, parent_id, name
+    </select>
+
+    <select id="findById" resultMap="DepartmentResultMap">
+        SELECT * FROM departments WHERE id = #{id}
+    </select>
+
+    <select id="findByParentId" resultMap="DepartmentResultMap">
+        SELECT * FROM departments
+        WHERE parent_id = #{parentId}
+        ORDER BY name
+    </select>
+
+    <select id="findByParentIdIsNull" resultMap="DepartmentResultMap">
+        SELECT * FROM departments
+        WHERE parent_id IS NULL
+        ORDER BY name
+    </select>
+
+    <select id="findByIsActiveTrue" resultMap="DepartmentResultMap">
+        SELECT * FROM departments
+        WHERE is_active = 1
+        ORDER BY depth, parent_id, name
+    </select>
+
+    <insert id="insert" parameterType="com.ync.schedule.domain.Department">
+        <selectKey keyProperty="id" resultType="long" order="BEFORE">
+            SELECT departments_seq.NEXTVAL FROM dual
+        </selectKey>
+        INSERT INTO departments (id, name, parent_id, depth, is_active, created_at, updated_at)
+        VALUES (#{id}, #{name}, #{parentId}, #{depth}, #{isActive}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    </insert>
+
+    <update id="update" parameterType="com.ync.schedule.domain.Department">
+        UPDATE departments
+        SET name = #{name},
+            parent_id = #{parentId},
+            depth = #{depth},
+            is_active = #{isActive},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM departments WHERE id = #{id}
+    </delete>
+
+</mapper>

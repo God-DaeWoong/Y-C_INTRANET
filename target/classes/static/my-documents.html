@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>내 문서함 - Y&C Intranet</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f7fafc;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left h1 {
+            color: #667eea;
+            font-size: 24px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .btn-logout {
+            padding: 8px 16px;
+            background: #f56565;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 16px;
+        }
+
+        .page-header {
+            margin-bottom: 32px;
+        }
+
+        .page-header h2 {
+            color: #2d3748;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: #718096;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .filter-tab {
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .filter-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        .document-list {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .document-item {
+            padding: 24px;
+            border-bottom: 1px solid #edf2f7;
+            transition: background 0.2s ease;
+        }
+
+        .document-item:last-child {
+            border-bottom: none;
+        }
+
+        .document-item:hover {
+            background: #f7fafc;
+        }
+
+        .document-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .document-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .document-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 14px;
+            color: #718096;
+            margin-bottom: 12px;
+        }
+
+        .document-status {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .badge-pending {
+            background: #fef5e7;
+            color: #d69e2e;
+        }
+
+        .badge-approved {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .badge-rejected {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .badge-cancelled {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .approval-progress {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #edf2f7;
+        }
+
+        .approval-progress-title {
+            font-size: 13px;
+            color: #718096;
+            margin-bottom: 8px;
+        }
+
+        .approval-steps {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .approval-step-badge {
+            display: inline-block;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 4px;
+        }
+
+        .step-pending {
+            background: #edf2f7;
+            color: #718096;
+        }
+
+        .step-approved {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .step-rejected {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .btn-cancel {
+            padding: 8px 16px;
+            background: #f56565;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-cancel:hover {
+            background: #e53e3e;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 64px 24px;
+            color: #a0aec0;
+        }
+
+        .empty-state svg {
+            width: 80px;
+        }
+
+        /* 문서 상세 모달 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid #edf2f7;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #718096;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+
+        .modal-close:hover {
+            background: #edf2f7;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .detail-section {
+            margin-bottom: 24px;
+        }
+
+        .detail-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #718096;
+            margin-bottom: 8px;
+        }
+
+        .detail-value {
+            font-size: 15px;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+
+        .detail-content {
+            background: #f7fafc;
+            padding: 16px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+        }
+            height: 80px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 48px;
+            color: #718096;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <h1 onclick="location.href='/intranet-main.html'">Y&C Intranet</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-avatar" id="userAvatar">U</div>
+            <button class="btn-logout" onclick="logout()">로그아웃</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>내 문서함</h2>
+            <p>내가 작성한 문서의 결재 진행 상황을 확인합니다</p>
+        </div>
+
+        <div class="filter-tabs">
+            <button class="filter-tab active" onclick="filterDocuments('all')">전체</button>
+            <button class="filter-tab" onclick="filterDocuments('pending')">진행중</button>
+            <button class="filter-tab" onclick="filterDocuments('approved')">승인완료</button>
+            <button class="filter-tab" onclick="filterDocuments('rejected')">반려</button>
+        </div>
+
+        <div id="documentList" class="document-list">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <p style="margin-top: 16px;">로딩 중...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 문서 상세 모달 -->
+    <div id="documentModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">문서 상세</div>
+                <button class="modal-close" onclick="closeDocumentModal()">×</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- 동적으로 채워짐 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allDocuments = [];
+        let currentFilter = 'all';
+
+        function checkLogin() {
+            const user = sessionStorage.getItem('user');
+            if (!user) {
+                window.location.href = '/intranet-login.html';
+                return null;
+            }
+            return JSON.parse(user);
+        }
+
+        function displayUserInfo() {
+            const user = checkLogin();
+            if (!user) return;
+            document.getElementById('userAvatar').textContent = user.name.charAt(0);
+        }
+
+        async function loadDocuments() {
+            try {
+                const response = await fetch('/api/intranet/documents/my');
+                const data = await response.json();
+
+                if (data.success && data.documents) {
+                    allDocuments = data.documents;
+                } else {
+                    allDocuments = [];
+                }
+
+                displayDocuments();
+
+            } catch (error) {
+                console.error('문서 목록 조회 실패:', error);
+                document.getElementById('documentList').innerHTML = `
+                    <div class="empty-state">
+                        <p>데이터를 불러올 수 없습니다</p>
+                    </div>
+                `;
+            }
+        }
+
+        function filterDocuments(filter) {
+            currentFilter = filter;
+
+            // 탭 활성화 상태 변경
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            displayDocuments();
+        }
+
+        function getDocTypeText(type) {
+            const types = {
+                'GENERAL': '일반',
+                'LEAVE': '휴가신청서',
+                'EXPENSE': '지출결의서',
+                'BUSINESS_TRIP': '출장신청서'
+            };
+            return types[type] || '일반';
+        }
+
+        function displayDocuments() {
+            let documents = allDocuments;
+
+            // 필터 적용
+            if (currentFilter !== 'all') {
+                documents = allDocuments.filter(doc => {
+                    if (currentFilter === 'pending') return doc.status === 'PENDING';
+                    if (currentFilter === 'approved') return doc.status === 'APPROVED';
+                    if (currentFilter === 'rejected') return doc.status === 'REJECTED';
+                    return true;
+                });
+            }
+
+            const container = document.getElementById('documentList');
+
+            if (!documents || documents.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p>작성한 문서가 없습니다</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = documents.map(doc => {
+                const statusBadge = getStatusBadge(doc.status);
+                const canCancel = doc.status === 'PENDING';
+
+                return `
+                    <div class="document-item" onclick="showDocumentDetail(${doc.id})" style="cursor: pointer;">
+                        <div class="document-header">
+                            <div>
+                                <div class="document-title">${doc.title || '제목 없음'}</div>
+                                <div class="document-meta">
+                                    <span>📄 ${getDocTypeText(doc.documentType)}</span>
+                                    <span>📅 ${formatDate(doc.createdAt)}</span>
+                                    <span>🔢 #${doc.id}</span>
+                                </div>
+                            </div>
+                            <div class="document-status">
+                                ${statusBadge}
+                                ${canCancel ? `<button class="btn-cancel" onclick="event.stopPropagation(); cancelDocument(${doc.id})">취소</button>` : ''}
+                            </div>
+                        </div>
+                        ${doc.approvals && doc.approvals.length > 0 ? `
+                            <div class="approval-progress">
+                                <div class="approval-progress-title">결재 진행 상황</div>
+                                <div class="approval-steps">
+                                    ${doc.approvals.map((approval, index) => {
+                                        const stepBadge = getApprovalStepBadge(approval.decision);
+                                        let comment = '';
+                                        if (approval.approvalComment) {
+                                            if (approval.decision === 'REJECTED') {
+                                                comment = `<div style="font-size: 11px; color: #742a2a; margin-top: 4px; font-weight: 600;">📝 반려 사유: ${approval.approvalComment}</div>`;
+                                            } else {
+                                                comment = `<div style="font-size: 11px; color: #718096; margin-top: 4px;">💬 코멘트: ${approval.approvalComment}</div>`;
+                                            }
+                                        }
+                                        return `
+                                            <span class="approval-step-badge ${stepBadge.class}">
+                                                <div>${index + 1}. ${approval.approverName} - ${stepBadge.text}</div>
+                                                ${comment}
+                                            </span>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getStatusBadge(status) {
+            const badges = {
+                'PENDING': '<span class="badge badge-pending">진행중</span>',
+                'APPROVED': '<span class="badge badge-approved">승인완료</span>',
+                'REJECTED': '<span class="badge badge-rejected">반려</span>',
+                'CANCELLED': '<span class="badge badge-cancelled">취소</span>'
+            };
+            return badges[status] || '<span class="badge badge-pending">-</span>';
+        }
+
+        function getApprovalStepBadge(status) {
+            const badges = {
+                'PENDING': { class: 'step-pending', text: '대기' },
+                'APPROVED': { class: 'step-approved', text: '승인' },
+                'REJECTED': { class: 'step-rejected', text: '반려' }
+            };
+            return badges[status] || { class: 'step-pending', text: '-' };
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ko-KR');
+        }
+
+        function showDocumentDetail(documentId) {
+            const doc = allDocuments.find(d => d.id === documentId);
+            if (!doc) return;
+
+            const getDocTypeText = (type) => {
+                const types = {
+                    'GENERAL': '일반',
+                    'LEAVE': '휴가신청서',
+                    'EXPENSE': '지출결의서',
+                    'BUSINESS_TRIP': '출장신청서'
+                };
+                return types[type] || '일반';
+            };
+
+            const statusBadge = getStatusBadge(doc.status);
+
+            const modalBody = document.getElementById('modalBody');
+            modalBody.innerHTML = `
+                <div class="detail-section">
+                    <div class="detail-label">문서 번호</div>
+                    <div class="detail-value">#${doc.id}</div>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-label">문서 제목</div>
+                    <div class="detail-value">${doc.title || '제목 없음'}</div>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-label">문서 유형</div>
+                    <div class="detail-value">${getDocTypeText(doc.documentType)}</div>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-label">작성일</div>
+                    <div class="detail-value">${formatDate(doc.createdAt)}</div>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-label">상태</div>
+                    <div class="detail-value">${statusBadge}</div>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-label">문서 내용</div>
+                    <div class="detail-content">${doc.content || '내용 없음'}</div>
+                </div>
+                ${doc.approvals && doc.approvals.length > 0 ? `
+                    <div class="detail-section">
+                        <div class="detail-label">결재 진행 상황</div>
+                        <div class="approval-steps">
+                            ${doc.approvals.map((approval, index) => {
+                                const stepBadge = getApprovalStepBadge(approval.decision);
+                                let comment = '';
+                                if (approval.approvalComment) {
+                                    if (approval.decision === 'REJECTED') {
+                                        comment = `<div style="font-size: 11px; color: #742a2a; margin-top: 4px; font-weight: 600;">📝 반려 사유: ${approval.approvalComment}</div>`;
+                                    } else {
+                                        comment = `<div style="font-size: 11px; color: #718096; margin-top: 4px;">💬 코멘트: ${approval.approvalComment}</div>`;
+                                    }
+                                }
+                                const decidedAt = approval.decidedAt ? `<div style="font-size: 11px; color: #a0aec0; margin-top: 2px;">${formatDate(approval.decidedAt)}</div>` : '';
+                                return `
+                                    <span class="approval-step-badge ${stepBadge.class}">
+                                        <div>${index + 1}. ${approval.approverName} - ${stepBadge.text}</div>
+                                        ${comment}
+                                        ${decidedAt}
+                                    </span>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+
+            document.getElementById('documentModal').classList.add('active');
+        }
+
+        function closeDocumentModal() {
+            document.getElementById('documentModal').classList.remove('active');
+        }
+
+        async function cancelDocument(documentId) {
+            if (!confirm('문서를 취소하시겠습니까?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/intranet/approvals/document/${documentId}/cancel`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(data.message);
+                    loadDocuments();
+                } else {
+                    alert(data.message || '취소에 실패했습니다');
+                }
+            } catch (error) {
+                console.error('문서 취소 오류:', error);
+                alert('서버 오류가 발생했습니다');
+            }
+        }
+
+        async function logout() {
+            if (!confirm('로그아웃 하시겠습니까?')) return;
+            try {
+                await fetch('/api/intranet/auth/logout', { method: 'POST' });
+            } finally {
+                sessionStorage.removeItem('user');
+                window.location.href = '/intranet-login.html';
+            }
+        }
+
+        window.addEventListener('load', () => {
+            displayUserInfo();
+            loadDocuments();
+        });
+    </script>
+</body>
+</html>

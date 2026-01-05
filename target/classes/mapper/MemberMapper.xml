@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.schedule.mapper.MemberMapper">
+
+    <resultMap id="MemberResultMap" type="com.ync.schedule.domain.Member">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="email" column="email"/>
+        <result property="phone" column="phone"/>
+        <result property="departmentId" column="department_id"/>
+        <result property="department" column="department_name"/>
+        <result property="position" column="position"/>
+        <result property="hireDate" column="hire_date"/>
+        <result property="annualLeaveGranted" column="annual_leave_granted"/>
+        <result property="isActive" column="is_active"/>
+        <result property="smtpPassword" column="smtp_password"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="MemberResultMap">
+        SELECT m.*, d.name as department_name
+        FROM members m
+        LEFT JOIN departments d ON m.department_id = d.id
+    </select>
+
+    <select id="findById" resultMap="MemberResultMap">
+        SELECT m.*, d.name as department_name
+        FROM members m
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE m.id = #{id}
+    </select>
+
+    <select id="findByIsActiveTrue" resultMap="MemberResultMap">
+        SELECT m.*, d.name as department_name
+        FROM members m
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE m.is_active = 1
+    </select>
+
+    <select id="findByDepartment" resultMap="MemberResultMap">
+        SELECT m.*, d.name as department_name
+        FROM members m
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE d.name = #{department}
+    </select>
+
+    <select id="findAllActiveOrderByDepartmentAndName" resultMap="MemberResultMap">
+        SELECT m.*, d.name as department_name
+        FROM members m
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE m.is_active = 1
+        ORDER BY d.name, m.name
+    </select>
+
+    <insert id="insert" parameterType="com.ync.schedule.domain.Member">
+        <selectKey keyProperty="id" resultType="long" order="BEFORE">
+            SELECT members_seq.NEXTVAL FROM dual
+        </selectKey>
+        INSERT INTO members (id, name, email, phone, department_id, position, hire_date, annual_leave_granted, is_active, smtp_password, created_at, updated_at)
+        VALUES (#{id}, #{name}, #{email}, #{phone}, #{departmentId}, #{position}, #{hireDate}, #{annualLeaveGranted}, #{isActive}, #{smtpPassword}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    </insert>
+
+    <update id="update" parameterType="com.ync.schedule.domain.Member">
+        UPDATE members
+        SET name = #{name},
+            email = #{email},
+            phone = #{phone},
+            department_id = #{departmentId},
+            position = #{position},
+            hire_date = #{hireDate},
+            annual_leave_granted = #{annualLeaveGranted},
+            is_active = #{isActive},
+            smtp_password = #{smtpPassword},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM members WHERE id = #{id}
+    </delete>
+
+</mapper>

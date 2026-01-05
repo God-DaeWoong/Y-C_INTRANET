@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>휴가 신청 알림</title>
+</head>
+<body style="font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 20px; background-color: #f5f5f5; margin: 0;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <h2 style="color: #3b82f6; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; margin: 0 0 20px 0;">📅 휴가 신청 알림</h2>
+
+        <div style="margin-top: 20px;">
+            <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">
+                <strong th:text="${memberName}">홍길동</strong>님이 <strong style="color: #3b82f6;" th:text="${leaveType}">연차</strong>를 신청했습니다.
+            </p>
+
+            <div style="background-color: #f8fafc; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0; border-radius: 5px;">
+                <p style="margin: 5px 0; color: #555;">
+                    <strong>시작일:</strong> <span th:text="${startDate}">2025년 01월 15일</span>
+                </p>
+                <p style="margin: 5px 0; color: #555;">
+                    <strong>종료일:</strong> <span th:text="${endDate}">2025년 01월 17일</span>
+                </p>
+                <p style="margin: 5px 0; color: #555;">
+                    <strong>사용 일수:</strong> <span th:text="${leaveAmount}">3</span>일
+                </p>
+            </div>
+
+            <p style="color: #666; font-size: 14px; margin-top: 20px;">
+                휴가 관리 시스템에서 확인하고 승인해주세요.
+            </p>
+        </div>
+
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+            <p style="color: #999; font-size: 12px; margin: 0;">
+                이 메일은 YNC Smart 휴가 관리 시스템에서 자동으로 발송되었습니다.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

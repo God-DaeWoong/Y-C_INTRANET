@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.intranet.mapper.NoticeIntranetMapper">
+
+    <resultMap id="NoticeIntranetResultMap" type="com.ync.intranet.domain.NoticeIntranet">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="authorId" column="author_id"/>
+        <result property="authorName" column="author_name"/>
+        <result property="isPinned" column="is_pinned"/>
+        <result property="viewCount" column="view_count"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- ID로 공지사항 조회 -->
+    <select id="findById" resultMap="NoticeIntranetResultMap">
+        SELECT n.*, m.name as author_name
+        FROM notices_intranet n
+        LEFT JOIN members_intranet m ON n.author_id = m.id
+        WHERE n.id = #{id}
+    </select>
+
+    <!-- 전체 공지사항 조회 (최신순, 고정 공지 먼저) -->
+    <select id="findAll" resultMap="NoticeIntranetResultMap">
+        SELECT n.*, m.name as author_name
+        FROM notices_intranet n
+        LEFT JOIN members_intranet m ON n.author_id = m.id
+        ORDER BY n.is_pinned DESC, n.created_at DESC
+    </select>
+
+    <!-- 고정 공지사항 조회 -->
+    <select id="findPinned" resultMap="NoticeIntranetResultMap">
+        SELECT n.*, m.name as author_name
+        FROM notices_intranet n
+        LEFT JOIN members_intranet m ON n.author_id = m.id
+        WHERE n.is_pinned = 1
+        ORDER BY n.created_at DESC
+    </select>
+
+    <!-- 작성자별 공지사항 조회 -->
+    <select id="findByAuthorId" resultMap="NoticeIntranetResultMap">
+        SELECT n.*, m.name as author_name
+        FROM notices_intranet n
+        LEFT JOIN members_intranet m ON n.author_id = m.id
+        WHERE n.author_id = #{authorId}
+        ORDER BY n.created_at DESC
+    </select>
+
+    <!-- 공지사항 등록 -->
+    <insert id="insert" parameterType="com.ync.intranet.domain.NoticeIntranet">
+        <selectKey keyProperty="id" resultType="long" order="BEFORE">
+            SELECT notices_intranet_seq.NEXTVAL FROM dual
+        </selectKey>
+        INSERT INTO notices_intranet (
+            id, title, content, author_id, is_pinned, view_count,
+            created_at, updated_at
+        )
+        VALUES (
+            #{id}, #{title}, #{content}, #{authorId}, #{isPinned}, 0,
+            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <!-- 공지사항 수정 -->
+    <update id="update" parameterType="com.ync.intranet.domain.NoticeIntranet">
+        UPDATE notices_intranet
+        SET title = #{title},
+            content = #{content},
+            is_pinned = #{isPinned},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 조회수 증가 -->
+    <update id="incrementViewCount">
+        UPDATE notices_intranet
+        SET view_count = view_count + 1
+        WHERE id = #{id}
+    </update>
+
+    <!-- 공지사항 삭제 -->
+    <delete id="deleteById">
+        DELETE FROM notices_intranet WHERE id = #{id}
+    </delete>
+
+</mapper>

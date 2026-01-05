@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.schedule.mapper.ExpenseItemMapper">
+
+    <resultMap id="ExpenseItemResultMap" type="com.ync.schedule.domain.ExpenseItem">
+        <id property="id" column="id"/>
+        <result property="memberId" column="member_id"/>
+        <result property="usageDate" column="usage_date"/>
+        <result property="description" column="description"/>
+        <result property="account" column="account"/>
+        <result property="amount" column="amount"/>
+        <result property="vendor" column="vendor"/>
+        <result property="costCode" column="cost_code"/>
+        <result property="projectCode" column="project_code"/>
+        <result property="note" column="note"/>
+        <result property="welfareFlag" column="welfare_flag"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <association property="member" javaType="com.ync.schedule.domain.Member">
+            <id property="id" column="member_id"/>
+            <result property="name" column="member_name"/>
+            <result property="departmentId" column="member_department_id"/>
+        </association>
+    </resultMap>
+
+    <resultMap id="ExpenseItemDtoResultMap" type="com.ync.schedule.dto.ExpenseItemDto">
+        <id property="id" column="id"/>
+        <result property="memberId" column="member_id"/>
+        <result property="memberName" column="member_name"/>
+        <result property="departmentName" column="department_name"/>
+        <result property="usageDate" column="usage_date"/>
+        <result property="description" column="description"/>
+        <result property="account" column="account"/>
+        <result property="amount" column="amount"/>
+        <result property="vendor" column="vendor"/>
+        <result property="costCode" column="cost_code"/>
+        <result property="projectCode" column="project_code"/>
+        <result property="note" column="note"/>
+        <result property="welfareFlag" column="welfare_flag"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="ExpenseItemDtoResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as department_name
+        FROM expense_items ei
+        LEFT JOIN members m ON ei.member_id = m.id
+        LEFT JOIN departments d ON m.department_id = d.id
+        ORDER BY ei.usage_date ASC, ei.created_at ASC
+    </select>
+
+    <select id="findById" resultMap="ExpenseItemResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               m.department_id as member_department_id
+        FROM expense_items ei
+        LEFT JOIN members m ON ei.member_id = m.id
+        WHERE ei.id = #{id}
+    </select>
+
+    <select id="findByMemberId" resultMap="ExpenseItemDtoResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as department_name
+        FROM expense_items ei
+        LEFT JOIN members m ON ei.member_id = m.id
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE ei.member_id = #{memberId}
+        ORDER BY ei.usage_date ASC, ei.created_at ASC
+    </select>
+
+    <select id="findByDateRange" resultMap="ExpenseItemDtoResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as department_name
+        FROM expense_items ei
+        LEFT JOIN members m ON ei.member_id = m.id
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE ei.usage_date BETWEEN #{startDate} AND #{endDate}
+        ORDER BY ei.usage_date ASC, ei.created_at ASC
+    </select>
+
+    <select id="findByMemberIdAndDateRange" resultMap="ExpenseItemDtoResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as department_name
+        FROM expense_items ei
+        LEFT JOIN members m ON ei.member_id = m.id
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE ei.member_id = #{memberId}
+          AND ei.usage_date BETWEEN #{startDate} AND #{endDate}
+        ORDER BY ei.usage_date ASC, ei.created_at ASC
+    </select>
+
+    <select id="findWelfareExpensesByMemberIdAndYear" resultMap="ExpenseItemDtoResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as department_name
+        FROM expense_items ei
+        LEFT JOIN members m ON ei.member_id = m.id
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE ei.member_id = #{memberId}
+          AND ei.welfare_flag = 'Y'
+          AND EXTRACT(YEAR FROM ei.usage_date) = #{year}
+        ORDER BY ei.usage_date ASC
+    </select>
+
+    <insert id="insert" parameterType="com.ync.schedule.domain.ExpenseItem">
+        <selectKey keyProperty="id" resultType="long" order="BEFORE">
+            SELECT expense_items_seq.NEXTVAL FROM dual
+        </selectKey>
+        INSERT INTO expense_items (
+            id,
+            member_id,
+            usage_date,
+            description,
+            account,
+            amount,
+            <if test="vendor != null">vendor,</if>
+            <if test="costCode != null">cost_code,</if>
+            <if test="projectCode != null">project_code,</if>
+            <if test="note != null">note,</if>
+            <if test="welfareFlag != null">welfare_flag,</if>
+            created_at,
+            updated_at
+        )
+        VALUES (
+            #{id},
+            #{memberId},
+            #{usageDate, jdbcType=DATE},
+            #{description, jdbcType=VARCHAR},
+            #{account, jdbcType=VARCHAR},
+            #{amount, jdbcType=DECIMAL},
+            <if test="vendor != null">#{vendor, jdbcType=VARCHAR},</if>
+            <if test="costCode != null">#{costCode, jdbcType=VARCHAR},</if>
+            <if test="projectCode != null">#{projectCode, jdbcType=VARCHAR},</if>
+            <if test="note != null">#{note, jdbcType=VARCHAR},</if>
+            <if test="welfareFlag != null">#{welfareFlag, jdbcType=CHAR},</if>
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <update id="update" parameterType="com.ync.schedule.domain.ExpenseItem">
+        UPDATE expense_items
+        <set>
+            member_id = #{memberId},
+            usage_date = #{usageDate, jdbcType=DATE},
+            description = #{description, jdbcType=VARCHAR},
+            account = #{account, jdbcType=VARCHAR},
+            amount = #{amount, jdbcType=DECIMAL},
+            <if test="vendor != null">
+                vendor = #{vendor, jdbcType=VARCHAR},
+            </if>
+            <if test="costCode != null">
+                cost_code = #{costCode, jdbcType=VARCHAR},
+            </if>
+            <if test="projectCode != null">
+                project_code = #{projectCode, jdbcType=VARCHAR},
+            </if>
+            <if test="note != null">
+                note = #{note, jdbcType=VARCHAR},
+            </if>
+            <if test="welfareFlag != null">
+                welfare_flag = #{welfareFlag, jdbcType=CHAR},
+            </if>
+            updated_at = CURRENT_TIMESTAMP
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM expense_items WHERE id = #{id}
+    </delete>
+
+</mapper>

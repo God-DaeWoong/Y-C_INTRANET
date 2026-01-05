@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>지출보고서 입력/검토 화면</title>
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='10' width='52' height='48' rx='12' fill='%235b6cff'/%3E%3Crect x='6' y='18' width='52' height='40' rx='10' fill='%23ffffff'/%3E%3Crect x='6' y='10' width='52' height='14' rx='12' fill='%238b5cf6'/%3E%3Cpath d='M18 34h28v4H18zM18 42h18v4H18z' fill='%235b6cff'/%3E%3C/svg%3E"/>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:rgba(255,255,255,.92);
+      --panel2:rgba(255,255,255,.98);
+      --border:rgba(15,23,42,.10);
+      --text:#0f172a;
+      --muted:#64748b;
+      --primary:#6366f1;
+      --primary2:#8b5cf6;
+      --danger:#ef4444;
+      --success:#10b981;
+      --warning:#f59e0b;
+      --shadow:0 22px 60px rgba(15,23,42,.22);
+      --shadow2:0 10px 30px rgba(15,23,42,.14);
+      --r-xl:20px; --r:14px; --r-sm:10px;
+      --focus:0 0 0 4px rgba(99,102,241,.16);
+      --transition:all .18s cubic-bezier(.4,0,.2,1);
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",Roboto,Arial,sans-serif;
+      background:radial-gradient(1200px 700px at 20% 10%, rgba(99,102,241,.35), transparent 55%),
+                 radial-gradient(900px 600px at 85% 15%, rgba(139,92,246,.30), transparent 55%),
+                 radial-gradient(800px 600px at 60% 90%, rgba(16,185,129,.18), transparent 55%),
+                 linear-gradient(180deg, #070b14 0%, #0b1220 100%);
+      color:#e5e7eb;
+      min-height:100vh;
+      padding:22px;
+    }
+    .wrap{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start;}
+    .card{
+      background:var(--panel);
+      color:var(--text);
+      border-radius:var(--r-xl);
+      box-shadow:var(--shadow);
+      border:1px solid rgba(255,255,255,.14);
+      overflow:hidden;
+    }
+    .card .head{
+      padding:18px 18px 14px 18px;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      background:linear-gradient(135deg, rgba(99,102,241,.08), rgba(139,92,246,.08));
+    }
+    .title{
+      font-size:18px;font-weight:900;letter-spacing:-.4px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .title small{font-size:12px;font-weight:800;color:var(--muted);}
+    .chip{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:6px 10px;border-radius:999px;font-size:12px;font-weight:900;
+      background:#eef2ff;color:#3730a3;border:1px solid rgba(55,48,163,.14);
+      white-space:nowrap;
+    }
+    .body{padding:16px 18px;}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    label{display:block;font-size:12px;font-weight:900;color:#0f172a;margin:0 0 6px 2px;}
+    input,select,textarea{
+      width:100%;
+      border:2px solid var(--border);
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:14px;
+      background:#fff;
+      outline:none;
+      transition:var(--transition);
+      box-shadow:0 2px 10px rgba(15,23,42,.06);
+    }
+    textarea{min-height:72px;resize:vertical;}
+    input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:var(--focus);}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    .btn{
+      border:none; cursor:pointer;
+      padding:10px 14px; border-radius:12px;
+      font-weight:900; font-size:13px;
+      transition:var(--transition);
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      box-shadow:0 4px 14px rgba(15,23,42,.10);
+      white-space:nowrap;
+    }
+    .btn:hover{transform:translateY(-1px);box-shadow:var(--shadow2);}
+    .btn:active{transform:translateY(0);}
+    .btn-primary{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;}
+    .btn-ghost{background:#fff;color:#0f172a;border:2px solid var(--border);}
+    .btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;}
+    .btn-success{background:linear-gradient(135deg,#10b981,#059669);color:#fff;}
+    .btn-warning{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;}
+    .statbar{
+      display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;
+      margin-top:10px;
+    }
+    .stat{
+      background:#fff; border:1px solid var(--border);
+      border-radius:14px; padding:12px;
+    }
+    .stat .k{font-size:11px;font-weight:900;color:var(--muted);}
+    .stat .v{font-size:18px;font-weight:1000;margin-top:6px;}
+    .stat .v small{font-size:12px;font-weight:900;color:var(--muted);}
+    .mainTop{
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+      margin-bottom:12px;
+    }
+    .mainTop .left{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+    .search{
+      min-width:260px;
+      background:var(--panel2);
+      color:var(--text);
+      border-radius:999px;
+      padding:10px 14px;
+      border:2px solid rgba(255,255,255,.35);
+      outline:none;
+      box-shadow:0 10px 25px rgba(0,0,0,.18);
+    }
+    .tableWrap{background:var(--panel); color:var(--text); border-radius:var(--r-xl); box-shadow:var(--shadow); overflow:hidden;}
+    table{width:100%; border-collapse:separate; border-spacing:0;}
+    thead th{
+      text-align:left;
+      font-size:12px;
+      font-weight:1000;
+      color:#0f172a;
+      padding:12px 12px;
+      background:linear-gradient(135deg, rgba(99,102,241,.12), rgba(139,92,246,.12));
+      border-bottom:1px solid var(--border);
+      position:sticky; top:0; z-index:2;
+    }
+    tbody td{
+      padding:10px 12px;
+      border-bottom:1px solid rgba(15,23,42,.07);
+      font-size:13px;
+      vertical-align:top;
+    }
+    tbody tr:hover td{background:rgba(99,102,241,.06);}
+    .num{text-align:right; font-variant-numeric:tabular-nums;}
+    .tag{
+      display:inline-flex;align-items:center;
+      padding:4px 10px;border-radius:999px;
+      font-size:11px;font-weight:1000;
+      border:1px solid rgba(15,23,42,.10);
+      background:#fff;
+      white-space:nowrap;
+    }
+    .tag.acc{background:#f1f5f9;}
+    .tag.cc{background:#ecfeff;}
+    .tag.pj{background:#eef2ff;}
+    .actions{display:flex; gap:8px;}
+    .linkBtn{padding:8px 10px;border-radius:10px;border:2px solid var(--border);background:#fff;font-weight:1000;cursor:pointer;}
+    .linkBtn:hover{border-color:var(--primary);color:var(--primary);}
+    .note{white-space:pre-wrap; color:#334155;}
+    .foot{padding:12px 14px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; border-top:1px solid var(--border); background:rgba(255,255,255,.7);}
+    .tiny{font-size:12px;color:#334155;font-weight:800;}
+    .modal{
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);
+      z-index:999; padding:20px; overflow:auto;
+    }
+    .modal.show{display:block;}
+    .modal .panel{
+      max-width:820px; margin:40px auto; background:#fff; color:var(--text);
+      border-radius:var(--r-xl); box-shadow:0 30px 90px rgba(0,0,0,.35);
+      overflow:hidden;
+    }
+    .modal .panel .head{background:#fff;}
+    .modal .panel .body{padding:16px 18px 18px;}
+    .modal .x{cursor:pointer; padding:8px 10px;border-radius:10px;}
+    .modal .x:hover{background:#f1f5f9;}
+    .hr{height:1px;background:rgba(15,23,42,.10);margin:10px 0;}
+    .printArea{display:none;}
+    @media (max-width: 980px){
+      .wrap{grid-template-columns:1fr;}
+      .search{width:100%; min-width:0;}
+    }
+    @media print {
+      body{background:#fff;color:#000;padding:0;}
+      .wrap, .card, .tableWrap, .mainTop, .foot, .btn, .chip, .search{display:none !important;}
+      .printArea{display:block; padding:18px;}
+      .printBox{border:1px solid #111; padding:14px;}
+      .printHeader{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;}
+      .printHeader h1{font-size:20px; margin:0;}
+      .printMeta{font-size:12px;}
+      .pTable{width:100%; border-collapse:collapse; margin-top:12px;}
+      .pTable th,.pTable td{border:1px solid #111; padding:6px; font-size:12px;}
+      .pNum{text-align:right;}
+    }
+  </style>
+</head>
+<body>
+
+<script>
+  // ===== Excel에서 로드한 초기 데이터 (내장) =====
+  const INITIAL = {"meta": {"name": "윤대웅", "position": "Unit장", "dept": "기업사업1본부", "receiptCount": 13, "resolveDate": "2025.12.30"}, "items": [{"user": "윤대웅", "date": "2025-12-01", "desc": "점심 식사", "account": "복리후생비", "amount": 8500.0, "vendor": "호돌이반점", "costCode": "개인(개인)", "projectCode": "PJ00000000", "note": ""}, {"user": "윤대웅", "date": "2025-12-02", "desc": "점심 식사", "account": "복리후생비", "amount": 12000.0, "vendor": "라비옥", "costCode": "개인(개인)", "projectCode": "PJ00000000", "note": ""}, {"user": "윤대웅", "date": "2025-12-03", "desc": "점심 식사", "account": "복리후생비", "amount": 10000.0, "vendor": "백암왕순대", "costCode": "개인(개인)", "projectCode": "PJ00000000", "note": ""}, {"user": "윤대웅", "date": "2025-12-04", "desc": "점심 식사", "account": "복리후생비", "amount": 11900.0, "vendor": "닭가대표 강남대표", "costCode": "개인(개인)", "projectCode": "PJ00000000", "note": ""}, {"user": "윤대웅", "date": "2025-12-05", "desc": "점심 식사", "account": "복리후생비", "amount": 11000.0, "vendor": "이필녀국밥", "costCode": "개인(개인)", "projectCode": "PJ00000000", "note": ""}, {"user": "윤대웅", "date": "2025-12-09", "desc": "점심 식사", "account": "복리후생비", "amount": 12000.0, "vendor": "문배동육칼", "costCode": "개인(개인)", "projectCode": "PJ00000000", "note": ""}, {"user": "윤대웅", "date": "2025-12-10", "desc": "점심 식사", "account": "복리후생비", "amount": 10000.0, "vendor": "원당뼈다귀감자탕", "costCode": "개인(개인)", "projectCode": "PJ00000000", "note": ""}, {"user": "윤대웅", "date": "2025-12-11", "desc": "점심 식사", "account": "복리후생비", "amount": 10000.0, "vendor": "논현칼국수", "costCode": "개인(개인)", "projectCode": "PJ00000000", "note": ""}, {"user": "윤대웅", "date": "2025-12-12", "desc": "점심 식사", "account": "복리후생비", "amount": 13000.0, "vendor": "무적의돈까스", "costCode": "개인(개인)", "projectCode": "PJ00000000", "note": ""}, {"user": "윤대웅", "date": "2025-12-15", "desc": "점심 식사", "account": "복리후생비", "amount": 11000.0, "vendor": "둥지식당", "costCode": "개인(개인)", "projectCode": "PJ00000000", "note": ""}, {"user": "윤대웅", "date": "2025-12-16", "desc": "점심 식사", "account": "복리후생비", "amount": 10000.0, "vendor": "제주탐하리", "costCode": "개인(개인)", "projectCode": "PJ00000000", "note": ""}, {"user": "윤대웅", "date": "2025-12-17", "desc": "점심 식사", "account": "복리후생비", "amount": 11300.0, "vendor": "네모오징어 역삼2호점", "costCode": "개인(개인)", "projectCode": "PJ00000000", "note": ""}, {"user": "윤대웅", "date": "2025-12-18", "desc": "점심 식사", "account": "복리후생비", "amount": 9000.0, "vendor": "더차이나", "costCode": "개인(개인)", "projectCode": "PJ00000000", "note": ""}, {"user": "윤대웅", "date": "2025-12-22", "desc": "점심 식사", "account": "복리후생비", "amount": 10300.0, "vendor": "담미온 역삼점", "costCode": "개인(개인)", "projectCode": "PJ00000000", "note": ""}, {"user": "-", "date": "", "desc": "", "account": "", "amount": NaN, "vendor": "", "costCode": "", "projectCode": "", "note": ""}, {"user": "-", "date": "", "desc": "", "account": "", "amount": NaN, "vendor": "", "costCode": "", "projectCode": "", "note": ""}, {"user": "-", "date": "", "desc": "", "account": "", "amount": NaN, "vendor": "", "costCode": "", "projectCode": "", "note": ""}, {"user": "-", "date": "", "desc": "", "account": "", "amount": NaN, "vendor": "", "costCode": "", "projectCode": "", "note": ""}, {"user": "-", "date": "", "desc": "", "account": "", "amount": NaN, "vendor": "", "costCode": "", "projectCode": "", "note": ""}, {"user": "-", "date": "", "desc": "", "account": "", "amount": NaN, "vendor": "", "costCode": "", "projectCode": "", "note": ""}, {"user": "-", "date": "", "desc": "", "account": "", "amount": NaN, "vendor": "", "costCode": "", "projectCode": "", "note": ""}, {"user": "-", "date": "", "desc": "", "account": "", "amount": NaN, "vendor": "", "costCode": "", "projectCode": "", "note": ""}, {"user": "-", "date": "", "desc": "", "account": "", "amount": NaN, "vendor": "", "costCode": "", "projectCode": "", "note": ""}, {"user": "-", "date": "", "desc": "", "account": "", "amount": NaN, "vendor": "", "costCode": "", "projectCode": "", "note": ""}, {"user": "-", "date": "", "desc": "", "account": "", "amount": NaN, "vendor": "", "costCode": "", "projectCode": "", "note": ""}, {"user": "-", "date": "", "desc": "", "account": "", "amount": NaN, "vendor": "", "costCode": "", "projectCode": "", "note": ""}, {"user": "-", "date": "", "desc": "", "account": "", "amount": NaN, "vendor": "", "costCode": "", "projectCode": "", "note": ""}]};
+</script>
+
+<div class="wrap">
+  <section class="card">
+    <div class="head">
+      <div class="title">🧾 지출보고서 <small>입력/검토</small></div>
+      <span class="chip">localStorage 저장</span>
+    </div>
+    <div class="body">
+      <div class="grid">
+        <div>
+          <label>성명</label>
+          <input id="metaName" />
+        </div>
+        <div>
+          <label>직위</label>
+          <input id="metaPos" />
+        </div>
+        <div>
+          <label>사업부서</label>
+          <input id="metaDept" />
+        </div>
+        <div>
+          <label>결의일자</label>
+          <input id="metaResolve" type="date" />
+        </div>
+      </div>
+
+      <div class="statbar">
+        <div class="stat">
+          <div class="k">총 건수</div>
+          <div class="v"><span id="statCount">0</span><small> 건</small></div>
+        </div>
+        <div class="stat">
+          <div class="k">합계</div>
+          <div class="v"><span id="statSum">0</span><small> 원</small></div>
+        </div>
+        <div class="stat">
+          <div class="k">영수증(참고)</div>
+          <div class="v"><span id="statReceipt">0</span><small> 매</small></div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="grid">
+        <div>
+          <label>기간(시작)</label>
+          <input id="fFrom" type="date" />
+        </div>
+        <div>
+          <label>기간(종료)</label>
+          <input id="fTo" type="date" />
+        </div>
+        <div>
+          <label>계정</label>
+          <select id="fAccount">
+            <option value="">전체</option>
+          </select>
+        </div>
+        <div>
+          <label>경비코드</label>
+          <select id="fCost">
+            <option value="">전체</option>
+          </select>
+        </div>
+        <div>
+          <label>프로젝트코드</label>
+          <select id="fProject">
+            <option value="">전체</option>
+          </select>
+        </div>
+        <div>
+          <label>업소명</label>
+          <input id="fVendor" placeholder="예: 스타벅스" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <button class="btn btn-primary" id="btnNew">+ 지출 추가</button>
+        <button class="btn btn-ghost" id="btnResetFilter">필터 초기화</button>
+        <button class="btn btn-success" id="btnExportCsv">CSV 다운로드</button>
+        <button class="btn btn-warning" id="btnPrint">지출보고서 인쇄</button>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <label style="width:100%; margin:0;">엑셀 다시 불러오기(선택)</label>
+        <input id="fileXlsx" type="file" accept=".xlsx" />
+        <div class="tiny">※ 파일을 선택하면 <b>지출내역</b> 시트에서 자동 추출(가능한 형태일 때).</div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <button class="btn btn-danger" id="btnResetAll">데이터 전체 초기화</button>
+      </div>
+
+      <div class="tiny" style="margin-top:10px;">
+        팁) 행의 [수정]으로 편집. 검색창은 사용내용/업소/메모/코드까지 같이 검색.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="mainTop">
+      <div class="left">
+        <span class="chip">표시 건수: <b id="shownCount">0</b></span>
+        <span class="chip">표시 합계: <b id="shownSum">0</b>원</span>
+      </div>
+      <input class="search" id="q" placeholder="검색: 사용내용/업소/메모/프로젝트코드 ..." />
+    </div>
+
+    <div class="tableWrap">
+      <div style="max-height:calc(100vh - 90px); overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:110px;">사용일시</th>
+              <th style="width:130px;">사용자</th>
+              <th style="width:140px;">업소명</th>
+              <th>사용 내용</th>
+              <th style="width:140px;">계정</th>
+              <th style="width:120px;">경비코드</th>
+              <th style="width:140px;">프로젝트</th>
+              <th class="num" style="width:110px;">금액</th>
+              <th style="width:120px;">작업</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="foot">
+        <div class="tiny">저장 위치: <b>브라우저 localStorage</b> (같은 PC/브라우저에서 유지)</div>
+        <div class="tiny">데이터: Excel 초기값 + 화면에서 수정/추가</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="modal" id="modal">
+  <div class="panel">
+    <div class="head">
+      <div class="title" id="mTitle">지출 추가</div>
+      <div class="row">
+        <button class="btn btn-danger" id="btnDelete" style="display:none;">삭제</button>
+        <span class="x" id="btnClose">✕</span>
+      </div>
+    </div>
+    <div class="body">
+      <input type="hidden" id="mIdx" />
+      <div class="grid">
+        <div>
+          <label>사용일시</label>
+          <input id="mDate" type="date" required />
+        </div>
+        <div>
+          <label>사용자</label>
+          <input id="mUser" />
+        </div>
+        <div>
+          <label>업소명</label>
+          <input id="mVendor" />
+        </div>
+        <div>
+          <label>금액</label>
+          <input id="mAmount" type="number" min="0" step="1" />
+        </div>
+        <div>
+          <label>계정</label>
+          <input id="mAccount" placeholder="예: 복리후생비" />
+        </div>
+        <div>
+          <label>경비코드</label>
+          <input id="mCost" placeholder="예: 개인(개인)" />
+        </div>
+        <div>
+          <label>프로젝트코드</label>
+          <input id="mProject" placeholder="예: PJ00000000" />
+        </div>
+        <div>
+          <label>사용 내용</label>
+          <input id="mDesc" placeholder="예: 점심 식사" />
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <label>메모(용도/참석자 등)</label>
+        <textarea id="mNote" placeholder="7만원 이상 비용 발생 시 참석자/용도 기입 등"></textarea>
+      </div>
+
+      <div class="row" style="justify-content:flex-end; margin-top:14px;">
+        <button class="btn btn-ghost" id="btnCancel">취소</button>
+        <button class="btn btn-primary" id="btnSave">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="printArea" id="printArea">
+  <div class="printBox">
+    <div class="printHeader">
+      <h1>지 출 보 고 서</h1>
+      <div class="printMeta">
+        결의일자: <span id="pResolve"></span><br/>
+        사업부서: <span id="pDept"></span><br/>
+        직위/성명: <span id="pPos"></span> <span id="pName"></span>
+      </div>
+    </div>
+    <div>일금: <b><span id="pSum"></span></b> 원</div>
+
+    <table class="pTable">
+      <thead>
+        <tr>
+          <th style="width:40px;">No</th>
+          <th style="width:110px;">사용일시</th>
+          <th>내용</th>
+          <th style="width:140px;">업소명</th>
+          <th style="width:110px;">계정</th>
+          <th style="width:120px;">경비코드</th>
+          <th style="width:140px;">프로젝트</th>
+          <th style="width:90px;">금액</th>
+        </tr>
+      </thead>
+      <tbody id="pTbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<script>
+  const KEY = "EXPENSE_REPORT_UI_V1";
+  const nf = new Intl.NumberFormat("ko-KR");
+  const $ = (q) => document.querySelector(q);
+
+  function load(){ const raw = localStorage.getItem(KEY); if(!raw) return null; try{return JSON.parse(raw);}catch(e){return null;} }
+  function save(s){ localStorage.setItem(KEY, JSON.stringify(s)); }
+
+  function toISODate(s){
+    if(!s) return "";
+    const str = String(s).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    if (/^\d{4}\.\d{2}\.\d{2}$/.test(str)) return str.replaceAll(".", "-");
+    return str;
+  }
+
+  let state = load() || {
+    meta: {
+      name: INITIAL.meta?.name || "",
+      position: INITIAL.meta?.position || "",
+      dept: INITIAL.meta?.dept || "",
+      receiptCount: INITIAL.meta?.receiptCount ?? "",
+      resolveDate: INITIAL.meta?.resolveDate || ""
+    },
+    items: Array.isArray(INITIAL.items) ? INITIAL.items : []
+  };
+  state.meta.resolveDate = toISODate(state.meta.resolveDate);
+  state.items.forEach(it => it.date = toISODate(it.date));
+
+  const dom = {
+    metaName: $("#metaName"),
+    metaPos: $("#metaPos"),
+    metaDept: $("#metaDept"),
+    metaResolve: $("#metaResolve"),
+    statCount: $("#statCount"),
+    statSum: $("#statSum"),
+    statReceipt: $("#statReceipt"),
+    fFrom: $("#fFrom"),
+    fTo: $("#fTo"),
+    fAccount: $("#fAccount"),
+    fCost: $("#fCost"),
+    fProject: $("#fProject"),
+    fVendor: $("#fVendor"),
+    q: $("#q"),
+    tbody: $("#tbody"),
+    shownCount: $("#shownCount"),
+    shownSum: $("#shownSum"),
+    modal: $("#modal"),
+    mTitle: $("#mTitle"),
+    mIdx: $("#mIdx"),
+    mDate: $("#mDate"),
+    mUser: $("#mUser"),
+    mVendor: $("#mVendor"),
+    mAmount: $("#mAmount"),
+    mAccount: $("#mAccount"),
+    mCost: $("#mCost"),
+    mProject: $("#mProject"),
+    mDesc: $("#mDesc"),
+    mNote: $("#mNote"),
+    btnNew: $("#btnNew"),
+    btnClose: $("#btnClose"),
+    btnCancel: $("#btnCancel"),
+    btnSave: $("#btnSave"),
+    btnDelete: $("#btnDelete"),
+    btnResetFilter: $("#btnResetFilter"),
+    btnExportCsv: $("#btnExportCsv"),
+    btnPrint: $("#btnPrint"),
+    btnResetAll: $("#btnResetAll"),
+    fileXlsx: $("#fileXlsx"),
+    pResolve: $("#pResolve"),
+    pDept: $("#pDept"),
+    pPos: $("#pPos"),
+    pName: $("#pName"),
+    pSum: $("#pSum"),
+    pTbody: $("#pTbody"),
+  };
+
+  function esc(s){ return String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"})[m]); }
+  function sum(list){ return list.reduce((a,b)=>a + (Number(b.amount)||0), 0); }
+  function uniq(arr){ return Array.from(new Set(arr.filter(Boolean))); }
+  function openModal(){ dom.modal.classList.add("show"); }
+  function closeModal(){ dom.modal.classList.remove("show"); }
+  function todayISO(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+
+  function renderMeta(){
+    dom.metaName.value = state.meta.name || "";
+    dom.metaPos.value = state.meta.position || "";
+    dom.metaDept.value = state.meta.dept || "";
+    dom.metaResolve.value = state.meta.resolveDate || "";
+    dom.statReceipt.textContent = state.meta.receiptCount ?? "";
+  }
+
+  function rebuildFilterOptions(){
+    const accounts = uniq(state.items.map(x=>x.account)).sort((a,b)=>String(a).localeCompare(String(b),"ko"));
+    const costs = uniq(state.items.map(x=>x.costCode)).sort((a,b)=>String(a).localeCompare(String(b),"ko"));
+    const projects = uniq(state.items.map(x=>x.projectCode)).sort((a,b)=>String(a).localeCompare(String(b),"ko"));
+
+    const fill = (sel, values) => {
+      const cur = sel.value;
+      sel.innerHTML = `<option value="">전체</option>` + values.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
+      if (values.includes(cur)) sel.value = cur;
+    };
+    fill(dom.fAccount, accounts);
+    fill(dom.fCost, costs);
+    fill(dom.fProject, projects);
+  }
+
+  function applyFilters(){
+    const q = (dom.q.value || "").trim().toLowerCase();
+    const from = dom.fFrom.value || "";
+    const to = dom.fTo.value || "";
+    const acc = dom.fAccount.value || "";
+    const cc = dom.fCost.value || "";
+    const pj = dom.fProject.value || "";
+    const vendor = (dom.fVendor.value || "").trim().toLowerCase();
+
+    return state.items
+      .map((x, idx)=>({...x, __idx: idx}))
+      .filter(x => {
+        if (from && x.date && x.date < from) return false;
+        if (to && x.date && x.date > to) return false;
+        if (acc && x.account !== acc) return false;
+        if (cc && x.costCode !== cc) return false;
+        if (pj && x.projectCode !== pj) return false;
+        if (vendor && String(x.vendor||"").toLowerCase().indexOf(vendor) === -1) return false;
+
+        if (q){
+          const hay = `${x.desc||""} ${x.vendor||""} ${x.note||""} ${x.projectCode||""} ${x.account||""} ${x.costCode||""}`.toLowerCase();
+          if (hay.indexOf(q) === -1) return false;
+        }
+        return true;
+      })
+      .sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+  }
+
+  function renderTable(){
+    const filtered = applyFilters();
+    const s = sum(filtered);
+    dom.shownCount.textContent = nf.format(filtered.length);
+    dom.shownSum.textContent = nf.format(s);
+
+    dom.tbody.innerHTML = filtered.map(x => `
+      <tr data-idx="${x.__idx}">
+        <td>${esc(x.date||"")}</td>
+        <td>${esc(x.user||"")}</td>
+        <td>${esc(x.vendor||"")}</td>
+        <td>
+          <div style="font-weight:1000;">${esc(x.desc||"")}</div>
+          <div class="note">${esc(x.note||"")}</div>
+        </td>
+        <td><span class="tag acc">${esc(x.account||"")}</span></td>
+        <td><span class="tag cc">${esc(x.costCode||"")}</span></td>
+        <td><span class="tag pj">${esc(x.projectCode||"")}</span></td>
+        <td class="num" style="font-weight:1000;">${nf.format(Number(x.amount)||0)}</td>
+        <td><div class="actions"><button class="linkBtn" data-edit="${x.__idx}">수정</button></div></td>
+      </tr>
+    `).join("");
+
+    dom.statCount.textContent = nf.format(state.items.length);
+    dom.statSum.textContent = nf.format(sum(state.items));
+    save(state);
+  }
+
+  function persistMeta(){
+    state.meta.name = dom.metaName.value.trim();
+    state.meta.position = dom.metaPos.value.trim();
+    state.meta.dept = dom.metaDept.value.trim();
+    state.meta.resolveDate = dom.metaResolve.value;
+    save(state);
+  }
+
+  function openNew(){
+    dom.mTitle.textContent = "지출 추가";
+    dom.mIdx.value = "";
+    dom.mDate.value = todayISO();
+    dom.mUser.value = state.meta.name || "";
+    dom.mVendor.value = "";
+    dom.mAmount.value = "";
+    dom.mAccount.value = "";
+    dom.mCost.value = "";
+    dom.mProject.value = "";
+    dom.mDesc.value = "";
+    dom.mNote.value = "";
+    dom.btnDelete.style.display = "none";
+    openModal();
+  }
+
+  function openEdit(idx){
+    const x = state.items[idx]; if(!x) return;
+    dom.mTitle.textContent = "지출 수정";
+    dom.mIdx.value = String(idx);
+    dom.mDate.value = x.date || "";
+    dom.mUser.value = x.user || "";
+    dom.mVendor.value = x.vendor || "";
+    dom.mAmount.value = Number(x.amount)||0;
+    dom.mAccount.value = x.account || "";
+    dom.mCost.value = x.costCode || "";
+    dom.mProject.value = x.projectCode || "";
+    dom.mDesc.value = x.desc || "";
+    dom.mNote.value = x.note || "";
+    dom.btnDelete.style.display = "inline-flex";
+    openModal();
+  }
+
+  function saveModal(){
+    const idxStr = dom.mIdx.value;
+    const item = {
+      user: dom.mUser.value.trim(),
+      date: dom.mDate.value,
+      desc: dom.mDesc.value.trim(),
+      account: dom.mAccount.value.trim(),
+      amount: Number(dom.mAmount.value || 0),
+      vendor: dom.mVendor.value.trim(),
+      costCode: dom.mCost.value.trim(),
+      projectCode: dom.mProject.value.trim(),
+      note: dom.mNote.value.trim()
+    };
+
+    if (!item.date) return alert("사용일시를 입력하세요.");
+    if (!item.desc) return alert("사용 내용을 입력하세요.");
+    if (!item.amount || item.amount < 0) return alert("금액을 올바르게 입력하세요.");
+
+    if (idxStr === "") state.items.push(item);
+    else state.items[Number(idxStr)] = item;
+
+    rebuildFilterOptions();
+    closeModal();
+    renderTable();
+  }
+
+  function deleteModal(){
+    const idxStr = dom.mIdx.value; if (idxStr === "") return;
+    if (!confirm("이 지출 항목을 삭제할까요?")) return;
+    state.items.splice(Number(idxStr), 1);
+    rebuildFilterOptions();
+    closeModal();
+    renderTable();
+  }
+
+  function exportCsv(){
+    const rows = applyFilters();
+    const headers = ["사용자","사용일시","사용 내용","계정","사용금액","업소명","경비코드","프로젝트코드","메모"];
+    const csv = [
+      headers.join(","),
+      ...rows.map(x => [
+        x.user, x.date, x.desc, x.account, x.amount, x.vendor, x.costCode, x.projectCode, (x.note||"").replace(/\n/g," ")
+      ].map(v => `"${String(v ?? "").replace(/"/g,'""')}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `지출내역_${(state.meta.name||"")}_${(state.meta.resolveDate||"")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function buildPrint(){
+    const rows = applyFilters();
+    dom.pResolve.textContent = state.meta.resolveDate || "";
+    dom.pDept.textContent = state.meta.dept || "";
+    dom.pPos.textContent = state.meta.position || "";
+    dom.pName.textContent = state.meta.name || "";
+    dom.pSum.textContent = nf.format(sum(rows));
+
+    dom.pTbody.innerHTML = rows.map((x,i)=>`
+      <tr>
+        <td>${i+1}</td>
+        <td>${esc(x.date||"")}</td>
+        <td>${esc(x.desc||"")}${x.note?`<br/><span style="font-size:11px;">${esc(x.note)}</span>`:""}</td>
+        <td>${esc(x.vendor||"")}</td>
+        <td>${esc(x.account||"")}</td>
+        <td>${esc(x.costCode||"")}</td>
+        <td>${esc(x.projectCode||"")}</td>
+        <td class="pNum">${nf.format(Number(x.amount)||0)}</td>
+      </tr>
+    `).join("");
+  }
+
+  async function importXlsx(file){
+    if (!window.XLSX){ alert("XLSX 라이브러리 로드 실패. 인터넷 연결을 확인하세요."); return; }
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:"array"});
+    const sheetName = wb.SheetNames.find(n => n.includes("지출내역")) || wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false});
+
+    let headerRow = -1;
+    for (let i=0;i<Math.min(rows.length, 60);i++){
+      const r = rows[i] || [];
+      if (r.includes("사용일시") && r.includes("사용금액")) { headerRow = i; break; }
+    }
+    if (headerRow === -1){ alert("지출내역 헤더(사용일시/사용금액)를 찾지 못했습니다. 엑셀 양식을 확인하세요."); return; }
+
+    const header = (rows[headerRow] || []).map(x=>String(x||"").trim());
+    const col = (name) => header.indexOf(name);
+
+    const idxUser = col("사용자");
+    const idxDate = col("사용일시");
+    const idxDesc = col("사용 내용");
+    const idxAcc  = col("계정");
+    const idxAmt  = col("사용금액");
+    const idxVen  = col("업소명");
+    const idxCost = col("경비코드");
+    const idxProj = col("프로젝트코드");
+    const idxNote = col("사용 용도/ 참석자 (7만원이상 비용 발생 시 기입)");
+
+    const items = [];
+    for (let i=headerRow+1;i<rows.length;i++){
+      const r = rows[i] || [];
+      const amt = r[idxAmt];
+      const dt = r[idxDate];
+      if (!dt && !amt) continue;
+
+      const dateStr = String(dt||"").replaceAll(".","-").slice(0,10);
+      const amount = Number(String(amt||"").replaceAll(",","")) || 0;
+
+      items.push({
+        user: idxUser>=0 ? (r[idxUser]||"") : "",
+        date: dateStr,
+        desc: idxDesc>=0 ? (r[idxDesc]||"") : "",
+        account: idxAcc>=0 ? (r[idxAcc]||"") : "",
+        amount,
+        vendor: idxVen>=0 ? (r[idxVen]||"") : "",
+        costCode: idxCost>=0 ? (r[idxCost]||"") : "",
+        projectCode: idxProj>=0 ? (r[idxProj]||"") : "",
+        note: idxNote>=0 ? (r[idxNote]||"") : "",
+      });
+    }
+
+    if (!items.length){ alert("가져온 항목이 없습니다."); return; }
+    if (!confirm(`엑셀에서 ${items.length}건을 가져왔습니다.\n현재 화면 데이터에 '덮어쓰기' 할까요?`)) return;
+
+    state.items = items.map(x=>({...x, date: toISODate(x.date)}));
+    rebuildFilterOptions();
+    renderTable();
+  }
+
+  function bind(){
+    ["change","blur","keyup"].forEach(ev => {
+      dom.metaName.addEventListener(ev, persistMeta);
+      dom.metaPos.addEventListener(ev, persistMeta);
+      dom.metaDept.addEventListener(ev, persistMeta);
+      dom.metaResolve.addEventListener(ev, persistMeta);
+    });
+
+    dom.btnNew.addEventListener("click", openNew);
+
+    dom.tbody.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-edit]");
+      if (btn) openEdit(Number(btn.getAttribute("data-edit")));
+    });
+
+    dom.btnClose.addEventListener("click", closeModal);
+    dom.btnCancel.addEventListener("click", closeModal);
+    dom.modal.addEventListener("click", (e)=>{ if(e.target === dom.modal) closeModal(); });
+    document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeModal(); });
+
+    dom.btnSave.addEventListener("click", saveModal);
+    dom.btnDelete.addEventListener("click", deleteModal);
+
+    [dom.fFrom, dom.fTo, dom.fAccount, dom.fCost, dom.fProject].forEach(el => el.addEventListener("change", renderTable));
+    [dom.fVendor, dom.q].forEach(el => el.addEventListener("input", renderTable));
+
+    dom.btnResetFilter.addEventListener("click", ()=>{
+      dom.fFrom.value = "";
+      dom.fTo.value = "";
+      dom.fAccount.value = "";
+      dom.fCost.value = "";
+      dom.fProject.value = "";
+      dom.fVendor.value = "";
+      dom.q.value = "";
+      renderTable();
+    });
+
+    dom.btnExportCsv.addEventListener("click", exportCsv);
+    dom.btnPrint.addEventListener("click", ()=>{ buildPrint(); window.print(); });
+
+    dom.btnResetAll.addEventListener("click", ()=>{
+      if(!confirm("localStorage에 저장된 데이터까지 전부 초기화할까요?")) return;
+      localStorage.removeItem(KEY);
+      state = {
+        meta: {
+          name: INITIAL.meta?.name || "",
+          position: INITIAL.meta?.position || "",
+          dept: INITIAL.meta?.dept || "",
+          receiptCount: INITIAL.meta?.receiptCount ?? "",
+          resolveDate: toISODate(INITIAL.meta?.resolveDate || "")
+        },
+        items: Array.isArray(INITIAL.items) ? INITIAL.items : []
+      };
+      renderMeta();
+      rebuildFilterOptions();
+      renderTable();
+    });
+
+    dom.fileXlsx.addEventListener("change", async (e)=>{
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try { await importXlsx(file); }
+      catch(err){ console.error(err); alert("엑셀 가져오기에 실패했습니다. (콘솔 확인)"); }
+      finally { dom.fileXlsx.value = ""; }
+    });
+  }
+
+  renderMeta();
+  rebuildFilterOptions();
+  renderTable();
+  bind();
+</script>
+
+</body>
+</html>

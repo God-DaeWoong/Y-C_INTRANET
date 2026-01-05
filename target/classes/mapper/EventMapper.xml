@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.schedule.mapper.EventMapper">
+
+    <resultMap id="EventResultMap" type="com.ync.schedule.domain.Event">
+        <id property="id" column="id"/>
+        <result property="memberId" column="member_id"/>
+        <result property="eventType" column="event_type"/>
+        <result property="eventSubtype" column="event_subtype"/>
+        <result property="startDate" column="start_date"/>
+        <result property="endDate" column="end_date"/>
+        <result property="startTime" column="start_time"/>
+        <result property="endTime" column="end_time"/>
+        <result property="leaveAmount" column="leave_amount"/>
+        <result property="title" column="title"/>
+        <result property="description" column="description"/>
+        <result property="status" column="status"/>
+        <result property="department" column="department"/>
+        <result property="position" column="position"/>
+        <result property="division" column="division"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <association property="member" javaType="com.ync.schedule.domain.Member">
+            <id property="id" column="member_id"/>
+            <result property="name" column="member_name"/>
+            <result property="email" column="member_email"/>
+            <result property="phone" column="member_phone"/>
+            <result property="position" column="member_position"/>
+            <result property="departmentId" column="member_department_id"/>
+            <result property="department" column="member_department"/>
+            <result property="smtpPassword" column="member_smtp_password"/>
+        </association>
+    </resultMap>
+
+    <select id="findAll" resultMap="EventResultMap">
+        SELECT e.*, m.name as member_name, m.email as member_email, m.phone as member_phone, m.position as member_position, m.department_id as member_department_id, m.smtp_password as member_smtp_password, d.name as member_department
+        FROM events e
+        LEFT JOIN members m ON e.member_id = m.id
+        LEFT JOIN departments d ON m.department_id = d.id
+    </select>
+
+    <select id="findById" resultMap="EventResultMap">
+        SELECT e.*, m.name as member_name, m.email as member_email, m.phone as member_phone, m.position as member_position, m.department_id as member_department_id, m.smtp_password as member_smtp_password, d.name as member_department
+        FROM events e
+        LEFT JOIN members m ON e.member_id = m.id
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE e.id = #{id}
+    </select>
+
+    <select id="findByMemberId" resultMap="EventResultMap">
+        SELECT e.*, m.name as member_name, m.email as member_email, m.phone as member_phone, m.position as member_position, m.department_id as member_department_id, m.smtp_password as member_smtp_password, d.name as member_department
+        FROM events e
+        LEFT JOIN members m ON e.member_id = m.id
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE e.member_id = #{memberId}
+    </select>
+
+    <select id="findByDateRange" resultMap="EventResultMap">
+        SELECT e.*, m.name as member_name, m.email as member_email, m.phone as member_phone, m.position as member_position, m.department_id as member_department_id, m.smtp_password as member_smtp_password, d.name as member_department
+        FROM events e
+        LEFT JOIN members m ON e.member_id = m.id
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE e.start_date &lt;= #{endDate}
+          AND e.end_date &gt;= #{startDate}
+    </select>
+
+    <select id="findByMemberIdAndDateRange" resultMap="EventResultMap">
+        SELECT e.*, m.name as member_name, m.email as member_email, m.phone as member_phone, m.position as member_position, m.department_id as member_department_id, m.smtp_password as member_smtp_password, d.name as member_department
+        FROM events e
+        LEFT JOIN members m ON e.member_id = m.id
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE e.member_id = #{memberId}
+          AND e.start_date &lt;= #{endDate}
+          AND e.end_date &gt;= #{startDate}
+    </select>
+
+    <insert id="insert" parameterType="com.ync.schedule.domain.Event">
+        <selectKey keyProperty="id" resultType="long" order="BEFORE">
+            SELECT events_seq.NEXTVAL FROM dual
+        </selectKey>
+        INSERT INTO events (
+            id,
+            member_id,
+            event_type,
+            event_subtype,
+            start_date,
+            end_date,
+            <if test="startTime != null">start_time,</if>
+            <if test="endTime != null">end_time,</if>
+            leave_amount,
+            title,
+            <if test="description != null">description,</if>
+            status,
+            <if test="department != null">department,</if>
+            <if test="position != null">position,</if>
+            <if test="division != null">division,</if>
+            created_at,
+            updated_at
+        )
+        VALUES (
+            #{id},
+            #{memberId},
+            #{eventType, jdbcType=VARCHAR},
+            #{eventSubtype, jdbcType=VARCHAR},
+            #{startDate, jdbcType=DATE},
+            #{endDate, jdbcType=DATE},
+            <if test="startTime != null">#{startTime, jdbcType=VARCHAR},</if>
+            <if test="endTime != null">#{endTime, jdbcType=VARCHAR},</if>
+            #{leaveAmount, jdbcType=DECIMAL},
+            #{title, jdbcType=VARCHAR},
+            <if test="description != null">#{description, jdbcType=VARCHAR},</if>
+            #{status, jdbcType=VARCHAR},
+            <if test="department != null">#{department, jdbcType=VARCHAR},</if>
+            <if test="position != null">#{position, jdbcType=VARCHAR},</if>
+            <if test="division != null">#{division, jdbcType=VARCHAR},</if>
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <update id="update" parameterType="com.ync.schedule.domain.Event">
+        UPDATE events
+        <set>
+            member_id = #{memberId},
+            event_type = #{eventType, jdbcType=VARCHAR},
+            <if test="eventSubtype != null">
+                event_subtype = #{eventSubtype, jdbcType=VARCHAR},
+            </if>
+            start_date = #{startDate, jdbcType=DATE},
+            end_date = #{endDate, jdbcType=DATE},
+            <if test="startTime != null">
+                start_time = #{startTime, jdbcType=VARCHAR},
+            </if>
+            <if test="endTime != null">
+                end_time = #{endTime, jdbcType=VARCHAR},
+            </if>
+            leave_amount = #{leaveAmount, jdbcType=DECIMAL},
+            title = #{title, jdbcType=VARCHAR},
+            <if test="description != null">
+                description = #{description, jdbcType=VARCHAR},
+            </if>
+            status = #{status, jdbcType=VARCHAR},
+            <if test="department != null">
+                department = #{department, jdbcType=VARCHAR},
+            </if>
+            <if test="position != null">
+                position = #{position, jdbcType=VARCHAR},
+            </if>
+            <if test="division != null">
+                division = #{division, jdbcType=VARCHAR},
+            </if>
+            updated_at = CURRENT_TIMESTAMP
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM events WHERE id = #{id}
+    </delete>
+
+</mapper>

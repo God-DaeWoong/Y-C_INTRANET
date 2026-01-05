@@ -1,0 +1,1608 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>지출 내역 관리</title>
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='10' width='52' height='48' rx='12' fill='%235b6cff'/%3E%3Crect x='6' y='18' width='52' height='40' rx='10' fill='%23ffffff'/%3E%3Crect x='6' y='10' width='52' height='14' rx='12' fill='%238b5cf6'/%3E%3Cpath d='M18 34h28v4H18zM18 42h18v4H18z' fill='%235b6cff'/%3E%3C/svg%3E"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:rgba(255,255,255,.92);
+      --panel2:rgba(255,255,255,.98);
+      --border:rgba(15,23,42,.10);
+      --text:#0f172a;
+      --muted:#64748b;
+      --primary:#6366f1;
+      --primary2:#8b5cf6;
+      --danger:#ef4444;
+      --success:#10b981;
+      --warning:#f59e0b;
+      --shadow:0 22px 60px rgba(15,23,42,.22);
+      --shadow2:0 10px 30px rgba(15,23,42,.14);
+      --r-xl:20px; --r:14px; --r-sm:10px;
+      --focus:0 0 0 4px rgba(99,102,241,.16);
+      --transition:all .18s cubic-bezier(.4,0,.2,1);
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",Roboto,Arial,sans-serif;
+      background:radial-gradient(1200px 700px at 20% 10%, rgba(99, 102, 241, .35), transparent 55%),
+                 radial-gradient(900px 600px at 85% 15%, rgba(139, 92, 246, .30), transparent 55%),
+                 radial-gradient(800px 600px at 60% 90%, rgba(16, 185, 129, .18), transparent 55%),
+                 linear-gradient(180deg, #9fa5b4 0%, #5c9fb6 100%);
+      color:#e5e7eb;
+      min-height:100vh;
+      padding:22px;
+    }
+    .wrap{max-width:1600px;margin:0 auto;display:grid;grid-template-columns:350px 1fr;gap:18px;align-items:start;}
+    .card{
+      background:var(--panel);
+      color:var(--text);
+      border-radius:var(--r-xl);
+      box-shadow:var(--shadow);
+      border:1px solid rgba(255,255,255,.14);
+      overflow:hidden;
+    }
+    .card .head{
+      padding:18px 18px 14px 18px;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      background:linear-gradient(135deg, rgba(99,102,241,.08), rgba(139,92,246,.08));
+    }
+    .title{
+      font-size:18px;font-weight:900;letter-spacing:-.4px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .title small{font-size:12px;font-weight:800;color:var(--muted);}
+    .chip{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:6px 10px;border-radius:999px;font-size:12px;font-weight:900;
+      background:#eef2ff;color:#3730a3;border:1px solid rgba(55,48,163,.14);
+      white-space:nowrap;
+    }
+    .body{padding:16px 18px;}
+    label{display:block;font-size:12px;font-weight:900;color:#0f172a;margin:0 0 6px 2px;}
+    select,input,textarea{
+      width:100%;
+      border:2px solid var(--border);
+      border-radius:12px;
+      padding:8px 12px;
+      font-size:13px;
+      background:#fff;
+      outline:none;
+      transition:var(--transition);
+      box-shadow:0 2px 10px rgba(15,23,42,.06);
+    }
+    select{
+      cursor:pointer;
+      appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;
+      background-position:right 10px center;
+      padding-right:32px;
+    }
+    select:focus,input:focus{border-color:var(--primary);box-shadow:var(--focus);}
+    .btn{
+      border:none; cursor:pointer;
+      padding:10px 14px; border-radius:12px;
+      font-weight:900; font-size:13px;
+      transition:var(--transition);
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      box-shadow:0 4px 14px rgba(15,23,42,.10);
+      white-space:nowrap;
+    }
+    .btn:hover{transform:translateY(-1px);box-shadow:var(--shadow2);}
+    .btn-primary{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;}
+    .btn-ghost{background:#fff;color:#0f172a;border:2px solid var(--border);}
+    .btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;}
+    .btn-success{background:linear-gradient(135deg,#10b981,#059669);color:#fff;}
+    .statbar{
+      display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;
+      margin-top:10px;
+    }
+    .stat{
+      background:#fff; border:1px solid var(--border);
+      border-radius:14px; padding:12px;
+      white-space:nowrap;
+      display:inline-block;
+    }
+    .stat .k{font-size:11px;font-weight:900;color:var(--muted);}
+    .stat .v{font-size:25px;font-weight:1000;margin-top:6px;white-space:nowrap;display:inline-block;}
+    .v span{font-family:"Oswald",sans-serif;font-optical-sizing:auto;font-weight:bold;font-style:normal;}
+    .stat .v small{font-size:12px;font-weight:900;color:var(--muted);}
+    .mainTop{
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+      margin-bottom:12px;
+    }
+    .mainTop .left{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+    .search{
+      min-width:260px;
+      background:var(--panel2);
+      color:var(--text);
+      border-radius:999px;
+      padding:10px 14px;
+      border:2px solid rgba(255,255,255,.35);
+      outline:none;
+      box-shadow:0 10px 25px rgba(0,0,0,.18);
+    }
+    .tableWrap{background:var(--panel); color:var(--text); border-radius:var(--r-xl); box-shadow:var(--shadow); overflow:hidden; text-align:center;}
+    .tableWrap thead th{text-align:center;}
+    .tableWrap tbody td{vertical-align:middle;}
+    .tableWrap tbody td:nth-child(9){text-align:left;}
+    table{width:100%; border-collapse:separate; border-spacing:0;}
+    thead th{
+      font-size:11px;
+      font-weight:1000;
+      color:#0f172a;
+      padding:10px 8px;
+      background:linear-gradient(135deg, rgba(99,102,241,.12), rgba(139,92,246,.12));
+      border-bottom:1px solid var(--border);
+      position:sticky; top:0; z-index:2;
+    }
+    tbody td{
+      padding:8px 8px;
+      border-bottom:1px solid rgba(15,23,42,.07);
+      font-size:12px;
+    }
+    tbody tr:hover td{background:rgba(99,102,241,.06);}
+    .num{text-align:right; font-variant-numeric:tabular-nums;}
+    .linkBtn{padding:6px 8px;border-radius:8px;border:2px solid var(--border);background:#fff;font-weight:1000;cursor:pointer;font-size:11px;}
+    .linkBtn:hover{border-color:var(--primary);color:var(--primary);}
+    .foot{padding:12px 14px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; border-top:1px solid var(--border); background:rgba(255,255,255,.7);}
+    .tiny{font-size:10.5px;color:#7b86ac;font-weight:600;}
+    .modal{
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);
+      z-index:999; padding:20px; overflow:auto;
+    }
+    .modal.show{display:block;}
+    .modal .panel{
+      max-width:720px; margin:40px auto; background:#fff; color:var(--text);
+      border-radius:var(--r-xl); box-shadow:0 30px 90px rgba(0,0,0,.35);
+      overflow:hidden;
+    }
+    .modal .panel .head{background:#fff;}
+    .modal .panel .body{padding:16px 18px 18px;}
+    .modal .x{cursor:pointer; padding:8px 10px;border-radius:10px;font-size:20px;color:var(--muted);}
+    .modal .x:hover{background:#f1f5f9;}
+    .hr{height:1px;background:rgba(15,23,42,.10);margin:10px 0;}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    @media (max-width: 1200px){
+      .wrap{grid-template-columns:1fr;}
+      .search{width:100%; min-width:0;}
+    }
+  </style>
+</head>
+<body>
+
+<div class="wrap">
+  <!-- Sidebar -->
+  <section class="card">
+    <div class="head">
+      <div class="title" style="white-space:nowrap;">💰 지출 내역</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;">
+        <button class="btn btn-primary" id="btnBackToSchedule" style="padding:6px 12px;font-size:11px;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);border:none;font-weight:600;">📅 일정관리</button>
+        <button class="btn btn-success" id="btnMapPage" style="padding:6px 12px;font-size:11px;background:linear-gradient(135deg, #f093fb 0%, #f5576c 100%);border:none;font-weight:600;">🍽️ 맛집지도</button>
+      </div>
+    </div>
+    <div class="body">
+      <div style="margin-bottom:12px;">
+        <label>본부</label>
+        <select id="filterParentDept">
+          <option value="">전체 본부</option>
+        </select>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label>팀</label>
+        <select id="filterChildDept">
+          <option value="">전체 팀</option>
+        </select>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label>멤버</label>
+        <select id="filterMember">
+          <option value="">전체 멤버</option>
+        </select>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label>년월 선택</label>
+        <input type="month" id="filterMonth" style="width:100%;padding:8px 12px;border:2px solid var(--border);border-radius:12px;font-size:13px;background:#fff;outline:none;" />
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <button id="btnMyInfo" class="btn" style="width:100%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;">
+          👤 내 정보 보기
+        </button>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="statbar">
+        <div class="stat">
+          <div class="k">총 건수</div>
+          <div class="v"><span id="statCount">0</span><small> 건</small></div>
+        </div>
+        <div class="stat">
+          <div class="k">합계 금액</div>
+          <div class="v"><span id="statSum">0</span><small> 원</small></div>
+        </div>
+        <div class="stat">
+          <div class="k">평균</div>
+          <div class="v"><span id="statAvg">0</span><small> 원</small></div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <!-- Welfare Usage Section -->
+      <div id="welfareSection" style="display:none;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#333;">복지비 사용 현황</div>
+        <div id="welfareQuarters" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;">
+          <!-- Quarterly usage will be dynamically inserted here -->
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:6px 8px;background:rgba(99,102,241,0.1);border-radius:6px;font-size:12px;">
+          <span style="font-weight:600;">연간 합계</span>
+          <span><b id="welfareAnnualUsed">0</b> / <span id="welfareAnnualBudget">1,600,000</span>원</span>
+        </div>
+        <div style="font-size:11px;color:#666;margin-top:4px;">
+          남은 금액: <b id="welfareAnnualRemaining" style="color:#059669;">0</b>원
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-primary" id="btnNew">+ 지출 추가</button>
+        <button class="btn btn-success" id="btnExportExcel">📥 엑셀 다운로드</button>
+        <button class="btn btn-ghost" id="btnResetFilter">필터 초기화</button>
+      </div>
+
+      <div class="tiny" style="margin-top:12px;">
+        팁) 본부/팀/멤버 선택하여 필터링. 행 [수정]으로 편집 가능.
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Area -->
+  <section>
+    <div class="mainTop">
+      <div class="left">
+        <span class="chip">표시 건수: <b id="shownCount">0</b></span>
+        <span class="chip">표시 합계: <b id="shownSum">0</b>원</span>
+        <button class="btn btn-primary" id="btnAddRow" style="display:none;padding:6px 12px;font-size:12px;margin-left:8px;">+ 행 추가</button>
+        <button class="btn btn-success" id="btnSaveBulk" style="display:none;padding:6px 12px;font-size:12px;margin-left:8px;">💾 일괄 저장</button>
+      </div>
+      <input class="search" id="q" placeholder="검색: 사용내용/업소/메모 ..." />
+    </div>
+
+    <div class="tableWrap">
+      <div style="max-height:calc(100vh - 120px); overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:90px;">사용자</th>
+              <th style="width:90px;">사용일시</th>
+              <th>사용 내용</th>
+              <th style="width:100px;">계정</th>
+              <th class="num" style="width:90px;">사용금액</th>
+              <th style="width:120px;">업소명</th>
+              <th style="width:100px;">경비코드</th>
+              <th style="width:110px;">프로젝트코드</th>
+              <th style="width:200px;">메모</th>
+              <th style="width:80px;">복지비</th>
+              <th style="width:100px;">작업</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="foot">
+        <div class="tiny">데이터: <b>서버 API 연동</b></div>
+        <div class="tiny">본부/팀/멤버 선택 후 필터링. 행 [수정]으로 편집 가능.</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Modal -->
+<div class="modal" id="modal">
+  <div class="panel">
+    <div class="head">
+      <div class="title" id="mTitle">지출 추가</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span class="x" id="btnClose">✕</span>
+      </div>
+    </div>
+    <div class="body">
+      <input type="hidden" id="mId" />
+      <div class="grid2">
+        <div>
+          <label>사용일시 *</label>
+          <input id="mDate" type="date" required />
+        </div>
+        <div>
+          <label>사용자 *</label>
+          <select id="mMember" required>
+            <option value="">선택하세요</option>
+          </select>
+        </div>
+        <div>
+          <label>업소명</label>
+          <input id="mVendor" placeholder="예: 스타벅스" />
+        </div>
+        <div>
+          <label>금액 *</label>
+          <input id="mAmount" type="number" min="0" step="1" required />
+        </div>
+        <div>
+          <label>계정 *</label>
+          <select id="mAccount" required>
+            <option value="">선택하세요</option>
+            <option value="야특근식비">야특근식비</option>
+            <option value="회식비">회식비</option>
+            <option value="접대비">접대비</option>
+            <option value="교통비">교통비</option>
+            <option value="통신비">통신비</option>
+            <option value="사무비">사무비</option>
+            <option value="출장일비">출장일비</option>
+            <option value="복리후생비">복리후생비</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div>
+          <label>경비코드</label>
+          <select id="mCost">
+            <option value="">선택하세요</option>
+            <option value="법인(법인)">법인(법인)</option>
+            <option value="법인(개인)">법인(개인)</option>
+            <option value="개인(개인)">개인(개인)</option>
+            <option value="현금">현금</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div>
+          <label>프로젝트코드</label>
+          <input id="mProject" value="PJ00000000" />
+        </div>
+        <div>
+          <label>사용 내용 *</label>
+          <input id="mDesc" placeholder="예: 점심 식사" required />
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <label>메모(용도/참석자 등)</label>
+        <textarea id="mNote" placeholder="7만원 이상 비용 발생 시 참석자/용도 기입" style="min-height:60px;resize:vertical;"></textarea>
+      </div>
+
+      <div id="welfareFlagContainer" style="margin-top:12px;display:none;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="mWelfareFlag" style="width:18px;height:18px;cursor:pointer;" onchange="handleWelfareFlagChange(this)" />
+          <span>복지비 여부</span>
+        </label>
+        <div class="tiny" style="margin-top:4px;color:#666;">
+          분기당 40만원 (연간 160만원)
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;gap:8px;margin-top:14px;">
+        <button class="btn btn-danger" id="btnDelete" style="display:none;">삭제</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" id="btnCancel">취소</button>
+          <button class="btn btn-primary" id="btnSave">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = '/api/intranet/expense-reports';
+  const nf = new Intl.NumberFormat("ko-KR");
+  const $ = (q) => document.querySelector(q);
+
+  let departments = [];
+  let members = [];
+  let items = [];
+  let currentItem = null;
+  let bulkEditRows = []; // 일괄 편집용 임시 행들
+
+  // 401 에러 체크 및 로그인 페이지 리다이렉트
+  function checkAuthAndRedirect(response){
+    if(response.status === 401){
+      alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+      window.location.href = '/intranet-login.html';
+      return true;
+    }
+    return false;
+  }
+
+  const dom = {
+    filterParentDept: $("#filterParentDept"),
+    filterChildDept: $("#filterChildDept"),
+    filterMember: $("#filterMember"),
+    filterMonth: $("#filterMonth"),
+    statCount: $("#statCount"),
+    statSum: $("#statSum"),
+    statAvg: $("#statAvg"),
+    q: $("#q"),
+    tbody: $("#tbody"),
+    shownCount: $("#shownCount"),
+    shownSum: $("#shownSum"),
+    modal: $("#modal"),
+    mTitle: $("#mTitle"),
+    mId: $("#mId"),
+    mDate: $("#mDate"),
+    mMember: $("#mMember"),
+    mVendor: $("#mVendor"),
+    mAmount: $("#mAmount"),
+    mAccount: $("#mAccount"),
+    mCost: $("#mCost"),
+    mProject: $("#mProject"),
+    mDesc: $("#mDesc"),
+    mNote: $("#mNote"),
+    mWelfareFlag: $("#mWelfareFlag"),
+    btnNew: $("#btnNew"),
+    btnAddRow: $("#btnAddRow"),
+    btnSaveBulk: $("#btnSaveBulk"),
+    btnClose: $("#btnClose"),
+    btnCancel: $("#btnCancel"),
+    btnSave: $("#btnSave"),
+    btnDelete: $("#btnDelete"),
+    btnResetFilter: $("#btnResetFilter"),
+    btnMyInfo: $("#btnMyInfo"),
+    btnBackToSchedule: $("#btnBackToSchedule"),
+    btnMapPage: $("#btnMapPage"),
+    btnExportExcel: $("#btnExportExcel"),
+    welfareSection: $("#welfareSection"),
+    welfareQuarters: $("#welfareQuarters"),
+    welfareAnnualUsed: $("#welfareAnnualUsed"),
+    welfareAnnualBudget: $("#welfareAnnualBudget"),
+    welfareAnnualRemaining: $("#welfareAnnualRemaining"),
+    welfareFlagContainer: $("#welfareFlagContainer"),
+  };
+
+  function esc(s){ return String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"})[m]); }
+  function sum(list){ return list.reduce((a,b)=>a + (Number(b.amount)||0), 0); }
+  function openModal(){ dom.modal.classList.add("show"); }
+  function closeModal(){ dom.modal.classList.remove("show"); }
+  function formatDate(d){
+    if(!d) return "-";
+    const date = new Date(d);
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${month}/${day}`;
+  }
+  function todayISO(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+
+  async function loadDepartments(){
+    console.log('[loadDepartments] 시작');
+    try{
+      console.log('[loadDepartments] fetch 호출');
+      const res = await fetch('/api/intranet/departments', {
+        credentials: 'include'
+      });
+      console.log('[loadDepartments] 응답 상태:', res.status, res.ok);
+
+      if(checkAuthAndRedirect(res)) return;
+
+      if(!res.ok){
+        console.error('부서 API 오류:', res.status);
+        return;
+      }
+      const data = await res.json();
+      console.log('부서 API 응답:', data);
+      departments = data.departments || data;
+      console.log('departments 배열:', departments);
+
+      // 회사(최상위) 찾기
+      const company = departments.find(d => d.parentId === null || d.parentId === 0);
+      console.log('회사:', company);
+
+      // 본부들 = 회사의 자식들
+      const parentDepts = departments.filter(d => d.parentId === company?.id);
+      console.log('본부들:', parentDepts);
+      parentDepts.forEach(d => {
+        const opt = new Option(d.name, d.id);
+        dom.filterParentDept.add(opt);
+      });
+      console.log('본부 드롭다운 채움 완료');
+    }catch(e){
+      console.error('부서 로드 실패:', e);
+      console.error('스택:', e.stack);
+    }
+  }
+
+  async function loadMembers(){
+    try{
+      const res = await fetch('/api/intranet/members', {
+        credentials: 'include'
+      });
+
+      if(checkAuthAndRedirect(res)) return;
+
+      if(!res.ok){
+        console.error('멤버 API 오류:', res.status);
+        return;
+      }
+
+      members = await res.json();
+      console.log('멤버 API 응답:', members);
+      console.log('멤버 수:', members.length);
+      if(members.length > 0) {
+        console.log('첫번째 멤버:', members[0]);
+      }
+      // 모달의 사용자 드롭다운만 채움 (필터는 본부/팀 선택에 따라 동적으로 채워짐)
+      members.forEach(m => {
+        const deptName = m.departmentName || '';
+        const opt = new Option(`${m.name} (${deptName})`, m.id);
+        dom.mMember.add(opt);
+      });
+      console.log('멤버 드롭다운 채움 완료');
+    }catch(e){ console.error('멤버 로드 실패:', e); }
+  }
+
+  async function loadItems(){
+    try{
+      const res = await fetch(`${API_BASE}/items`, {
+        credentials: 'include'
+      });
+
+      if(checkAuthAndRedirect(res)) return;
+
+      if(!res.ok){
+        console.error('API 오류:', res.status);
+        items = [];
+        renderTable();
+        return;
+      }
+      const data = await res.json();
+      items = Array.isArray(data) ? data : [];
+      renderTable();
+    }catch(e){
+      console.error('지출 내역 로드 실패:', e);
+      items = [];
+      renderTable();
+    }
+  }
+
+  function applyFilters(){
+    const q = (dom.q.value||"").trim().toLowerCase();
+    const mem = dom.filterMember.value||"";
+    const month = dom.filterMonth.value||"";
+    const parentDept = dom.filterParentDept.value||"";
+    const childDept = dom.filterChildDept.value||"";
+
+    return items.filter(x => {
+      // 본부/팀/멤버 필터 (계층적으로 적용)
+      if(mem){
+        // 멤버가 선택되면 해당 멤버만
+        if(x.memberId != mem) return false;
+      } else if(childDept){
+        // 팀이 선택되면 해당 팀의 멤버들만
+        const member = members.find(m => m.id == x.memberId);
+        if(!member || member.departmentId != childDept) return false;
+      } else if(parentDept){
+        // 본부가 선택되면 해당 본부 소속 팀들의 멤버들만
+        const childDepts = departments.filter(d => d.parentId == parentDept);
+        const childDeptIds = childDepts.map(d => d.id);
+        const member = members.find(m => m.id == x.memberId);
+        if(!member || !childDeptIds.includes(member.departmentId)) return false;
+      }
+
+      // 월 필터 (YYYY-MM 형식)
+      if(month && x.usageDate){
+        const itemMonth = x.usageDate.substring(0, 7); // YYYY-MM-DD에서 YYYY-MM 추출
+        if(itemMonth !== month) return false;
+      }
+
+      // 검색어 필터
+      if(q){
+        const hay = `${x.description||""} ${x.vendor||""} ${x.note||""} ${x.account||""} ${x.costCode||""} ${x.projectCode||""}`.toLowerCase();
+        if(hay.indexOf(q)===-1) return false;
+      }
+
+      return true;
+    }).sort((a,b)=> (a.usageDate||"").localeCompare(b.usageDate||""));
+  }
+
+  function renderTable(){
+    const filtered = applyFilters();
+    const s = sum(filtered);
+    const avg = filtered.length > 0 ? Math.round(s / filtered.length) : 0;
+
+    dom.shownCount.textContent = nf.format(filtered.length);
+    dom.shownSum.textContent = nf.format(s);
+
+    // 일괄 편집 행 렌더링
+    const bulkRowsHTML = bulkEditRows.map((row, idx) => {
+      const showWelfareCheckbox = row.account === '복리후생비';
+      return `
+      <tr class="bulk-edit-row" data-bulk-idx="${idx}" style="background:#fffbeb;">
+        <td style="font-size:13px;font-weight:700;">${esc(row.memberName||"-")}</td>
+        <td><input type="date" class="bulk-input" data-field="usageDate" data-idx="${idx}" value="${row.usageDate||''}" style="width:100%;padding:4px;font-size:12px;border:1px solid #ddd;border-radius:4px;" /></td>
+        <td><input type="text" class="bulk-input" data-field="description" data-idx="${idx}" value="${row.description||''}" placeholder="사용내용" style="width:100%;padding:4px;font-size:12px;border:1px solid #ddd;border-radius:4px;" /></td>
+        <td>
+          <select class="bulk-input bulk-account" data-field="account" data-idx="${idx}" style="width:100%;padding:4px;font-size:12px;border:1px solid #ddd;border-radius:4px;">
+            <option value="">선택하세요</option>
+            <option value="야특근식비" ${row.account==='야특근식비'?'selected':''}>야특근식비</option>
+            <option value="회식비" ${row.account==='회식비'?'selected':''}>회식비</option>
+            <option value="접대비" ${row.account==='접대비'?'selected':''}>접대비</option>
+            <option value="교통비" ${row.account==='교통비'?'selected':''}>교통비</option>
+            <option value="통신비" ${row.account==='통신비'?'selected':''}>통신비</option>
+            <option value="사무비" ${row.account==='사무비'?'selected':''}>사무비</option>
+            <option value="출장일비" ${row.account==='출장일비'?'selected':''}>출장일비</option>
+            <option value="복리후생비" ${row.account==='복리후생비'?'selected':''}>복리후생비</option>
+            <option value="기타" ${row.account==='기타'?'selected':''}>기타</option>
+          </select>
+        </td>
+        <td><input type="number" class="bulk-input" data-field="amount" data-idx="${idx}" value="${row.amount||''}" placeholder="금액" style="width:100%;padding:4px;font-size:12px;border:1px solid #ddd;border-radius:4px;" /></td>
+        <td><input type="text" class="bulk-input" data-field="vendor" data-idx="${idx}" value="${row.vendor||''}" placeholder="업소명" style="width:100%;padding:4px;font-size:12px;border:1px solid #ddd;border-radius:4px;" /></td>
+        <td>
+          <select class="bulk-input" data-field="costCode" data-idx="${idx}" style="width:100%;padding:4px;font-size:12px;border:1px solid #ddd;border-radius:4px;">
+            <option value="">선택하세요</option>
+            <option value="법인(법인)" ${row.costCode==='법인(법인)'?'selected':''}>법인(법인)</option>
+            <option value="법인(개인)" ${row.costCode==='법인(개인)'?'selected':''}>법인(개인)</option>
+            <option value="개인(개인)" ${row.costCode==='개인(개인)'?'selected':''}>개인(개인)</option>
+            <option value="현금" ${row.costCode==='현금'?'selected':''}>현금</option>
+            <option value="기타" ${row.costCode==='기타'?'selected':''}>기타</option>
+          </select>
+        </td>
+        <td><input type="text" class="bulk-input" data-field="projectCode" data-idx="${idx}" value="${row.projectCode||''}" placeholder="프로젝트코드" style="width:100%;padding:4px;font-size:12px;border:1px solid #ddd;border-radius:4px;" /></td>
+        <td><input type="text" class="bulk-input" data-field="note" data-idx="${idx}" value="${row.note||''}" placeholder="메모" style="width:100%;padding:4px;font-size:12px;border:1px solid #ddd;border-radius:4px;" /></td>
+        <td style="text-align:center;">
+          ${showWelfareCheckbox ? `<input type="checkbox" class="bulk-welfare-checkbox" data-idx="${idx}" ${row.welfareFlag==='Y'?'checked':''} style="width:18px;height:18px;cursor:pointer;" />` : '-'}
+        </td>
+        <td><button class="linkBtn" onclick="removeBulkRow(${idx})" style="color:#ef4444;">삭제</button></td>
+      </tr>
+    `;
+    }).join("");
+
+    dom.tbody.innerHTML = bulkRowsHTML + filtered.map(x => `
+      <tr data-id="${x.id}">
+        <td style="font-size:13px;font-weight:700;">${esc(x.memberName||"-")}</td>
+        <td style="font-size:13px;font-weight:700;">${formatDate(x.usageDate)}</td>
+        <td style="font-size:13px;font-weight:700;">${esc(x.description||"")}</td>
+        <td style="font-size:13px;">${esc(x.account||"-")}</td>
+        <td class="num" style="font-size:14px;font-weight:900;">${nf.format(x.amount||0)}</td>
+        <td style="font-size:13px;">${esc(x.vendor||"-")}</td>
+        <td style="font-size:13px;">${esc(x.costCode||"-")}</td>
+        <td style="font-size:13px;">${esc(x.projectCode||"-")}</td>
+        <td style="font-size:12px;color:var(--muted);">${esc(x.note||"-")}</td>
+        <td style="text-align:center;font-size:13px;">${x.welfareFlag === 'Y' ? '✓' : '-'}</td>
+        <td>
+          <button class="linkBtn" data-edit="${x.id}">수정</button>
+        </td>
+      </tr>
+    `).join("");
+
+    // 일괄 입력 필드 변경 이벤트 바인딩
+    document.querySelectorAll('.bulk-input').forEach(input => {
+      input.addEventListener('input', (e) => {
+        const idx = parseInt(e.target.dataset.idx);
+        const field = e.target.dataset.field;
+        bulkEditRows[idx][field] = e.target.value;
+      });
+    });
+
+    // 계정 선택 변경 이벤트 (복리후생비 선택 시 체크박스만 표시)
+    document.querySelectorAll('.bulk-account').forEach(select => {
+      select.addEventListener('change', (e) => {
+        const idx = parseInt(e.target.dataset.idx);
+        const isWelfareAccount = e.target.value === '복리후생비';
+
+        // 복리후생비가 아닌 경우 welfareFlag를 'N'으로 설정
+        if(!isWelfareAccount){
+          bulkEditRows[idx].welfareFlag = 'N';
+        }
+
+        // 화면 다시 렌더링하여 체크박스 표시/숨김
+        renderTable();
+      });
+    });
+
+    // 복지비 체크박스 변경 이벤트
+    document.querySelectorAll('.bulk-welfare-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', (e) => {
+        const idx = parseInt(e.target.dataset.idx);
+        bulkEditRows[idx].welfareFlag = e.target.checked ? 'Y' : 'N';
+
+        // 메모 필드에 "[복지비]" 추가/제거
+        const noteInput = document.querySelector(`.bulk-input[data-field="note"][data-idx="${idx}"]`);
+        if(noteInput) {
+          let noteValue = noteInput.value || "";
+          if(e.target.checked) {
+            // 체크했을 때 - "[복지비]"가 없으면 추가
+            if(!noteValue.startsWith("[복지비]")) {
+              noteInput.value = "[복지비] " + noteValue.trim();
+              bulkEditRows[idx].note = noteInput.value;
+            }
+          } else {
+            // 체크 해제했을 때 - "[복지비]" 제거
+            noteInput.value = noteValue.replace(/^\[복지비\]\s*/, "");
+            bulkEditRows[idx].note = noteInput.value;
+          }
+        }
+      });
+    });
+
+    dom.statCount.textContent = nf.format(filtered.length);
+    dom.statSum.textContent = nf.format(s);
+    dom.statAvg.textContent = nf.format(avg);
+  }
+
+  function openNew(){
+    currentItem = null;
+    dom.mTitle.textContent = "지출 추가";
+    dom.mId.value = "";
+    dom.mDate.value = todayISO();
+
+    const savedMemberId = sessionStorage.getItem('selectedMemberId') || localStorage.getItem('selectedMemberId') || dom.filterMember.value;
+    dom.mMember.value = savedMemberId || "";
+
+    dom.mVendor.value = "";
+    dom.mAmount.value = "";
+    dom.mAccount.value = "";
+    dom.mCost.value = "";
+    dom.mProject.value = "PJ00000000";
+    dom.mDesc.value = "";
+    dom.mNote.value = "";
+    dom.mWelfareFlag.checked = false;
+    dom.welfareFlagContainer.style.display = "none";
+    dom.btnDelete.style.display = "none";
+    openModal();
+  }
+
+  async function viewItem(id){
+    try{
+      const res = await fetch(`${API_BASE}/items/${id}`);
+      currentItem = await res.json();
+
+      dom.mTitle.textContent = "지출 수정";
+      dom.mId.value = currentItem.id;
+      dom.mDate.value = currentItem.usageDate;
+      dom.mMember.value = currentItem.memberId;
+      dom.mVendor.value = currentItem.vendor||"";
+      dom.mAmount.value = currentItem.amount;
+      dom.mAccount.value = currentItem.account||"";
+      dom.mCost.value = currentItem.costCode||"";
+      dom.mProject.value = currentItem.projectCode||"";
+      dom.mDesc.value = currentItem.description||"";
+      let noteValue = currentItem.note||"";
+      // 복지비가 체크되어 있으면 메모에 "[복지비]" 추가
+      if(currentItem.welfareFlag === 'Y' && !noteValue.startsWith("[복지비]")){
+        noteValue = "[복지비] " + noteValue.trim();
+      }
+      dom.mNote.value = noteValue;
+      dom.mWelfareFlag.checked = currentItem.welfareFlag === 'Y';
+
+      // Show welfare flag container only if account is "복리후생비"
+      if(currentItem.account === "복리후생비"){
+        dom.welfareFlagContainer.style.display = "block";
+      } else {
+        dom.welfareFlagContainer.style.display = "none";
+      }
+
+      dom.btnDelete.style.display = "inline-flex";
+      openModal();
+    }catch(e){ console.error('항목 로드 실패:', e); alert('항목을 불러오는데 실패했습니다.'); }
+  }
+
+  async function saveItem(){
+    const data = {
+      memberId: parseInt(dom.mMember.value),
+      usageDate: dom.mDate.value,
+      description: dom.mDesc.value,
+      account: dom.mAccount.value,
+      amount: parseFloat(dom.mAmount.value),
+      vendor: dom.mVendor.value,
+      costCode: dom.mCost.value,
+      projectCode: dom.mProject.value,
+      note: dom.mNote.value,
+      welfareFlag: dom.mWelfareFlag.checked ? 'Y' : 'N',
+      expenseReportId: null
+    };
+
+    if(!data.memberId || !data.usageDate || !data.description || !data.account || !data.amount){
+      alert('필수 항목을 입력하세요.'); return;
+    }
+
+    // 복지비 체크 시 남은 예산 검증
+    if(data.welfareFlag === 'Y'){
+      console.log('[복지비 검증] 시작 - welfareFlag:', data.welfareFlag);
+      const year = new Date(data.usageDate).getFullYear();
+      console.log('[복지비 검증] 연도:', year, '멤버ID:', data.memberId);
+
+      try{
+        const res = await fetch(`${API_BASE}/items/welfare-usage/${data.memberId}/${year}`);
+        console.log('[복지비 검증] API 응답 상태:', res.status);
+
+        if(res.ok){
+          const welfareData = await res.json();
+          console.log('[복지비 검증] 복지비 데이터:', welfareData);
+
+          const currentItemId = dom.mId.value;
+          console.log('[복지비 검증] 현재 항목 ID:', currentItemId);
+
+          // 현재 수정 중인 항목의 기존 복지비 금액 찾기 (수정 시)
+          let existingWelfareAmount = 0;
+          if(currentItemId && currentItem && currentItem.welfareFlag === 'Y'){
+            existingWelfareAmount = currentItem.amount || 0;
+            console.log('[복지비 검증] 기존 복지비 금액:', existingWelfareAmount);
+          }
+
+          // 실제 남은 금액 = 연간 남은 금액 + 기존 복지비 금액 (수정 시)
+          const actualRemaining = welfareData.annualRemaining + existingWelfareAmount;
+          console.log('[복지비 검증] 실제 남은 금액:', actualRemaining, '입력 금액:', data.amount);
+
+          if(data.amount > actualRemaining){
+            const maxAmount = actualRemaining;
+            console.log('[복지비 검증] 예산 초과! 최대 금액:', maxAmount);
+            alert(`복지비 예산을 초과했습니다!\n남은 복지비: ${nf.format(actualRemaining)}원\n입력 금액: ${nf.format(data.amount)}원\n초과 금액: ${nf.format(data.amount - actualRemaining)}원\n\n최대 사용 가능 금액으로 조정합니다.`);
+            data.amount = maxAmount;
+            dom.mAmount.value = maxAmount;
+            return; // 사용자가 금액을 확인하고 다시 저장하도록 함
+          }else{
+            console.log('[복지비 검증] 예산 내 사용 - 통과');
+          }
+        }
+      }catch(e){
+        console.error('[복지비 검증] 오류 발생:', e);
+        // 복지비 검증 실패 시에도 저장은 진행
+      }
+    }else{
+      console.log('[복지비 검증] 복지비 아님 - welfareFlag:', data.welfareFlag);
+    }
+
+    try{
+      const id = dom.mId.value;
+      const url = id ? `${API_BASE}/items/${id}` : `${API_BASE}/items`;
+      const method = id ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: {'Content-Type':'application/json'},
+        credentials: 'include',
+        body: JSON.stringify(data)
+      });
+
+      if(checkAuthAndRedirect(res)) return;
+
+      if(res.ok){
+        alert('저장되었습니다.');
+        closeModal();
+        await loadItems();
+        const memberId = dom.filterMember.value;
+        if(memberId){
+          loadWelfareUsage(memberId);
+        }
+      }else{
+        const errorText = await res.text();
+        console.error('저장 실패 응답:', errorText);
+        throw new Error('저장 실패');
+      }
+    }catch(e){ console.error('저장 실패:', e); alert('저장에 실패했습니다.'); }
+  }
+
+  async function deleteItem(){
+    if(!confirm('정말 삭제하시겠습니까?')) return;
+    const id = dom.mId.value; if(!id) return;
+
+    try{
+      const res = await fetch(`${API_BASE}/items/${id}`, {
+        method:'DELETE',
+        credentials: 'include'
+      });
+
+      if(checkAuthAndRedirect(res)) return;
+
+      if(res.ok){
+        alert('삭제되었습니다.');
+        closeModal();
+        await loadItems();
+        const memberId = dom.filterMember.value;
+        if(memberId){
+          loadWelfareUsage(memberId);
+        }
+      }else{ throw new Error('삭제 실패'); }
+    }catch(e){ console.error('삭제 실패:', e); alert('삭제에 실패했습니다.'); }
+  }
+
+  async function exportToExcel(){
+    const filtered = applyFilters();
+
+    if(filtered.length === 0){
+      alert('다운로드할 데이터가 없습니다.');
+      return;
+    }
+
+    // 선택된 멤버와 부서 정보 가져오기
+    const selectedMemberId = dom.filterMember.value;
+    let memberName = '전체';
+    let memberPosition = '';
+    let deptName = '전체';
+    let parentDeptName = '전체';
+
+    if(selectedMemberId){
+      const member = members.find(m => m.id == selectedMemberId);
+      if(member){
+        memberName = member.name;
+        memberPosition = member.position || '';
+        const dept = departments.find(d => d.id == member.departmentId);
+        if(dept){
+          deptName = dept.name;
+          // 본부(상위 부서) 정보 찾기
+          if(dept.parentId){
+            const parentDept = departments.find(d => d.id == dept.parentId);
+            if(parentDept){
+              parentDeptName = parentDept.name;
+            }
+          }
+        }
+      }
+    }
+
+    // 선택된 월 정보
+    const yearMonth = dom.filterMonth.value || new Date().toISOString().substring(0, 7);
+
+    // 엑셀 데이터 준비 (템플릿에 맞춰 매핑)
+    const excelItems = filtered.map(item => ({
+      usageDate: item.usageDate || '',
+      memberName: item.memberName || '',
+      parentDeptName: parentDeptName,  // 본부 정보 추가
+      deptName: item.departmentName || '',
+      description: item.description || '',
+      account: item.account || '',
+      amount: item.amount || 0,
+      vendor: item.vendor || '',
+      costCode: item.costCode || '',
+      projectCode: item.projectCode || '',
+      note: item.note || ''
+    }));
+
+    const requestData = {
+      member: memberName,
+      position: memberPosition,
+      dept: deptName,
+      yearMonth: yearMonth,
+      items: excelItems
+    };
+
+    try {
+      // 템플릿 기반 엑셀 생성 API 호출
+      const response = await fetch(`${API_BASE}/items/excel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify(requestData)
+      });
+
+      if(checkAuthAndRedirect(response)) return;
+
+      if(!response.ok){
+        throw new Error('엑셀 다운로드 실패');
+      }
+
+      // Blob으로 받아서 다운로드
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `지출보고서_${memberName}_${yearMonth}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch(e){
+      console.error('엑셀 다운로드 오류:', e);
+      alert('엑셀 다운로드에 실패했습니다.');
+    }
+  }
+
+  async function loadWelfareUsage(memberId){
+    if(!memberId){
+      console.log('복지비: memberId 없음');
+      dom.welfareSection.style.display = 'none';
+      return;
+    }
+
+    try{
+      const year = new Date().getFullYear();
+      console.log('복지비 로딩:', memberId, year);
+      const res = await fetch(`${API_BASE}/items/welfare-usage/${memberId}/${year}`, {
+        credentials: 'include'
+      });
+
+      if(checkAuthAndRedirect(res)) return;
+
+      if(!res.ok) throw new Error('복지비 조회 실패');
+
+      const data = await res.json();
+      console.log('복지비 데이터:', data);
+
+      // Clear quarters
+      dom.welfareQuarters.innerHTML = '';
+
+      // Add quarterly data
+      data.quarters.forEach(q => {
+        const remaining = q.remaining || 0;
+        const isOver = remaining < 0;
+        const color = isOver ? '#dc2626' : (remaining < 100000 ? '#f59e0b' : '#059669');
+
+        const quarterDiv = document.createElement('div');
+        quarterDiv.style.cssText = 'display:flex;justify-content:space-between;padding:4px 8px;background:#f9fafb;border-radius:4px;font-size:11px;';
+        quarterDiv.innerHTML = `
+          <span>Q${q.quarter}</span>
+          <span><b>${nf.format(q.used || 0)}</b> / ${nf.format(q.budget || 0)}원</span>
+        `;
+        dom.welfareQuarters.appendChild(quarterDiv);
+      });
+
+      // Update annual summary
+      dom.welfareAnnualUsed.textContent = nf.format(data.annualUsed || 0);
+      dom.welfareAnnualBudget.textContent = nf.format(data.annualBudget || 0);
+      dom.welfareAnnualRemaining.textContent = nf.format(data.annualRemaining || 0);
+      dom.welfareAnnualRemaining.style.color = (data.annualRemaining < 0) ? '#dc2626' : '#059669';
+
+      dom.welfareSection.style.display = 'block';
+    }catch(e){
+      console.error('복지비 조회 실패:', e);
+      dom.welfareSection.style.display = 'none';
+    }
+  }
+
+  // 일괄 편집 관련 함수
+  function addBulkRow(){
+    const memberId = dom.filterMember.value;
+    if(!memberId){
+      alert('멤버를 먼저 선택해주세요.');
+      return;
+    }
+    const member = members.find(m => m.id == memberId);
+    bulkEditRows.push({
+      memberId: memberId,
+      memberName: member ? member.name : '',
+      usageDate: todayISO(),
+      description: '',
+      account: '',
+      amount: '',
+      vendor: '',
+      costCode: '',
+      projectCode: 'PJ00000000',
+      note: '',
+      welfareFlag: 'N'
+    });
+    dom.btnSaveBulk.style.display = 'inline-flex';
+    renderTable();
+  }
+
+  window.removeBulkRow = function(idx){
+    bulkEditRows.splice(idx, 1);
+    if(bulkEditRows.length === 0){
+      dom.btnSaveBulk.style.display = 'none';
+    }
+    renderTable();
+  };
+
+  async function saveBulk(){
+    if(bulkEditRows.length === 0){
+      alert('저장할 행이 없습니다.');
+      return;
+    }
+
+    // 유효성 검사
+    for(let i = 0; i < bulkEditRows.length; i++){
+      const row = bulkEditRows[i];
+      if(!row.usageDate || !row.description || !row.amount){
+        alert(`${i+1}번째 행: 사용일시, 사용내용, 금액은 필수입니다.`);
+        return;
+      }
+    }
+
+    // 복지비 체크: 현재 분기까지의 누적 남은 금액 체크 (미래 분기 예산은 사용 불가)
+    const memberId = bulkEditRows[0].memberId;
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1; // 1-12
+    const currentQuarter = Math.ceil(currentMonth / 3); // 1-4
+
+    // 저장하려는 복지비 항목들
+    const welfareRows = bulkEditRows.filter(row => row.welfareFlag === 'Y');
+    const newWelfareAmount = welfareRows.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
+
+    if(newWelfareAmount > 0){
+      try{
+        // 현재 복지비 사용 현황 조회
+        const welfareRes = await fetch(`${API_BASE}/items/welfare-usage/${memberId}/${currentYear}`);
+        if(welfareRes.ok){
+          const welfareSummary = await welfareRes.json();
+          const quarters = welfareSummary.quarters || [];
+
+          // 현재 분기까지의 누적 가능 예산 계산 (1분기~현재분기)
+          let availableQuarters = quarters.filter(q => q.quarter <= currentQuarter);
+          let totalAvailableBudget = availableQuarters.reduce((sum, q) => sum + (q.remaining || 0), 0);
+
+          // 분기별 배분 시뮬레이션
+          let totalNewAmount = newWelfareAmount;
+          let allocated = [];
+
+          for(let q of availableQuarters){
+            if(totalNewAmount <= 0) break;
+
+            let allocatedToQuarter = Math.min(totalNewAmount, q.remaining);
+            allocated.push({
+              quarter: q.quarter,
+              amount: allocatedToQuarter,
+              remainingBefore: q.remaining,
+              remainingAfter: q.remaining - allocatedToQuarter
+            });
+            totalNewAmount -= allocatedToQuarter;
+          }
+
+          // 한도 초과 체크
+          if(totalNewAmount > 0){
+            // 초과
+            let message = `복지비 한도를 초과합니다 (현재 ${currentQuarter}분기).\n\n`;
+            message += `[사용 가능 예산 (1~${currentQuarter}분기)]\n`;
+            availableQuarters.forEach(q => {
+              message += `${q.quarter}분기: ${nf.format(q.remaining)}원\n`;
+            });
+            message += `- 총 사용 가능: ${nf.format(totalAvailableBudget)}원\n\n`;
+            message += `추가 금액: ${nf.format(newWelfareAmount)}원\n`;
+            message += `초과 금액: ${nf.format(totalNewAmount)}원\n\n`;
+            message += `복지비 체크를 해제하거나 금액을 조정해주세요.\n`;
+            message += `(미래 분기 예산은 당겨 쓸 수 없습니다)`;
+
+            alert(message);
+            return; // 저장 중단
+          } else {
+            // 한도 내 - 분기별 배분 표시
+            let message = `복지비가 다음과 같이 배분됩니다.\n\n`;
+            allocated.forEach(a => {
+              if(a.amount > 0){
+                message += `${a.quarter}분기: ${nf.format(a.amount)}원 사용\n`;
+                message += `  (잔액: ${nf.format(a.remainingBefore)}원 → ${nf.format(a.remainingAfter)}원)\n`;
+              }
+            });
+            message += `\n저장하시겠습니까?`;
+
+            const confirm = window.confirm(message);
+            if(!confirm){
+              return;
+            }
+          }
+        }
+      }catch(e){
+        console.error('복지비 한도 체크 실패:', e);
+      }
+    }
+
+    try{
+      // 모든 행을 순차적으로 저장
+      for(const row of bulkEditRows){
+        const data = {
+          memberId: row.memberId,
+          usageDate: row.usageDate,
+          description: row.description,
+          account: row.account,
+          amount: parseFloat(row.amount) || 0,
+          vendor: row.vendor,
+          costCode: row.costCode,
+          projectCode: row.projectCode,
+          note: row.note,
+          welfareFlag: row.welfareFlag,
+          expenseReportId: null
+        };
+
+        console.log('일괄 저장 데이터:', data);
+
+        const res = await fetch(`${API_BASE}/items`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          credentials: 'include',
+          body: JSON.stringify(data)
+        });
+
+        if(checkAuthAndRedirect(res)) return;
+
+        if(!res.ok){
+          const errorText = await res.text();
+          console.error('일괄 저장 실패 응답:', errorText);
+          console.error('실패한 데이터:', data);
+          throw new Error('저장 실패');
+        }
+      }
+
+      alert(`${bulkEditRows.length}건이 저장되었습니다.`);
+      bulkEditRows = [];
+      dom.btnSaveBulk.style.display = 'none';
+      await loadItems();
+
+      // 복지비 사용 현황 갱신
+      const memberId = dom.filterMember.value;
+      if(memberId){
+        await loadWelfareUsage(memberId);
+      }
+    }catch(e){
+      console.error('일괄 저장 실패:', e);
+      alert('일괄 저장에 실패했습니다.');
+    }
+  }
+
+  async function loadMyInfo(){
+    try{
+      // sessionStorage에서 로그인한 사용자 정보 가져오기
+      const userStr = sessionStorage.getItem('user');
+      if(!userStr){
+        alert('로그인 정보를 찾을 수 없습니다.');
+        return;
+      }
+
+      const user = JSON.parse(userStr);
+      console.log('로그인 사용자:', user);
+
+      if(!user.id){
+        alert('사용자 ID를 찾을 수 없습니다.');
+        return;
+      }
+
+      // 현재 로그인한 사용자의 멤버 정보 찾기
+      const currentMember = members.find(m => m.id == user.id);
+      if(!currentMember){
+        alert('사용자 정보를 찾을 수 없습니다.');
+        return;
+      }
+
+      console.log('내 정보:', currentMember);
+
+      // 팀 정보 찾기
+      const myTeam = departments.find(d => d.id == currentMember.departmentId);
+      if(!myTeam){
+        alert('부서 정보를 찾을 수 없습니다.');
+        return;
+      }
+
+      // 본부 정보 찾기 (user 객체에서 직접 가져오거나 팀의 parentId 사용)
+      let parentDeptId = user.parentDepartmentId || myTeam.parentId;
+      const myHeadquarters = departments.find(d => d.id == parentDeptId);
+      if(!myHeadquarters){
+        alert('본부 정보를 찾을 수 없습니다.');
+        return;
+      }
+
+      console.log('내 팀:', myTeam);
+      console.log('내 본부:', myHeadquarters);
+
+      // 본부 드롭다운 설정
+      dom.filterParentDept.value = myHeadquarters.id;
+      sessionStorage.setItem('expenseFilterParentDept', myHeadquarters.id);
+
+      // 본부 변경 이벤트 트리거하여 팀 드롭다운 채우기
+      dom.filterParentDept.dispatchEvent(new Event('change'));
+
+      // 팀 드롭다운 설정 (change 이벤트 후 실행되도록 setTimeout 사용)
+      setTimeout(() => {
+        dom.filterChildDept.value = myTeam.id;
+        sessionStorage.setItem('expenseFilterChildDept', myTeam.id);
+
+        // 팀 변경 이벤트 트리거하여 멤버 드롭다운 채우기
+        dom.filterChildDept.dispatchEvent(new Event('change'));
+
+        // 멤버 드롭다운 설정
+        setTimeout(() => {
+          dom.filterMember.value = currentMember.id;
+          sessionStorage.setItem('expenseFilterMember', currentMember.id);
+
+          // 멤버 변경 이벤트 트리거하여 복지비 정보 로드
+          dom.filterMember.dispatchEvent(new Event('change'));
+        }, 100);
+      }, 100);
+
+    }catch(e){
+      console.error('내 정보 로드 실패:', e);
+      alert('내 정보를 불러오는데 실패했습니다.');
+    }
+  }
+
+  // 복지비 체크박스 변경 핸들러
+  window.handleWelfareFlagChange = function(checkbox) {
+    console.log('[복지비 체크박스] 변경됨 - 체크 상태:', checkbox.checked);
+    const noteValue = dom.mNote.value || "";
+    console.log('[복지비 체크박스] 현재 메모 값:', noteValue);
+
+    if(checkbox.checked) {
+      // 체크했을 때 - "[복지비]"가 없으면 추가
+      if(!noteValue.startsWith("[복지비]")) {
+        dom.mNote.value = "[복지비] " + noteValue.trim();
+        console.log('[복지비 체크박스] 메모에 추가됨:', dom.mNote.value);
+      }
+    } else {
+      // 체크 해제했을 때 - "[복지비]" 제거
+      dom.mNote.value = noteValue.replace(/^\[복지비\]\s*/, "");
+      console.log('[복지비 체크박스] 메모에서 제거됨:', dom.mNote.value);
+    }
+  };
+
+  function bind(){
+    dom.btnNew.addEventListener("click", openNew);
+    dom.btnAddRow.addEventListener("click", addBulkRow);
+    dom.btnSaveBulk.addEventListener("click", saveBulk);
+    dom.btnBackToSchedule.addEventListener("click", ()=> window.location.href='schedule.html');
+    dom.btnMapPage.addEventListener("click", ()=> window.location.href='http://70.90.150.126:8080/map.html');
+    dom.btnMyInfo.addEventListener("click", loadMyInfo);
+
+    dom.filterParentDept.addEventListener("change", () => {
+      const parentId = dom.filterParentDept.value;
+      sessionStorage.setItem('expenseFilterParentDept', parentId);
+      dom.filterChildDept.innerHTML = '<option value="">전체 팀</option>';
+      dom.filterChildDept.value = '';
+      sessionStorage.setItem('expenseFilterChildDept', '');
+      dom.filterMember.innerHTML = '<option value="">전체 멤버</option>';
+      dom.filterMember.value = '';
+      sessionStorage.setItem('expenseFilterMember', '');
+
+      if(parentId){
+        const childDepts = departments.filter(d => d.parentId == parentId);
+        childDepts.forEach(d => {
+          const opt = new Option(d.name, d.id);
+          dom.filterChildDept.add(opt);
+        });
+
+        // 본부 선택 시 해당 본부의 모든 멤버 표시
+        const childDeptIds = childDepts.map(d => d.id);
+        const filteredMembers = members.filter(m => childDeptIds.includes(m.departmentId));
+        filteredMembers.forEach(m => {
+          const deptName = m.departmentName || '';
+          const opt = new Option(`${m.name} (${deptName})`, m.id);
+          dom.filterMember.add(opt);
+        });
+      } else {
+        // 전체 본부일 때 모든 멤버 표시
+        members.forEach(m => {
+          const deptName = m.departmentName || '';
+          const opt = new Option(`${m.name} (${deptName})`, m.id);
+          dom.filterMember.add(opt);
+        });
+      }
+      // 본부 변경 시 복지비 섹션 숨김 및 화면 갱신
+      dom.welfareSection.style.display = 'none';
+      renderTable();
+    });
+
+    dom.filterChildDept.addEventListener("change", () => {
+      const childId = dom.filterChildDept.value;
+      sessionStorage.setItem('expenseFilterChildDept', childId);
+      dom.filterMember.innerHTML = '<option value="">전체 멤버</option>';
+      dom.filterMember.value = '';
+      sessionStorage.setItem('expenseFilterMember', '');
+
+      if(childId){
+        const filteredMembers = members.filter(m => m.departmentId == childId);
+        filteredMembers.forEach(m => {
+          const opt = new Option(`${m.name} (${m.departmentName||''})`, m.id);
+          dom.filterMember.add(opt);
+        });
+      } else {
+        const parentId = dom.filterParentDept.value;
+        if(parentId){
+          // 팀이 전체일 때, 선택된 본부의 모든 멤버 표시
+          const childDepts = departments.filter(d => d.parentId == parentId);
+          const childDeptIds = childDepts.map(d => d.id);
+          const filteredMembers = members.filter(m => childDeptIds.includes(m.departmentId));
+          filteredMembers.forEach(m => {
+            const deptName = m.departmentName || '';
+            const opt = new Option(`${m.name} (${deptName})`, m.id);
+            dom.filterMember.add(opt);
+          });
+        } else {
+          // 본부도 팀도 전체일 때 모든 멤버 표시
+          members.forEach(m => {
+            const deptName = m.departmentName || '';
+            const opt = new Option(`${m.name} (${deptName})`, m.id);
+            dom.filterMember.add(opt);
+          });
+        }
+      }
+      // 팀 변경 시 복지비 섹션 숨김
+      dom.welfareSection.style.display = 'none';
+      renderTable();
+    });
+
+    dom.tbody.addEventListener("click", (e) => {
+      const edit = e.target.closest("[data-edit]");
+      if(edit) viewItem(Number(edit.dataset.edit));
+    });
+
+    dom.btnClose.addEventListener("click", closeModal);
+    dom.btnCancel.addEventListener("click", closeModal);
+    dom.modal.addEventListener("click", (e)=>{ if(e.target === dom.modal) closeModal(); });
+    document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeModal(); });
+
+    dom.btnSave.addEventListener("click", saveItem);
+    dom.btnDelete.addEventListener("click", deleteItem);
+    dom.btnExportExcel.addEventListener("click", exportToExcel);
+
+    // Show welfare flag checkbox only when account is "복리후생비"
+    dom.mAccount.addEventListener("change", () => {
+      const isWelfareAccount = dom.mAccount.value === "복리후생비";
+
+      if(isWelfareAccount){
+        dom.welfareFlagContainer.style.display = "block";
+      } else {
+        dom.welfareFlagContainer.style.display = "none";
+        dom.mWelfareFlag.checked = false;
+      }
+    });
+
+    dom.filterMember.addEventListener("change", () => {
+      sessionStorage.setItem('expenseFilterMember', dom.filterMember.value);
+      const memberId = dom.filterMember.value;
+
+      // 멤버 선택 시 일괄 편집 버튼 표시
+      if(memberId){
+        dom.btnAddRow.style.display = 'inline-flex';
+        dom.btnSaveBulk.style.display = bulkEditRows.length > 0 ? 'inline-flex' : 'none';
+      } else {
+        dom.btnAddRow.style.display = 'none';
+        dom.btnSaveBulk.style.display = 'none';
+        bulkEditRows = []; // 멤버 선택 해제 시 일괄 편집 행 초기화
+      }
+
+      loadWelfareUsage(memberId);
+      renderTable();
+    });
+    dom.filterMonth.addEventListener("change", () => {
+      sessionStorage.setItem('expenseFilterMonth', dom.filterMonth.value);
+      renderTable();
+    });
+    dom.q.addEventListener("input", renderTable);
+
+    dom.btnResetFilter.addEventListener("click", ()=>{
+      dom.filterParentDept.value = "";
+      dom.filterChildDept.value = "";
+      dom.filterMember.value = "";
+      dom.filterMonth.value = "";
+      dom.q.value = "";
+      sessionStorage.removeItem('expenseFilterParentDept');
+      sessionStorage.removeItem('expenseFilterChildDept');
+      sessionStorage.removeItem('expenseFilterMember');
+      sessionStorage.removeItem('expenseFilterMonth');
+      renderTable();
+    });
+  }
+
+  function restoreFilters(){
+    // 로그인한 사용자 정보 가져오기
+    const userStr = sessionStorage.getItem('user');
+    let user = null;
+    if(userStr){
+      try {
+        user = JSON.parse(userStr);
+      } catch(e) {
+        console.error('사용자 정보 파싱 실패:', e);
+      }
+    }
+
+    // schedule.html에서 넘어온 값 우선, 없으면 저장된 필터 값 사용
+    let savedParent = sessionStorage.getItem('selectedParentDepartmentId') || sessionStorage.getItem('expenseFilterParentDept');
+    let savedChild = sessionStorage.getItem('selectedDepartmentId') || sessionStorage.getItem('expenseFilterChildDept');
+    let savedMember = sessionStorage.getItem('selectedMemberId') || sessionStorage.getItem('expenseFilterMember');
+
+    console.log('저장된 필터 - 본부:', savedParent, '팀:', savedChild, '멤버:', savedMember);
+
+    // 저장된 값이 없으면 로그인한 사용자 정보로 설정
+    if(!savedParent && user && user.parentDepartmentId){
+      savedParent = user.parentDepartmentId.toString();
+      console.log('로그인 사용자 본부로 설정:', savedParent);
+    }
+    if(!savedChild && user && user.departmentId){
+      savedChild = user.departmentId.toString();
+      console.log('로그인 사용자 팀으로 설정:', savedChild);
+    }
+    if(!savedMember && user && user.id){
+      savedMember = user.id.toString();
+      console.log('로그인 사용자 멤버로 설정:', savedMember);
+    }
+
+    if(savedParent){
+      console.log('본부 설정:', savedParent);
+      console.log('본부 드롭다운 옵션 수:', dom.filterParentDept.options.length);
+      dom.filterParentDept.value = savedParent;
+      console.log('본부 드롭다운 선택된 값:', dom.filterParentDept.value);
+      sessionStorage.setItem('expenseFilterParentDept', savedParent);
+
+      // 본부에 속한 팀들 로드
+      const childDepts = departments.filter(d => d.parentId == savedParent);
+      console.log('팀 목록:', childDepts);
+      childDepts.forEach(d => {
+        const opt = new Option(d.name, d.id);
+        dom.filterChildDept.add(opt);
+      });
+
+      // 본부에 속한 멤버들 로드
+      const childDeptIds = childDepts.map(d => d.id);
+      const filteredMembers = members.filter(m => childDeptIds.includes(m.departmentId));
+      filteredMembers.forEach(m => {
+        const deptName = m.departmentName || '';
+        const opt = new Option(`${m.name} (${deptName})`, m.id);
+        dom.filterMember.add(opt);
+      });
+    }
+
+    if(savedChild){
+      setTimeout(() => {
+        dom.filterChildDept.value = savedChild;
+        sessionStorage.setItem('expenseFilterChildDept', savedChild);
+
+        // 팀에 속한 멤버들 로드
+        dom.filterMember.innerHTML = '<option value="">전체 멤버</option>';
+        const filteredMembers = members.filter(m => m.departmentId == savedChild);
+        filteredMembers.forEach(m => {
+          const opt = new Option(`${m.name} (${m.departmentName||''})`, m.id);
+          dom.filterMember.add(opt);
+        });
+      }, 100);
+    }
+
+    if(savedMember){
+      setTimeout(() => {
+        dom.filterMember.value = savedMember;
+        sessionStorage.setItem('expenseFilterMember', savedMember);
+        // 멤버 선택 시 행 추가 버튼 표시
+        dom.btnAddRow.style.display = 'inline-flex';
+        dom.btnSaveBulk.style.display = bulkEditRows.length > 0 ? 'inline-flex' : 'none';
+        loadWelfareUsage(savedMember);
+        renderTable();
+      }, 200);
+    } else if(savedChild || savedParent){
+      setTimeout(() => {
+        renderTable();
+      }, 300);
+    }
+
+    // 월 필터 복원
+    const savedMonth = sessionStorage.getItem('expenseFilterMonth');
+    if(savedMonth){
+      dom.filterMonth.value = savedMonth;
+    } else {
+      // 기본값: 이번 달
+      const today = new Date();
+      const currentMonth = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+      dom.filterMonth.value = currentMonth;
+      sessionStorage.setItem('expenseFilterMonth', currentMonth);
+    }
+
+    // 복지비 사용 현황 로드
+    if(savedMember){
+      loadWelfareUsage(savedMember);
+    }
+  }
+
+  async function init(){
+    // 로그인 체크
+    const userStr = sessionStorage.getItem('user');
+    if(!userStr){
+      alert('로그인이 필요합니다.');
+      window.location.href = '/intranet-login.html';
+      return;
+    }
+
+    await loadDepartments();
+    await loadMembers();
+    await loadItems();
+    restoreFilters();
+    bind();
+  }
+
+  init();
+</script>
+
+</body>
+</html>

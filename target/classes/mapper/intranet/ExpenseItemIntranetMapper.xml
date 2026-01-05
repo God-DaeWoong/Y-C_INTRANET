@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.intranet.mapper.ExpenseItemIntranetMapper">
+
+    <resultMap id="ExpenseItemIntranetResultMap" type="com.ync.intranet.domain.ExpenseItemIntranet">
+        <id property="id" column="id"/>
+        <result property="expenseReportId" column="expense_report_id"/>
+        <result property="memberId" column="member_id"/>
+        <result property="usageDate" column="usage_date"/>
+        <result property="description" column="description"/>
+        <result property="account" column="account"/>
+        <result property="amount" column="amount"/>
+        <result property="vendor" column="vendor"/>
+        <result property="costCode" column="cost_code"/>
+        <result property="projectCode" column="project_code"/>
+        <result property="note" column="note"/>
+        <result property="welfareFlag" column="welfare_flag"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <association property="member" javaType="com.ync.intranet.domain.MemberIntranet">
+            <id property="id" column="member_id"/>
+            <result property="name" column="member_name"/>
+            <result property="departmentName" column="member_department"/>
+        </association>
+    </resultMap>
+
+    <!-- ID로 경비 항목 조회 -->
+    <select id="findById" resultMap="ExpenseItemIntranetResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as member_department
+        FROM expense_items_intranet ei
+        LEFT JOIN members_intranet m ON ei.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE ei.id = #{id}
+    </select>
+
+    <!-- 경비보고서 ID로 항목 조회 -->
+    <select id="findByExpenseReportId" resultMap="ExpenseItemIntranetResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as member_department
+        FROM expense_items_intranet ei
+        LEFT JOIN members_intranet m ON ei.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE ei.expense_report_id = #{expenseReportId}
+        ORDER BY ei.usage_date, ei.created_at
+    </select>
+
+    <!-- 카테고리별 항목 조회 -->
+    <select id="findByCategory" resultMap="ExpenseItemIntranetResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as member_department
+        FROM expense_items_intranet ei
+        LEFT JOIN members_intranet m ON ei.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE ei.account = #{category}
+        ORDER BY ei.usage_date DESC
+    </select>
+
+    <!-- 전체 경비 항목 조회 -->
+    <select id="findAll" resultMap="ExpenseItemIntranetResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as member_department
+        FROM expense_items_intranet ei
+        LEFT JOIN members_intranet m ON ei.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        ORDER BY ei.usage_date DESC, ei.created_at DESC
+    </select>
+
+    <!-- 경비 항목 등록 -->
+    <insert id="insert" parameterType="com.ync.intranet.domain.ExpenseItemIntranet">
+        <selectKey keyProperty="id" resultType="long" order="BEFORE">
+            SELECT expense_items_intranet_seq.NEXTVAL FROM dual
+        </selectKey>
+        INSERT INTO expense_items_intranet (
+            id, expense_report_id, member_id, usage_date, description,
+            account, amount, vendor, cost_code, project_code, note,
+            welfare_flag, created_at, updated_at
+        )
+        VALUES (
+            #{id}, #{expenseReportId,jdbcType=NUMERIC}, #{memberId}, #{usageDate}, #{description},
+            #{account}, #{amount}, #{vendor}, #{costCode}, #{projectCode}, #{note},
+            #{welfareFlag}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <!-- 경비 항목 일괄 등록 -->
+    <insert id="insertBatch">
+        INSERT ALL
+        <foreach collection="items" item="item">
+            INTO expense_items_intranet (
+                id, expense_report_id, member_id, usage_date, description,
+                account, amount, vendor, cost_code, project_code, note,
+                welfare_flag, created_at, updated_at
+            )
+            VALUES (
+                expense_items_intranet_seq.NEXTVAL,
+                #{item.expenseReportId}, #{item.memberId}, #{item.usageDate}, #{item.description},
+                #{item.account}, #{item.amount}, #{item.vendor}, #{item.costCode}, #{item.projectCode},
+                #{item.note}, #{item.welfareFlag}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            )
+        </foreach>
+        SELECT 1 FROM DUAL
+    </insert>
+
+    <!-- 경비 항목 수정 -->
+    <update id="update" parameterType="com.ync.intranet.domain.ExpenseItemIntranet">
+        UPDATE expense_items_intranet
+        SET member_id = #{memberId},
+            usage_date = #{usageDate},
+            description = #{description},
+            account = #{account},
+            amount = #{amount},
+            vendor = #{vendor},
+            cost_code = #{costCode},
+            project_code = #{projectCode},
+            note = #{note},
+            welfare_flag = #{welfareFlag},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 경비 항목 삭제 -->
+    <delete id="deleteById">
+        DELETE FROM expense_items_intranet WHERE id = #{id}
+    </delete>
+
+    <!-- 경비보고서의 모든 항목 삭제 -->
+    <delete id="deleteByExpenseReportId">
+        DELETE FROM expense_items_intranet WHERE expense_report_id = #{expenseReportId}
+    </delete>
+
+    <!-- 멤버 ID와 연도로 복지비 항목 조회 -->
+    <select id="findWelfareExpensesByMemberIdAndYear" resultMap="ExpenseItemIntranetResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as member_department
+        FROM expense_items_intranet ei
+        LEFT JOIN members_intranet m ON ei.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE ei.member_id = #{memberId}
+          AND EXTRACT(YEAR FROM ei.usage_date) = #{year}
+          AND ei.welfare_flag = 'Y'
+        ORDER BY ei.usage_date
+    </select>
+
+</mapper>

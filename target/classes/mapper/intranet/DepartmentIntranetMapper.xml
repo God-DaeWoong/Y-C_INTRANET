@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.intranet.mapper.DepartmentIntranetMapper">
+
+    <resultMap id="DepartmentIntranetResultMap" type="com.ync.intranet.domain.DepartmentIntranet">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="managerId" column="manager_id"/>
+        <result property="managerName" column="manager_name"/>
+        <result property="displayOrder" column="display_order"/>
+        <result property="isActive" column="is_active"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- 전체 부서 조회 -->
+    <select id="findAll" resultMap="DepartmentIntranetResultMap">
+        SELECT d.*, m.name as manager_name
+        FROM departments_intranet d
+        LEFT JOIN members_intranet m ON d.manager_id = m.id
+        ORDER BY d.display_order, d.name
+    </select>
+
+    <!-- ID로 부서 조회 -->
+    <select id="findById" resultMap="DepartmentIntranetResultMap">
+        SELECT d.*, m.name as manager_name
+        FROM departments_intranet d
+        LEFT JOIN members_intranet m ON d.manager_id = m.id
+        WHERE d.id = #{id}
+    </select>
+
+    <!-- 활성화된 부서만 조회 -->
+    <select id="findByIsActiveTrue" resultMap="DepartmentIntranetResultMap">
+        SELECT d.*, m.name as manager_name
+        FROM departments_intranet d
+        LEFT JOIN members_intranet m ON d.manager_id = m.id
+        WHERE d.is_active = 1
+        ORDER BY d.display_order, d.name
+    </select>
+
+    <!-- 상위 부서별 하위 부서 조회 -->
+    <select id="findByParentId" resultMap="DepartmentIntranetResultMap">
+        SELECT d.*, m.name as manager_name
+        FROM departments_intranet d
+        LEFT JOIN members_intranet m ON d.manager_id = m.id
+        WHERE d.parent_id = #{parentId}
+        ORDER BY d.display_order, d.name
+    </select>
+
+    <!-- 최상위 부서 조회 -->
+    <select id="findRootDepartments" resultMap="DepartmentIntranetResultMap">
+        SELECT d.*, m.name as manager_name
+        FROM departments_intranet d
+        LEFT JOIN members_intranet m ON d.manager_id = m.id
+        WHERE d.parent_id IS NULL
+        ORDER BY d.display_order, d.name
+    </select>
+
+    <!-- 부서 등록 -->
+    <insert id="insert" parameterType="com.ync.intranet.domain.DepartmentIntranet">
+        <selectKey keyProperty="id" resultType="long" order="BEFORE">
+            SELECT departments_intranet_seq.NEXTVAL FROM dual
+        </selectKey>
+        INSERT INTO departments_intranet (
+            id, name, parent_id, manager_id, display_order, is_active,
+            created_at, updated_at
+        )
+        VALUES (
+            #{id}, #{name}, #{parentId}, #{managerId}, #{displayOrder}, #{isActive},
+            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <!-- 부서 수정 -->
+    <update id="update" parameterType="com.ync.intranet.domain.DepartmentIntranet">
+        UPDATE departments_intranet
+        SET name = #{name},
+            parent_id = #{parentId},
+            manager_id = #{managerId},
+            display_order = #{displayOrder},
+            is_active = #{isActive},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 부서 삭제 -->
+    <delete id="deleteById">
+        DELETE FROM departments_intranet WHERE id = #{id}
+    </delete>
+
+    <!-- 부서 비활성화 -->
+    <update id="deactivate">
+        UPDATE departments_intranet
+        SET is_active = 0,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+</mapper>

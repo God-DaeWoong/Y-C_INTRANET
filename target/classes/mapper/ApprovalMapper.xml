@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.schedule.mapper.ApprovalMapper">
+
+    <resultMap id="ApprovalResultMap" type="com.ync.schedule.domain.Approval">
+        <id property="id" column="id"/>
+        <result property="eventId" column="event_id"/>
+        <result property="stepOrder" column="step_order"/>
+        <result property="approverId" column="approver_id"/>
+        <result property="decision" column="decision"/>
+        <result property="comment" column="approval_comment"/>
+        <result property="submittedAt" column="submitted_at"/>
+        <result property="decidedAt" column="decided_at"/>
+        <association property="approver" javaType="com.ync.schedule.domain.Member">
+            <id property="id" column="approver_id"/>
+            <result property="name" column="approver_name"/>
+            <result property="position" column="approver_position"/>
+        </association>
+    </resultMap>
+
+    <select id="findAll" resultMap="ApprovalResultMap">
+        SELECT a.*, m.name as approver_name, m.position as approver_position
+        FROM approvals a
+        LEFT JOIN members m ON a.approver_id = m.id
+    </select>
+
+    <select id="findById" resultMap="ApprovalResultMap">
+        SELECT a.*, m.name as approver_name, m.position as approver_position
+        FROM approvals a
+        LEFT JOIN members m ON a.approver_id = m.id
+        WHERE a.id = #{id}
+    </select>
+
+    <select id="findByEventId" resultMap="ApprovalResultMap">
+        SELECT a.*, m.name as approver_name, m.position as approver_position
+        FROM approvals a
+        LEFT JOIN members m ON a.approver_id = m.id
+        WHERE a.event_id = #{eventId}
+        ORDER BY a.step_order
+    </select>
+
+    <select id="findByApproverId" resultMap="ApprovalResultMap">
+        SELECT a.*, m.name as approver_name, m.position as approver_position
+        FROM approvals a
+        LEFT JOIN members m ON a.approver_id = m.id
+        WHERE a.approver_id = #{approverId}
+    </select>
+
+    <select id="findPendingByApproverId" resultMap="ApprovalResultMap">
+        SELECT a.*, m.name as approver_name, m.position as approver_position
+        FROM approvals a
+        LEFT JOIN members m ON a.approver_id = m.id
+        WHERE a.approver_id = #{approverId}
+          AND a.decision IS NULL
+    </select>
+
+    <select id="findByEventIdAndStepOrder" resultMap="ApprovalResultMap">
+        SELECT a.*, m.name as approver_name, m.position as approver_position
+        FROM approvals a
+        LEFT JOIN members m ON a.approver_id = m.id
+        WHERE a.event_id = #{eventId}
+          AND a.step_order = #{stepOrder}
+    </select>
+
+    <insert id="insert" parameterType="com.ync.schedule.domain.Approval">
+        <selectKey keyProperty="id" resultType="long" order="BEFORE">
+            SELECT approvals_seq.NEXTVAL FROM dual
+        </selectKey>
+        INSERT INTO approvals (
+            id,
+            event_id,
+            step_order,
+            approver_id,
+            submitted_at
+            <if test="decision != null">, decision</if>
+            <if test="comment != null">, approval_comment</if>
+            <if test="decidedAt != null">, decided_at</if>
+        )
+        VALUES (
+            #{id},
+            #{eventId},
+            #{stepOrder},
+            #{approverId},
+            #{submittedAt}
+            <if test="decision != null">, #{decision, jdbcType=VARCHAR}</if>
+            <if test="comment != null">, #{comment, jdbcType=VARCHAR}</if>
+            <if test="decidedAt != null">, #{decidedAt, jdbcType=TIMESTAMP}</if>
+        )
+    </insert>
+
+    <update id="update" parameterType="com.ync.schedule.domain.Approval">
+        UPDATE approvals
+        <set>
+            event_id = #{eventId},
+            step_order = #{stepOrder},
+            approver_id = #{approverId},
+            <if test="decision != null">
+                decision = #{decision, jdbcType=VARCHAR},
+            </if>
+            <if test="comment != null">
+                approval_comment = #{comment, jdbcType=VARCHAR},
+            </if>
+            <if test="decidedAt != null">
+                decided_at = #{decidedAt, jdbcType=TIMESTAMP},
+            </if>
+            <if test="submittedAt != null">
+                submitted_at = #{submittedAt, jdbcType=TIMESTAMP}
+            </if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM approvals WHERE id = #{id}
+    </delete>
+
+</mapper>

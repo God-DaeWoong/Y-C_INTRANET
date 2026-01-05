@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.intranet.mapper.ExpenseReportIntranetMapper">
+
+    <resultMap id="ExpenseReportIntranetResultMap" type="com.ync.intranet.domain.ExpenseReportIntranet">
+        <id property="id" column="id"/>
+        <result property="documentId" column="document_id"/>
+        <result property="reportMonth" column="report_month"/>
+        <result property="totalAmount" column="total_amount"/>
+        <result property="description" column="description"/>
+        <result property="filePath" column="file_path"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- ID로 경비보고서 조회 -->
+    <select id="findById" resultMap="ExpenseReportIntranetResultMap">
+        SELECT *
+        FROM expense_reports_intranet
+        WHERE id = #{id}
+    </select>
+
+    <!-- 문서 ID로 경비보고서 조회 -->
+    <select id="findByDocumentId" resultMap="ExpenseReportIntranetResultMap">
+        SELECT *
+        FROM expense_reports_intranet
+        WHERE document_id = #{documentId}
+    </select>
+
+    <!-- 보고 월별 경비보고서 조회 -->
+    <select id="findByReportMonth" resultMap="ExpenseReportIntranetResultMap">
+        SELECT *
+        FROM expense_reports_intranet
+        WHERE report_month = #{reportMonth}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 전체 경비보고서 조회 -->
+    <select id="findAll" resultMap="ExpenseReportIntranetResultMap">
+        SELECT *
+        FROM expense_reports_intranet
+        ORDER BY report_month DESC, created_at DESC
+    </select>
+
+    <!-- 경비보고서 등록 -->
+    <insert id="insert" parameterType="com.ync.intranet.domain.ExpenseReportIntranet">
+        <selectKey keyProperty="id" resultType="long" order="BEFORE">
+            SELECT expense_reports_intranet_seq.NEXTVAL FROM dual
+        </selectKey>
+        INSERT INTO expense_reports_intranet (
+            id, document_id, report_month, total_amount,
+            description, file_path, created_at
+        )
+        VALUES (
+            #{id}, #{documentId}, #{reportMonth}, #{totalAmount},
+            #{description}, #{filePath}, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <!-- 경비보고서 수정 -->
+    <update id="update" parameterType="com.ync.intranet.domain.ExpenseReportIntranet">
+        UPDATE expense_reports_intranet
+        SET report_month = #{reportMonth},
+            total_amount = #{totalAmount},
+            description = #{description},
+            file_path = #{filePath}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 총 금액 업데이트 -->
+    <update id="updateTotalAmount">
+        UPDATE expense_reports_intranet
+        SET total_amount = #{totalAmount}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 경비보고서 삭제 -->
+    <delete id="deleteById">
+        DELETE FROM expense_reports_intranet WHERE id = #{id}
+    </delete>
+
+    <!-- 문서 ID로 경비보고서 삭제 -->
+    <delete id="deleteByDocumentId">
+        DELETE FROM expense_reports_intranet WHERE document_id = #{documentId}
+    </delete>
+
+</mapper>

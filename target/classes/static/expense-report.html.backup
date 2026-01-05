@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>지출보고서 관리</title>
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='10' width='52' height='48' rx='12' fill='%235b6cff'/%3E%3Crect x='6' y='18' width='52' height='40' rx='10' fill='%23ffffff'/%3E%3Crect x='6' y='10' width='52' height='14' rx='12' fill='%238b5cf6'/%3E%3Cpath d='M18 34h28v4H18zM18 42h18v4H18z' fill='%235b6cff'/%3E%3C/svg%3E"/>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:rgba(255,255,255,.92);
+      --panel2:rgba(255,255,255,.98);
+      --border:rgba(15,23,42,.10);
+      --text:#0f172a;
+      --muted:#64748b;
+      --primary:#6366f1;
+      --primary2:#8b5cf6;
+      --danger:#ef4444;
+      --success:#10b981;
+      --warning:#f59e0b;
+      --shadow:0 22px 60px rgba(15,23,42,.22);
+      --shadow2:0 10px 30px rgba(15,23,42,.14);
+      --r-xl:20px; --r:14px; --r-sm:10px;
+      --focus:0 0 0 4px rgba(99,102,241,.16);
+      --transition:all .18s cubic-bezier(.4,0,.2,1);
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",Roboto,Arial,sans-serif;
+      background:radial-gradient(1200px 700px at 20% 10%, rgba(99,102,241,.35), transparent 55%),
+                 radial-gradient(900px 600px at 85% 15%, rgba(139,92,246,.30), transparent 55%),
+                 radial-gradient(800px 600px at 60% 90%, rgba(16,185,129,.18), transparent 55%),
+                 linear-gradient(180deg, #070b14 0%, #0b1220 100%);
+      color:#e5e7eb;
+      min-height:100vh;
+      padding:22px;
+    }
+    .wrap{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start;}
+    .card{
+      background:var(--panel);
+      color:var(--text);
+      border-radius:var(--r-xl);
+      box-shadow:var(--shadow);
+      border:1px solid rgba(255,255,255,.14);
+      overflow:hidden;
+    }
+    .card .head{
+      padding:18px 18px 14px 18px;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      background:linear-gradient(135deg, rgba(99,102,241,.08), rgba(139,92,246,.08));
+    }
+    .title{
+      font-size:18px;font-weight:900;letter-spacing:-.4px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .title small{font-size:12px;font-weight:800;color:var(--muted);}
+    .chip{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:6px 10px;border-radius:999px;font-size:12px;font-weight:900;
+      background:#eef2ff;color:#3730a3;border:1px solid rgba(55,48,163,.14);
+      white-space:nowrap;
+    }
+    .body{padding:16px 18px;}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    label{display:block;font-size:12px;font-weight:900;color:#0f172a;margin:0 0 6px 2px;}
+    input,select,textarea{
+      width:100%;
+      border:2px solid var(--border);
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:14px;
+      background:#fff;
+      outline:none;
+      transition:var(--transition);
+      box-shadow:0 2px 10px rgba(15,23,42,.06);
+    }
+    textarea{min-height:72px;resize:vertical;}
+    input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:var(--focus);}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    .btn{
+      border:none; cursor:pointer;
+      padding:10px 14px; border-radius:12px;
+      font-weight:900; font-size:13px;
+      transition:var(--transition);
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      box-shadow:0 4px 14px rgba(15,23,42,.10);
+      white-space:nowrap;
+    }
+    .btn:hover{transform:translateY(-1px);box-shadow:var(--shadow2);}
+    .btn:active{transform:translateY(0);}
+    .btn-primary{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;}
+    .btn-ghost{background:#fff;color:#0f172a;border:2px solid var(--border);}
+    .btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;}
+    .btn-success{background:linear-gradient(135deg,#10b981,#059669);color:#fff;}
+    .btn-warning{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;}
+    .statbar{
+      display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;
+      margin-top:10px;
+    }
+    .stat{
+      background:#fff; border:1px solid var(--border);
+      border-radius:14px; padding:12px;
+    }
+    .stat .k{font-size:11px;font-weight:900;color:var(--muted);}
+    .stat .v{font-size:18px;font-weight:1000;margin-top:6px;}
+    .stat .v small{font-size:12px;font-weight:900;color:var(--muted);}
+    .mainTop{
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+      margin-bottom:12px;
+    }
+    .mainTop .left{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+    .search{
+      min-width:260px;
+      background:var(--panel2);
+      color:var(--text);
+      border-radius:999px;
+      padding:10px 14px;
+      border:2px solid rgba(255,255,255,.35);
+      outline:none;
+      box-shadow:0 10px 25px rgba(0,0,0,.18);
+    }
+    .tableWrap{background:var(--panel); color:var(--text); border-radius:var(--r-xl); box-shadow:var(--shadow); overflow:hidden;}
+    table{width:100%; border-collapse:separate; border-spacing:0;}
+    thead th{
+      text-align:left;
+      font-size:12px;
+      font-weight:1000;
+      color:#0f172a;
+      padding:12px 12px;
+      background:linear-gradient(135deg, rgba(99,102,241,.12), rgba(139,92,246,.12));
+      border-bottom:1px solid var(--border);
+      position:sticky; top:0; z-index:2;
+    }
+    tbody td{
+      padding:10px 12px;
+      border-bottom:1px solid rgba(15,23,42,.07);
+      font-size:13px;
+      vertical-align:top;
+    }
+    tbody tr:hover td{background:rgba(99,102,241,.06);}
+    .num{text-align:right; font-variant-numeric:tabular-nums;}
+    .tag{
+      display:inline-flex;align-items:center;
+      padding:4px 10px;border-radius:999px;
+      font-size:11px;font-weight:1000;
+      border:1px solid rgba(15,23,42,.10);
+      white-space:nowrap;
+    }
+    .tag.DRAFT{background:#f3f4f6;color:#374151;}
+    .tag.SUBMITTED{background:#dbeafe;color:#0369a1;}
+    .tag.APPROVED{background:#d1fae5;color:#065f46;}
+    .tag.REJECTED{background:#fee2e2;color:#991b1b;}
+    .actions{display:flex; gap:8px;}
+    .linkBtn{padding:8px 10px;border-radius:10px;border:2px solid var(--border);background:#fff;font-weight:1000;cursor:pointer;font-size:12px;}
+    .linkBtn:hover{border-color:var(--primary);color:var(--primary);}
+    .foot{padding:12px 14px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; border-top:1px solid var(--border); background:rgba(255,255,255,.7);}
+    .tiny{font-size:12px;color:#334155;font-weight:800;}
+    .modal{
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);
+      z-index:999; padding:20px; overflow:auto;
+    }
+    .modal.show{display:block;}
+    .modal .panel{
+      max-width:720px; margin:40px auto; background:#fff; color:var(--text);
+      border-radius:var(--r-xl); box-shadow:0 30px 90px rgba(0,0,0,.35);
+      overflow:hidden;
+    }
+    .modal .panel .head{background:#fff;}
+    .modal .panel .body{padding:16px 18px 18px;}
+    .modal .x{cursor:pointer; padding:8px 10px;border-radius:10px;}
+    .modal .x:hover{background:#f1f5f9;}
+    .hr{height:1px;background:rgba(15,23,42,.10);margin:10px 0;}
+    @media (max-width: 980px){
+      .wrap{grid-template-columns:1fr;}
+      .search{width:100%; min-width:0;}
+    }
+  </style>
+</head>
+<body>
+
+<div class="wrap">
+  <section class="card">
+    <div class="head">
+      <div class="title">💰 지출보고서 <small>관리</small></div>
+      <span class="chip">서버 연동</span>
+    </div>
+    <div class="body">
+      <div class="statbar">
+        <div class="stat">
+          <div class="k">총 건수</div>
+          <div class="v"><span id="statCount">0</span><small> 건</small></div>
+        </div>
+        <div class="stat">
+          <div class="k">합계 금액</div>
+          <div class="v"><span id="statSum">0</span><small> 원</small></div>
+        </div>
+        <div class="stat">
+          <div class="k">승인 건수</div>
+          <div class="v"><span id="statApproved">0</span><small> 건</small></div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="grid">
+        <div>
+          <label>멤버</label>
+          <select id="fMember">
+            <option value="">전체</option>
+          </select>
+        </div>
+        <div>
+          <label>보고 월</label>
+          <input id="fMonth" type="month" />
+        </div>
+        <div>
+          <label>상태</label>
+          <select id="fStatus">
+            <option value="">전체</option>
+            <option value="DRAFT">초안</option>
+            <option value="SUBMITTED">제출</option>
+            <option value="APPROVED">승인</option>
+            <option value="REJECTED">반려</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <button class="btn btn-primary" id="btnNew">+ 보고서 추가</button>
+        <button class="btn btn-ghost" id="btnResetFilter">필터 초기화</button>
+        <button class="btn btn-ghost" id="btnBackToSchedule">← 일정 관리</button>
+      </div>
+
+      <div class="tiny" style="margin-top:10px;">
+        팁) 보고서 행의 [보기]로 상세 확인/수정. 검색으로 제목/멤버/부서 필터링.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="mainTop">
+      <div class="left">
+        <span class="chip">표시 건수: <b id="shownCount">0</b></span>
+        <span class="chip">표시 합계: <b id="shownSum">0</b>원</span>
+      </div>
+      <input class="search" id="q" placeholder="검색: 제목/멤버/부서 ..." />
+    </div>
+
+    <div class="tableWrap">
+      <div style="max-height:calc(100vh - 90px); overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:70px;">ID</th>
+              <th style="width:200px;">제목</th>
+              <th style="width:100px;">멤버</th>
+              <th style="width:140px;">부서</th>
+              <th style="width:110px;">보고 월</th>
+              <th class="num" style="width:130px;">금액</th>
+              <th style="width:100px;">상태</th>
+              <th style="width:110px;">생성일</th>
+              <th style="width:140px;">작업</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="foot">
+        <div class="tiny">데이터: <b>서버 API 연동</b></div>
+        <div class="tiny">제출/승인/반려 워크플로우 지원</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="modal" id="modal">
+  <div class="panel">
+    <div class="head">
+      <div class="title" id="mTitle">지출보고서 추가</div>
+      <div class="row">
+        <button class="btn btn-danger" id="btnDelete" style="display:none;">삭제</button>
+        <span class="x" id="btnClose">✕</span>
+      </div>
+    </div>
+    <div class="body">
+      <input type="hidden" id="mId" />
+      <div class="grid">
+        <div>
+          <label>멤버 *</label>
+          <select id="mMember" required>
+            <option value="">선택하세요</option>
+          </select>
+        </div>
+        <div>
+          <label>보고 월 *</label>
+          <input id="mMonth" type="month" required />
+        </div>
+        <div style="grid-column: span 2;">
+          <label>제목 *</label>
+          <input id="mTitle2" type="text" required placeholder="예: 2025년 11월 지출보고서" />
+        </div>
+        <div>
+          <label>총 금액 *</label>
+          <input id="mAmount" type="number" min="0" step="0.01" required />
+        </div>
+        <div>
+          <label>파일 경로</label>
+          <input id="mFilePath" placeholder="/uploads/expense_2025_11.xlsx" />
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <label>설명</label>
+        <textarea id="mDesc" placeholder="지출 내역 설명..."></textarea>
+      </div>
+
+      <div class="row" style="justify-content:flex-end; margin-top:14px; gap:8px;">
+        <button class="btn btn-ghost" id="btnCancel">취소</button>
+        <button class="btn btn-primary" id="btnSave">저장</button>
+        <button class="btn btn-success" id="btnSubmit" style="display:none;">제출</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = '/api';
+  const nf = new Intl.NumberFormat("ko-KR");
+  const $ = (q) => document.querySelector(q);
+
+  let members = [];
+  let reports = [];
+  let currentReport = null;
+
+  const dom = {
+    statCount: $("#statCount"),
+    statSum: $("#statSum"),
+    statApproved: $("#statApproved"),
+    fMember: $("#fMember"),
+    fMonth: $("#fMonth"),
+    fStatus: $("#fStatus"),
+    q: $("#q"),
+    tbody: $("#tbody"),
+    shownCount: $("#shownCount"),
+    shownSum: $("#shownSum"),
+    modal: $("#modal"),
+    mTitle: $("#mTitle"),
+    mId: $("#mId"),
+    mMember: $("#mMember"),
+    mMonth: $("#mMonth"),
+    mTitle2: $("#mTitle2"),
+    mAmount: $("#mAmount"),
+    mFilePath: $("#mFilePath"),
+    mDesc: $("#mDesc"),
+    btnNew: $("#btnNew"),
+    btnClose: $("#btnClose"),
+    btnCancel: $("#btnCancel"),
+    btnSave: $("#btnSave"),
+    btnSubmit: $("#btnSubmit"),
+    btnDelete: $("#btnDelete"),
+    btnResetFilter: $("#btnResetFilter"),
+    btnBackToSchedule: $("#btnBackToSchedule"),
+  };
+
+  function esc(s){ return String(s ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"})[m]); }
+  function sum(list){ return list.reduce((a,b)=>a + (Number(b.totalAmount)||0), 0); }
+  function openModal(){ dom.modal.classList.add("show"); }
+  function closeModal(){ dom.modal.classList.remove("show"); }
+  function formatMonth(d){ if(!d) return "-"; const dt=new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`; }
+  function formatDate(d){ if(!d) return "-"; return new Date(d).toLocaleDateString('ko-KR'); }
+  function getStatusText(s){ return {DRAFT:"초안",SUBMITTED:"제출",APPROVED:"승인",REJECTED:"반려"}[s]||s; }
+
+  async function loadMembers(){
+    try{
+      const res = await fetch(`${API_BASE}/members`);
+      members = await res.json();
+      console.log('멤버 로드:', members);
+      [dom.fMember, dom.mMember].forEach(sel => {
+        members.forEach(m => {
+          const deptName = m.department || m.departmentName || '';
+          const opt = new Option(`${m.name} (${deptName})`, m.id);
+          sel.add(opt.cloneNode(true));
+        });
+      });
+    }catch(e){ console.error('멤버 로드 실패:', e); alert('멤버를 불러올 수 없습니다: ' + e.message); }
+  }
+
+  async function loadReports(){
+    try{
+      const res = await fetch(`${API_BASE}/expense-reports`);
+      reports = await res.json();
+      renderTable();
+    }catch(e){ console.error('보고서 로드 실패:', e); }
+  }
+
+  function applyFilters(){
+    const q = (dom.q.value||"").trim().toLowerCase();
+    const mem = dom.fMember.value||"";
+    const mon = dom.fMonth.value||"";
+    const sta = dom.fStatus.value||"";
+
+    return reports.filter(r => {
+      if(mem && r.memberId != mem) return false;
+      if(mon && !r.reportMonth.startsWith(mon)) return false;
+      if(sta && r.status !== sta) return false;
+      if(q){
+        const hay = `${r.title||""} ${r.memberName||""} ${r.departmentName||""}`.toLowerCase();
+        if(hay.indexOf(q)===-1) return false;
+      }
+      return true;
+    }).sort((a,b)=> (b.reportMonth||"").localeCompare(a.reportMonth||"") || (b.createdAt||"").localeCompare(a.createdAt||""));
+  }
+
+  function renderTable(){
+    const filtered = applyFilters();
+    const s = sum(filtered);
+    dom.shownCount.textContent = nf.format(filtered.length);
+    dom.shownSum.textContent = nf.format(s);
+
+    dom.tbody.innerHTML = filtered.map(r => `
+      <tr data-id="${r.id}">
+        <td>${r.id}</td>
+        <td style="font-weight:900;">${esc(r.title)}</td>
+        <td>${esc(r.memberName||"-")}</td>
+        <td>${esc(r.departmentName||"-")}</td>
+        <td>${formatMonth(r.reportMonth)}</td>
+        <td class="num" style="font-weight:1000;">${nf.format(r.totalAmount||0)}</td>
+        <td><span class="tag ${r.status}">${getStatusText(r.status)}</span></td>
+        <td>${formatDate(r.createdAt)}</td>
+        <td>
+          <div class="actions">
+            <button class="linkBtn" data-view="${r.id}">보기</button>
+            ${r.status === 'SUBMITTED' ? `
+              <button class="linkBtn" style="border-color:#10b981;color:#10b981;" data-approve="${r.id}">승인</button>
+              <button class="linkBtn" style="border-color:#ef4444;color:#ef4444;" data-reject="${r.id}">반려</button>
+            ` : ''}
+          </div>
+        </td>
+      </tr>
+    `).join("");
+
+    dom.statCount.textContent = nf.format(reports.length);
+    dom.statSum.textContent = nf.format(sum(reports));
+    dom.statApproved.textContent = nf.format(reports.filter(r=>r.status==='APPROVED').length);
+  }
+
+  function getCurrentMonth(){
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }
+
+  function openNew(){
+    currentReport = null;
+    dom.mTitle.textContent = "지출보고서 추가";
+    dom.mId.value = "";
+
+    // 세션스토리지에서 저장된 멤버 ID 가져오기
+    const savedMemberId = sessionStorage.getItem('selectedMemberId') || localStorage.getItem('selectedMemberId');
+    dom.mMember.value = savedMemberId || "";
+
+    dom.mMonth.value = getCurrentMonth();
+    dom.mTitle2.value = "";
+    dom.mAmount.value = "";
+    dom.mFilePath.value = "";
+    dom.mDesc.value = "";
+    dom.btnDelete.style.display = "none";
+    dom.btnSubmit.style.display = "none";
+    openModal();
+  }
+
+  async function viewReport(id){
+    try{
+      const res = await fetch(`${API_BASE}/expense-reports/${id}`);
+      currentReport = await res.json();
+
+      dom.mTitle.textContent = "지출보고서 보기/수정";
+      dom.mId.value = currentReport.id;
+      dom.mMember.value = currentReport.memberId;
+      dom.mMonth.value = currentReport.reportMonth.substring(0,7);
+      dom.mTitle2.value = currentReport.title;
+      dom.mAmount.value = currentReport.totalAmount;
+      dom.mFilePath.value = currentReport.filePath||"";
+      dom.mDesc.value = currentReport.description||"";
+
+      dom.btnDelete.style.display = "inline-flex";
+      dom.btnSubmit.style.display = currentReport.status==='DRAFT' ? 'inline-flex' : 'none';
+
+      openModal();
+    }catch(e){ console.error('보고서 로드 실패:', e); alert('보고서를 불러오는데 실패했습니다.'); }
+  }
+
+  async function saveReport(){
+    const data = {
+      memberId: parseInt(dom.mMember.value),
+      title: dom.mTitle2.value,
+      reportMonth: dom.mMonth.value + "-01",
+      totalAmount: parseFloat(dom.mAmount.value),
+      filePath: dom.mFilePath.value,
+      description: dom.mDesc.value,
+      status: 'DRAFT'
+    };
+
+    if(!data.memberId || !data.title || !data.reportMonth || !data.totalAmount){
+      alert('필수 항목을 입력하세요.'); return;
+    }
+
+    try{
+      const id = dom.mId.value;
+      const url = id ? `${API_BASE}/expense-reports/${id}` : `${API_BASE}/expense-reports`;
+      const method = id ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method, headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(data)
+      });
+
+      if(res.ok){
+        alert('저장되었습니다.');
+        closeModal();
+        loadReports();
+      }else{ throw new Error('저장 실패'); }
+    }catch(e){ console.error('저장 실패:', e); alert('저장에 실패했습니다.'); }
+  }
+
+  async function deleteReport(){
+    if(!confirm('정말 삭제하시겠습니까?')) return;
+    const id = dom.mId.value; if(!id) return;
+
+    try{
+      const res = await fetch(`${API_BASE}/expense-reports/${id}`, {method:'DELETE'});
+      if(res.ok){
+        alert('삭제되었습니다.');
+        closeModal();
+        loadReports();
+      }else{ throw new Error('삭제 실패'); }
+    }catch(e){ console.error('삭제 실패:', e); alert('삭제에 실패했습니다.'); }
+  }
+
+  async function submitReport(){
+    if(!confirm('제출하시겠습니까?')) return;
+    const id = dom.mId.value; if(!id) return;
+
+    try{
+      const res = await fetch(`${API_BASE}/expense-reports/${id}/submit`, {method:'POST'});
+      if(res.ok){
+        alert('제출되었습니다.');
+        closeModal();
+        loadReports();
+      }else{ throw new Error('제출 실패'); }
+    }catch(e){ console.error('제출 실패:', e); alert('제출에 실패했습니다.'); }
+  }
+
+  async function approveReport(id){
+    if(!confirm('승인하시겠습니까?')) return;
+    try{
+      const res = await fetch(`${API_BASE}/expense-reports/${id}/approve`, {method:'POST'});
+      if(res.ok){
+        alert('승인되었습니다.');
+        loadReports();
+      }else{ throw new Error('승인 실패'); }
+    }catch(e){ console.error('승인 실패:', e); alert('승인에 실패했습니다.'); }
+  }
+
+  async function rejectReport(id){
+    if(!confirm('반려하시겠습니까?')) return;
+    try{
+      const res = await fetch(`${API_BASE}/expense-reports/${id}/reject`, {method:'POST'});
+      if(res.ok){
+        alert('반려되었습니다.');
+        loadReports();
+      }else{ throw new Error('반려 실패'); }
+    }catch(e){ console.error('반려 실패:', e); alert('반려에 실패했습니다.'); }
+  }
+
+  function bind(){
+    dom.btnNew.addEventListener("click", openNew);
+    dom.btnBackToSchedule.addEventListener("click", ()=> window.location.href='schedule.html');
+
+    dom.tbody.addEventListener("click", (e) => {
+      const view = e.target.closest("[data-view]");
+      const approve = e.target.closest("[data-approve]");
+      const reject = e.target.closest("[data-reject]");
+      if(view) viewReport(Number(view.dataset.view));
+      if(approve) approveReport(Number(approve.dataset.approve));
+      if(reject) rejectReport(Number(reject.dataset.reject));
+    });
+
+    dom.btnClose.addEventListener("click", closeModal);
+    dom.btnCancel.addEventListener("click", closeModal);
+    dom.modal.addEventListener("click", (e)=>{ if(e.target === dom.modal) closeModal(); });
+    document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeModal(); });
+
+    dom.btnSave.addEventListener("click", saveReport);
+    dom.btnSubmit.addEventListener("click", submitReport);
+    dom.btnDelete.addEventListener("click", deleteReport);
+
+    [dom.fMember, dom.fMonth, dom.fStatus].forEach(el => el.addEventListener("change", renderTable));
+    dom.q.addEventListener("input", renderTable);
+
+    dom.btnResetFilter.addEventListener("click", ()=>{
+      dom.fMember.value = "";
+      dom.fMonth.value = "";
+      dom.fStatus.value = "";
+      dom.q.value = "";
+      renderTable();
+    });
+  }
+
+  async function init(){
+    await loadMembers();
+    await loadReports();
+    bind();
+  }
+
+  init();
+</script>
+
+</body>
+</html>
