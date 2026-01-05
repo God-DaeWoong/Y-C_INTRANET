@@ -1,499 +1,431 @@
 # 네이버웍스 로그인 연동 가이드
 
 ## 📋 개요
-YNC INTRANET에 네이버웍스(Naver Works) OAuth 2.0 로그인을 연동하는 방법입니다.
+YNC INTRANET에 네이버웍스(Naver Works) OAuth 2.0 로그인을 연동하여 자동 회원 가입 기능을 제공합니다.
 
 ---
 
-## 🔧 연동 방식 선택
+## 🎯 주요 기능
 
-### Option 1: OAuth 2.0 연동 (권장)
+### 1. 네이버웍스 OAuth 2.0 로그인
 - 네이버웍스 계정으로 직접 로그인
-- SSO(Single Sign-On) 가능
-- 별도 비밀번호 관리 불필요
+- SSO(Single Sign-On) 지원
+- CSRF 방지 (State 파라미터)
 
-### Option 2: 이메일 기반 매칭
-- 네이버웍스 이메일과 DB 이메일 매칭
-- 최초 1회만 인증
-- 간단한 구현
+### 2. 자동 회원 등록
+- DB에 사용자가 없으면 네이버웍스 정보로 자동 등록
+- 멤버 추가 화면과 동일한 정보 구조
+- 기본값 자동 설정
+
+### 3. 이중 로그인 시스템
+- 일반 로그인: 이메일 + 비밀번호
+- 네이버웍스 로그인: OAuth 인증
 
 ---
 
-## 🚀 Option 1: OAuth 2.0 연동 (Full SSO)
+## 🔧 1. 네이버웍스 개발자 센터 설정
 
-### 1단계: 네이버웍스 개발자 센터 설정
-
-#### 1.1 애플리케이션 등록
+### 1.1 애플리케이션 등록
 ```
 1. https://developers.worksmobile.com 접속
 2. 콘솔 로그인
 3. 앱 생성
    - 앱 이름: YNC INTRANET
    - 설명: 사내 인트라넷 시스템
-   - Redirect URI: http://localhost:8083/api/intranet/auth/naver-works/callback
 ```
 
-#### 1.2 OAuth Scope 설정
+### 1.2 Redirect URI 설정
+```
+개발 환경:
+- http://localhost:8083/api/intranet/auth/naver-works/callback
+
+ngrok 환경 (HTTPS 필요):
+- https://YOUR-NGROK-URL.ngrok-free.dev/api/intranet/auth/naver-works/callback
+```
+
+**중요**: 네이버웍스는 HTTPS만 지원하므로 로컬 테스트 시 ngrok 사용 필수
+
+### 1.3 OAuth Scope 설정
 ```
 필요한 권한:
 - user (사용자 기본 정보)
-- user.email (이메일)
-- user.profile (프로필 정보)
 ```
 
-#### 1.3 Client ID/Secret 발급
+### 1.4 Client ID/Secret 발급
 ```
 발급받은 정보를 application.yml에 저장
 ```
 
 ---
 
-### 2단계: application.yml 설정
+## ⚙️ 2. 프로젝트 설정
+
+### 2.1 application.yml 설정
 
 ```yaml
-# 기존 설정에 추가
-naver-works:
+# 네이버웍스 OAuth 설정
+naverworks:
   oauth:
     client-id: YOUR_CLIENT_ID
     client-secret: YOUR_CLIENT_SECRET
-    redirect-uri: http://localhost:8083/api/intranet/auth/naver-works/callback
+    redirect-uri: https://YOUR-NGROK-URL.ngrok-free.dev/api/intranet/auth/naver-works/callback
     authorization-uri: https://auth.worksmobile.com/oauth2/v2.0/authorize
     token-uri: https://auth.worksmobile.com/oauth2/v2.0/token
     user-info-uri: https://www.worksapis.com/v1.0/users/me
 ```
 
----
+**주의**:
+- `redirect-uri`는 네이버웍스 개발자 센터에 등록한 URI와 정확히 일치해야 함
+- ngrok URL 사용 시 ngrok 재시작할 때마다 URL이 변경되므로 application.yml과 개발자 센터 모두 업데이트 필요
 
-### 3단계: pom.xml에 의존성 추가
+### 2.2 ngrok 설정 (HTTPS 로컬 테스트용)
 
-```xml
-<!-- OAuth 2.0 Client -->
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-oauth2-client</artifactId>
-</dependency>
+```bash
+# 1. ngrok 설치 (https://ngrok.com/download)
 
-<!-- WebClient (API 호출용) -->
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-webflux</artifactId>
-</dependency>
+# 2. ngrok 인증
+ngrok config add-authtoken YOUR_AUTHTOKEN
+
+# 3. ngrok 실행
+ngrok http 8083
+
+# 4. 출력된 HTTPS URL을 application.yml과 네이버웍스 개발자 센터에 등록
+# 예: https://partridgelike-emilie-calorescent.ngrok-free.dev
 ```
 
+**ngrok 무료 버전 제약사항**:
+- URL이 재시작 시마다 변경됨
+- 2시간 세션 타임아웃
+- 첫 접속 시 경고 화면 ("Visit Site" 버튼 클릭 필요)
+
 ---
 
-### 4단계: NaverWorksOAuthService 생성
+## 📦 3. 구현된 파일 구조
 
+### 3.1 NaverWorksOAuthService.java
+네이버웍스 OAuth 처리 서비스
+
+**위치**: `src/main/java/com/ync/intranet/service/NaverWorksOAuthService.java`
+
+**주요 메서드**:
 ```java
-package com.ync.intranet.service;
+// 네이버웍스 로그인 URL 생성
+public String getAuthorizationUrl(String state)
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
+// Authorization Code로 Access Token 발급
+public String getAccessToken(String code)
 
-import java.util.HashMap;
-import java.util.Map;
-
-@Service
-public class NaverWorksOAuthService {
-
-    @Value("${naver-works.oauth.client-id}")
-    private String clientId;
-
-    @Value("${naver-works.oauth.client-secret}")
-    private String clientSecret;
-
-    @Value("${naver-works.oauth.redirect-uri}")
-    private String redirectUri;
-
-    @Value("${naver-works.oauth.token-uri}")
-    private String tokenUri;
-
-    @Value("${naver-works.oauth.user-info-uri}")
-    private String userInfoUri;
-
-    private final WebClient webClient;
-
-    public NaverWorksOAuthService() {
-        this.webClient = WebClient.builder().build();
-    }
-
-    /**
-     * Authorization Code로 Access Token 발급
-     */
-    public Map<String, Object> getAccessToken(String code) {
-        Map<String, String> body = new HashMap<>();
-        body.put("grant_type", "authorization_code");
-        body.put("client_id", clientId);
-        body.put("client_secret", clientSecret);
-        body.put("code", code);
-        body.put("redirect_uri", redirectUri);
-
-        return webClient.post()
-                .uri(tokenUri)
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(Map.class)
-                .block();
-    }
-
-    /**
-     * Access Token으로 사용자 정보 조회
-     */
-    public Map<String, Object> getUserInfo(String accessToken) {
-        return webClient.get()
-                .uri(userInfoUri)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                .retrieve()
-                .bodyToMono(Map.class)
-                .block();
-    }
-}
+// Access Token으로 사용자 정보 조회
+public Map<String, Object> getUserInfo(String accessToken)
 ```
 
----
+**가져오는 사용자 정보**:
+- email (이메일)
+- name (이름)
+- userId (사용자 ID)
+- telephoneNumber (전화번호)
+- mobilePhone (휴대폰 번호)
+- department (부서)
+- position (직급)
+- employeeNumber (사번)
 
-### 5단계: AuthController에 OAuth 엔드포인트 추가
+### 3.2 NaverWorksAuthController.java
+네이버웍스 OAuth 인증 컨트롤러
 
-```java
-package com.ync.intranet.controller;
+**위치**: `src/main/java/com/ync/intranet/controller/NaverWorksAuthController.java`
 
-import com.ync.intranet.domain.MemberIntranet;
-import com.ync.intranet.service.AuthService;
-import com.ync.intranet.service.NaverWorksOAuthService;
-import com.ync.intranet.service.MemberIntranetService;
-import jakarta.servlet.http.HttpSession;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+**주요 엔드포인트**:
 
-import java.util.HashMap;
-import java.util.Map;
+#### GET /api/intranet/auth/naver-works/login
+- 네이버웍스 로그인 시작
+- State 파라미터 생성 (CSRF 방지)
+- 네이버웍스 인증 페이지로 리다이렉트
 
-@RestController
-@RequestMapping("/api/intranet/auth")
-@CrossOrigin(origins = "*")
-public class AuthController {
+#### GET /api/intranet/auth/naver-works/callback
+- OAuth 콜백 처리
+- State 검증
+- Access Token 발급
+- 사용자 정보 조회
+- DB 조회 → 없으면 자동 등록
+- 세션 생성
+- 메인 페이지로 리다이렉트
 
-    private final AuthService authService;
-    private final NaverWorksOAuthService naverWorksOAuthService;
-    private final MemberIntranetService memberService;
+#### GET /api/intranet/auth/naver-works/status
+- 로그인 상태 확인 (디버깅용)
 
-    @Value("${naver-works.oauth.client-id}")
-    private String clientId;
+### 3.3 intranet-login.html
+로그인 페이지
 
-    @Value("${naver-works.oauth.redirect-uri}")
-    private String redirectUri;
+**위치**: `src/main/resources/static/intranet-login.html`
 
-    @Value("${naver-works.oauth.authorization-uri}")
-    private String authorizationUri;
+**주요 UI 요소**:
+- 아이디 입력란
+- 비밀번호 입력란 (새로 추가)
+- "로그인" 버튼 (일반 로그인)
+- "네이버웍스로 로그인" 버튼 (OAuth 로그인)
 
-    public AuthController(AuthService authService,
-                         NaverWorksOAuthService naverWorksOAuthService,
-                         MemberIntranetService memberService) {
-        this.authService = authService;
-        this.naverWorksOAuthService = naverWorksOAuthService;
-        this.memberService = memberService;
-    }
-
-    /**
-     * 네이버웍스 로그인 URL 생성
-     * GET /api/intranet/auth/naver-works/login-url
-     */
-    @GetMapping("/naver-works/login-url")
-    public ResponseEntity<Map<String, String>> getNaverWorksLoginUrl() {
-        String loginUrl = authorizationUri +
-            "?client_id=" + clientId +
-            "&redirect_uri=" + redirectUri +
-            "&response_type=code" +
-            "&scope=user user.email user.profile";
-
-        return ResponseEntity.ok(Map.of("loginUrl", loginUrl));
-    }
-
-    /**
-     * 네이버웍스 OAuth Callback
-     * GET /api/intranet/auth/naver-works/callback?code=xxx
-     */
-    @GetMapping("/naver-works/callback")
-    public ResponseEntity<Map<String, Object>> naverWorksCallback(
-            @RequestParam("code") String code,
-            HttpSession session) {
-        try {
-            // 1. Access Token 발급
-            Map<String, Object> tokenResponse = naverWorksOAuthService.getAccessToken(code);
-            String accessToken = (String) tokenResponse.get("access_token");
-
-            // 2. 사용자 정보 조회
-            Map<String, Object> userInfo = naverWorksOAuthService.getUserInfo(accessToken);
-            String email = (String) userInfo.get("email");
-            String name = (String) userInfo.get("name");
-
-            // 3. DB에서 사용자 찾기 (이메일 기준)
-            MemberIntranet member = memberService.findByEmail(email);
-
-            if (member == null) {
-                // 신규 사용자 자동 등록 (옵션)
-                member = MemberIntranet.builder()
-                        .email(email)
-                        .name(name)
-                        .role("USER")
-                        .isActive(true)
-                        .password(authService.encodePassword("NAVER_WORKS_" + System.currentTimeMillis()))
-                        .build();
-                member = memberService.createMember(member);
-            }
-
-            // 4. 세션에 사용자 정보 저장
-            session.setAttribute("userId", member.getId());
-            session.setAttribute("userEmail", member.getEmail());
-            session.setAttribute("userName", member.getName());
-            session.setAttribute("userRole", member.getRole());
-
-            // 5. Frontend로 리다이렉트
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "message", "네이버웍스 로그인 성공",
-                    "user", Map.of(
-                            "id", member.getId(),
-                            "email", member.getEmail(),
-                            "name", member.getName(),
-                            "role", member.getRole()
-                    )
-            ));
-
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "message", "로그인 실패: " + e.getMessage()));
-        }
-    }
-
-    // 기존 login, logout 메서드는 그대로 유지...
-}
-```
-
----
-
-### 6단계: MemberIntranetService에 이메일 조회 메서드 추가
-
-```java
-/**
- * 이메일로 사원 조회 (네이버웍스 연동용)
- */
-public MemberIntranet findByEmail(String email) {
-    MemberIntranet member = memberMapper.findByEmail(email);
-    if (member != null) {
-        member.setPassword(null);  // 비밀번호 제거
-        member.setSmtpPassword(null);
-    }
-    return member;
-}
-```
-
----
-
-### 7단계: Frontend 연동 예시
-
+**JavaScript 함수**:
 ```javascript
-// 1. 로그인 버튼 클릭 시
-async function loginWithNaverWorks() {
-    // 네이버웍스 로그인 URL 가져오기
-    const response = await fetch('http://localhost:8083/api/intranet/auth/naver-works/login-url');
-    const data = await response.json();
-
-    // 네이버웍스 로그인 페이지로 리다이렉트
-    window.location.href = data.loginUrl;
+// 네이버웍스 로그인 시작
+function loginWithNaverWorks() {
+    window.location.href = '/api/intranet/auth/naver-works/login';
 }
 
-// 2. Callback 처리 (페이지 로드 시)
-// URL에 code 파라미터가 있으면 자동으로 백엔드의 callback API가 호출됨
-// 백엔드에서 처리 완료 후 메인 페이지로 리다이렉트
+// OAuth 에러 처리
+function checkUrlError() {
+    // URL 파라미터에서 에러 확인
+    // invalid_state, no_email, user_not_found, user_inactive,
+    // login_failed, user_creation_failed
+}
 ```
 
 ---
 
-## 🎯 Option 2: 간단한 이메일 기반 매칭 (추천)
+## 🔄 4. OAuth 흐름
 
-더 간단한 방법으로, 네이버웍스 이메일과 DB 이메일을 매칭하는 방식입니다.
+### 전체 프로세스
 
-### 구현 방법
+```
+1. 사용자가 "네이버웍스로 로그인" 버튼 클릭
+   ↓
+2. GET /api/intranet/auth/naver-works/login
+   - CSRF 방지용 state 생성
+   - 세션에 state 저장
+   ↓
+3. 네이버웍스 인증 페이지로 리다이렉트
+   - 사용자가 네이버웍스 계정으로 로그인
+   - 권한 동의
+   ↓
+4. GET /api/intranet/auth/naver-works/callback?code=xxx&state=xxx
+   - State 검증 (CSRF 방지)
+   - Authorization Code로 Access Token 발급
+   - Access Token으로 사용자 정보 조회
+   ↓
+5. DB에서 이메일로 사용자 조회
+   - 있으면: 기존 사용자 로그인
+   - 없으면: 자동 회원 등록 후 로그인
+   ↓
+6. 세션 생성 및 메인 페이지로 리다이렉트
+```
 
+---
+
+## 👥 5. 자동 회원 등록 로직
+
+### 5.1 등록 조건
+- DB에 해당 이메일의 사용자가 없을 때
+
+### 5.2 등록 정보
+
+| 필드 | 값 | 출처 |
+|------|-----|------|
+| email | 네이버웍스 이메일 | OAuth API |
+| password | `{이메일앞부분}@ync` (BCrypt 암호화) | 자동 생성 |
+| name | 네이버웍스 이름 | OAuth API |
+| phone | 휴대폰/전화번호 | OAuth API |
+| departmentId | null | 나중에 관리자가 설정 |
+| position | 네이버웍스 직급 | OAuth API |
+| role | USER | 기본값 |
+| hireDate | 오늘 날짜 | 자동 설정 |
+| annualLeaveGranted | 15일 | 기본값 |
+| isActive | true | 기본값 |
+
+### 5.3 구현 코드
 ```java
-/**
- * 네이버웍스 이메일 인증
- * POST /api/intranet/auth/naver-works-email
- */
-@PostMapping("/naver-works-email")
-public ResponseEntity<Map<String, Object>> loginWithNaverWorksEmail(
-        @RequestBody Map<String, String> request,
-        HttpSession session) {
-    try {
-        String email = request.get("email");
+private MemberIntranet createMemberFromNaverWorks(Map<String, Object> userInfo) {
+    BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-        // 네이버웍스 도메인 확인
-        if (!email.endsWith("@yncsmart.com")) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "message", "회사 이메일만 사용 가능합니다."));
-        }
-
-        // DB에서 사용자 찾기
-        MemberIntranet member = memberService.findByEmail(email);
-
-        if (member == null) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "message", "등록되지 않은 사용자입니다."));
-        }
-
-        if (!member.getIsActive()) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "message", "비활성화된 계정입니다."));
-        }
-
-        // 세션 생성
-        session.setAttribute("userId", member.getId());
-        session.setAttribute("userEmail", member.getEmail());
-        session.setAttribute("userName", member.getName());
-        session.setAttribute("userRole", member.getRole());
-
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "로그인 성공",
-                "user", Map.of(
-                        "id", member.getId(),
-                        "email", member.getEmail(),
-                        "name", member.getName(),
-                        "role", member.getRole()
-                )
-        ));
-
-    } catch (Exception e) {
-        return ResponseEntity.badRequest()
-                .body(Map.of("success", false, "message", e.getMessage()));
+    String email = (String) userInfo.get("email");
+    String name = (String) userInfo.get("name");
+    String phone = (String) userInfo.get("mobilePhone");
+    if (phone == null || phone.isEmpty()) {
+        phone = (String) userInfo.get("telephoneNumber");
     }
+    String position = (String) userInfo.get("position");
+
+    // 기본 비밀번호 생성 (이메일 앞부분 + @ync)
+    String defaultPassword = email.split("@")[0] + "@ync";
+    String encodedPassword = passwordEncoder.encode(defaultPassword);
+
+    MemberIntranet newMember = MemberIntranet.builder()
+            .email(email)
+            .password(encodedPassword)
+            .name(name)
+            .phone(phone)
+            .departmentId(null)  // 나중에 설정
+            .position(position)
+            .role("USER")  // 기본 권한
+            .hireDate(LocalDate.now())  // 오늘 날짜
+            .annualLeaveGranted(BigDecimal.valueOf(15))  // 기본 15일
+            .isActive(true)
+            .build();
+
+    return memberService.createMember(newMember);
 }
 ```
 
 ---
 
-## 🔐 보안 고려사항
+## 🔐 6. 보안
 
-### 1. Redirect URI 화이트리스트
-```yaml
-naver-works:
-  oauth:
-    allowed-redirect-uris:
-      - http://localhost:8083/api/intranet/auth/naver-works/callback
-      - https://intranet.yncsmart.com/api/intranet/auth/naver-works/callback
-```
+### 6.1 CSRF 방지
+- State 파라미터 사용
+- 세션에 저장된 state와 콜백으로 받은 state 비교
+- 일치하지 않으면 로그인 실패
 
-### 2. State 파라미터 (CSRF 방지)
-```java
-// 로그인 URL 생성 시 state 추가
-String state = UUID.randomUUID().toString();
-session.setAttribute("oauth_state", state);
+### 6.2 비밀번호 암호화
+- BCrypt 사용
+- 자동 등록 시 기본 비밀번호도 BCrypt로 암호화
 
-String loginUrl = authorizationUri +
-    "?client_id=" + clientId +
-    "&redirect_uri=" + redirectUri +
-    "&response_type=code" +
-    "&state=" + state +
-    "&scope=user user.email user.profile";
-
-// Callback에서 state 검증
-String receivedState = request.getParameter("state");
-String sessionState = (String) session.getAttribute("oauth_state");
-if (!receivedState.equals(sessionState)) {
-    throw new RuntimeException("Invalid state parameter");
-}
-```
-
-### 3. Token 저장 (선택)
-```java
-// Access Token을 세션에 저장하여 네이버웍스 API 호출 시 사용
-session.setAttribute("naver_works_token", accessToken);
-```
+### 6.3 세션 관리
+- HttpSession 사용
+- 저장 정보: userId, userEmail, userName, userRole, departmentId
 
 ---
 
-## 📊 DB 테이블 수정 (선택)
+## 🧪 7. 테스트
 
-네이버웍스 연동 정보를 저장하려면:
+### 7.1 준비사항
+1. ngrok 실행 중
+2. Spring Boot 애플리케이션 실행 중
+3. 네이버웍스 개발자 센터에 redirect URI 등록 완료
 
+### 7.2 테스트 시나리오
+
+#### 시나리오 1: 기존 사용자 로그인
+```
+1. ngrok URL로 접속: https://YOUR-NGROK-URL.ngrok-free.dev/intranet-login.html
+2. "Visit Site" 버튼 클릭 (ngrok 경고 화면)
+3. "네이버웍스로 로그인" 버튼 클릭
+4. 네이버웍스 로그인
+5. 권한 동의
+6. 자동으로 메인 페이지로 이동
+```
+
+#### 시나리오 2: 신규 사용자 자동 등록
+```
+1. DB에 없는 이메일로 네이버웍스 로그인
+2. 자동으로 회원 등록
+3. 로그인 완료 후 메인 페이지로 이동
+4. 사원 관리 페이지에서 새 사용자 확인
+5. 부서 정보 등 수동으로 업데이트
+```
+
+#### 시나리오 3: 일반 로그인 (비교용)
+```
+1. localhost:8083/intranet-login.html 접속
+2. 아이디 + 비밀번호 입력
+3. "로그인" 버튼 클릭
+4. 메인 페이지로 이동
+```
+
+### 7.3 에러 처리 확인
+
+| 에러 코드 | 의미 | 발생 조건 |
+|----------|------|----------|
+| invalid_state | 잘못된 요청 | State 파라미터 불일치 (CSRF 공격 의심) |
+| no_email | 이메일 정보 없음 | 네이버웍스에서 이메일을 못 가져옴 |
+| user_creation_failed | 회원 등록 실패 | DB 등록 중 에러 발생 |
+| user_inactive | 비활성화 계정 | 계정이 isActive=false |
+| login_failed | 로그인 처리 실패 | 기타 예외 발생 |
+
+---
+
+## 📊 8. 사후 관리
+
+### 8.1 신규 등록 사용자 확인
 ```sql
--- members_intranet 테이블에 컬럼 추가
-ALTER TABLE members_intranet ADD (
-    naver_works_id VARCHAR2(100),      -- 네이버웍스 사용자 ID
-    oauth_provider VARCHAR2(20),       -- 'NAVER_WORKS', 'LOCAL' 등
-    last_login_at TIMESTAMP            -- 마지막 로그인 시간
-);
-
-CREATE INDEX idx_member_nw_id ON members_intranet(naver_works_id);
+-- 최근 등록된 사용자 조회
+SELECT id, email, name, position, hire_date, department_id
+FROM members_intranet
+WHERE department_id IS NULL
+  AND created_at > SYSDATE - 7
+ORDER BY created_at DESC;
 ```
+
+### 8.2 부서 정보 업데이트
+- 사원 관리 페이지에서 수동으로 본부/부서 설정
+- 필요시 직급, 권한 등도 수정
+
+### 8.3 기본 비밀번호 변경 안내
+- 자동 등록된 사용자에게 비밀번호 변경 안내
+- 기본 비밀번호: `{이메일앞부분}@ync`
+  - 예: sjlee@yncsmart.com → sjlee@ync
 
 ---
 
-## 🧪 테스트 시나리오
+## 🚀 9. 배포 시 체크리스트
 
-### 1. OAuth 로그인 테스트
+### 9.1 개발 환경
+- [x] ngrok 설치 및 실행
+- [x] application.yml에 ngrok URL 설정
+- [x] 네이버웍스 개발자 센터에 ngrok URL 등록
+- [x] OAuth 로그인 테스트
+- [x] 자동 회원 등록 테스트
+
+### 9.2 운영 환경
+- [ ] 운영 도메인 HTTPS 설정
+- [ ] application.yml에 운영 도메인 설정
+- [ ] 네이버웍스 개발자 센터에 운영 도메인 등록
+- [ ] 보안 검토 (Client Secret 노출 여부 등)
+- [ ] 로그 모니터링 설정
+- [ ] 에러 알림 설정
+
+---
+
+## 🔧 10. 문제 해결
+
+### 10.1 "404 Not Found" 에러
+**원인**: Controller가 로드되지 않음
+**해결**: Spring Boot 재시작
+
 ```bash
-# 1단계: 로그인 URL 가져오기
-curl http://localhost:8083/api/intranet/auth/naver-works/login-url
-
-# 2단계: 브라우저에서 로그인 URL 접속
-# 네이버웍스 로그인 후 자동으로 callback 호출됨
-
-# 3단계: 세션 확인
-curl -b cookies.txt http://localhost:8083/api/intranet/auth/me
+cd c:\smartWork\workspace\yncIntranet
+mvn spring-boot:run
 ```
 
-### 2. 이메일 기반 로그인 테스트
-```bash
-curl -X POST http://localhost:8083/api/intranet/auth/naver-works-email \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@yncsmart.com"}' \
-  -c cookies.txt
-```
+### 10.2 "invalid_state" 에러
+**원인**: State 파라미터 불일치
+**해결**:
+- 브라우저 쿠키 삭제
+- 세션 초기화
+- 다시 로그인 시도
+
+### 10.3 ngrok URL 변경 시
+**해야 할 작업**:
+1. application.yml의 redirect-uri 업데이트
+2. 네이버웍스 개발자 센터에서 redirect URI 업데이트
+3. Spring Boot 재시작
+
+### 10.4 비밀번호 필드가 안 보임
+**원인**: 브라우저 캐시
+**해결**:
+- Ctrl + F5 강력 새로고침
+- 시크릿/프라이빗 모드로 접속
+- 브라우저 캐시 삭제
+
+### 10.5 자동 등록 실패
+**확인 사항**:
+1. DB 연결 상태
+2. members_intranet 테이블 제약조건
+3. 서버 로그 확인
+4. 네이버웍스에서 필수 정보(email, name)를 받아왔는지 확인
 
 ---
 
-## 🎯 권장 구현 순서
-
-### Phase 1: 간단한 방식부터 (1-2일)
-1. 이메일 기반 매칭 구현
-2. 기존 로그인과 병행 운영
-3. 사용자 반응 확인
-
-### Phase 2: Full OAuth (3-5일)
-1. 네이버웍스 개발자 센터 등록
-2. OAuth 2.0 플로우 구현
-3. Frontend 연동
-4. 테스트 및 배포
-
----
-
-## 📞 추가 도움말
+## 📞 11. 참고 자료
 
 - **네이버웍스 API 문서**: https://developers.worksmobile.com/kr/document/
 - **OAuth 2.0 가이드**: https://developers.worksmobile.com/kr/document/100500801
+- **ngrok 공식 문서**: https://ngrok.com/docs
 
 ---
 
-## ✅ 체크리스트
+## 📝 12. 변경 이력
 
-- [ ] 네이버웍스 개발자 센터 앱 등록
-- [ ] Client ID/Secret 발급
-- [ ] application.yml 설정
-- [ ] pom.xml 의존성 추가
-- [ ] NaverWorksOAuthService 작성
-- [ ] AuthController에 엔드포인트 추가
-- [ ] Frontend 로그인 버튼 연동
-- [ ] 테스트 및 검증
-
----
-
-어떤 방식으로 진행하시겠습니까?
-1. **Option 1 (OAuth 2.0)** - 완전한 SSO, 보안 강화
-2. **Option 2 (이메일 매칭)** - 간단하고 빠른 구현
+### v1.0 (2026-01-05)
+- 네이버웍스 OAuth 2.0 로그인 구현
+- 자동 회원 등록 기능 추가
+- 이중 로그인 시스템 (일반 + OAuth)
+- ngrok을 통한 로컬 HTTPS 테스트 환경 구축
+- 비밀번호 입력 필드 추가 (일반 로그인)
