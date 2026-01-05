@@ -84,8 +84,10 @@
             created_at, updated_at
         )
         VALUES (
-            #{id}, #{email}, #{password}, #{name}, #{phone}, #{departmentId}, #{position}, #{role},
-            #{hireDate}, #{annualLeaveGranted}, #{isActive}, #{smtpPassword},
+            #{id}, #{email, jdbcType=VARCHAR}, #{password, jdbcType=VARCHAR}, #{name, jdbcType=VARCHAR},
+            #{phone, jdbcType=VARCHAR}, #{departmentId, jdbcType=NUMERIC}, #{position, jdbcType=VARCHAR},
+            #{role, jdbcType=VARCHAR}, #{hireDate, jdbcType=DATE}, #{annualLeaveGranted, jdbcType=NUMERIC},
+            #{isActive, jdbcType=NUMERIC}, #{smtpPassword, jdbcType=VARCHAR},
             CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         )
     </insert>
@@ -93,16 +95,16 @@
     <!-- 사원 수정 -->
     <update id="update" parameterType="com.ync.intranet.domain.MemberIntranet">
         UPDATE members_intranet
-        SET name = #{name},
-            email = #{email},
-            phone = #{phone},
-            department_id = #{departmentId},
-            position = #{position},
-            role = #{role},
-            hire_date = #{hireDate},
-            annual_leave_granted = #{annualLeaveGranted},
-            is_active = #{isActive},
-            smtp_password = #{smtpPassword},
+        SET name = #{name, jdbcType=VARCHAR},
+            email = #{email, jdbcType=VARCHAR},
+            phone = #{phone, jdbcType=VARCHAR},
+            department_id = #{departmentId, jdbcType=NUMERIC},
+            position = #{position, jdbcType=VARCHAR},
+            role = #{role, jdbcType=VARCHAR},
+            hire_date = #{hireDate, jdbcType=DATE},
+            annual_leave_granted = #{annualLeaveGranted, jdbcType=NUMERIC},
+            is_active = #{isActive, jdbcType=NUMERIC},
+            smtp_password = #{smtpPassword, jdbcType=VARCHAR},
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>

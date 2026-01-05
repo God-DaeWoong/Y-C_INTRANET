@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:oracle:thin:@localhost:1522/XEPDB1
+    url: jdbc:oracle:thin:@70.90.150.126:1522/XEPDB1
     username: system
     password: ync1234!
     driver-class-name: oracle.jdbc.OracleDriver
