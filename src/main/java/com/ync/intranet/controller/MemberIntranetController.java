@@ -122,14 +122,8 @@ public class MemberIntranetController {
             return ResponseEntity.ok(Map.of("success", true, "member", updated));
 
         } catch (RuntimeException e) {
-            e.printStackTrace();
-            String errorMessage = e.getMessage() != null ? e.getMessage() : "사원 수정 중 오류가 발생했습니다.";
             return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "message", errorMessage));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500)
-                    .body(Map.of("success", false, "message", "사원 수정 중 오류가 발생했습니다: " + e.getMessage()));
+                    .body(Map.of("success", false, "message", e.getMessage()));
         }
     }
 
