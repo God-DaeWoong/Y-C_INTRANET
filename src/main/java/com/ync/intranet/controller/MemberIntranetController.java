@@ -91,8 +91,13 @@ public class MemberIntranetController {
             return ResponseEntity.ok(Map.of("success", true, "member", created));
 
         } catch (RuntimeException e) {
+            e.printStackTrace();
             return ResponseEntity.badRequest()
                     .body(Map.of("success", false, "message", e.getMessage()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500)
+                    .body(Map.of("success", false, "message", "사원 등록 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
 

@@ -167,6 +167,53 @@
             font-size: 13px;
             margin-top: 6px;
         }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 24px 0;
+            color: #a0aec0;
+            font-size: 13px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .divider span {
+            padding: 0 12px;
+        }
+
+        .btn-naver-works {
+            width: 100%;
+            padding: 14px;
+            background: #00c73c;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-naver-works:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 199, 60, 0.3);
+            background: #00b837;
+        }
+
+        .btn-naver-works:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body>
@@ -192,10 +239,33 @@
                 <div class="domain-hint">@yncsmart.com은 자동으로 추가됩니다</div>
             </div>
 
+            <div class="form-group">
+                <label for="password">비밀번호</label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="비밀번호를 입력하세요"
+                    required
+                    autocomplete="current-password"
+                >
+            </div>
+
             <button type="submit" class="btn-login" id="loginBtn">
                 로그인
             </button>
         </form>
+
+        <div class="divider">
+            <span>또는</span>
+        </div>
+
+        <button class="btn-naver-works" onclick="loginWithNaverWorks()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+            </svg>
+            네이버웍스로 로그인
+        </button>
 
         <div class="help-text">
             문제가 있으신가요? <a href="mailto:admin@yncsmart.com">관리자에게 문의</a>
@@ -231,10 +301,16 @@
             hideAlert();
 
             const userId = userIdInput.value.trim();
+            const password = document.getElementById('password').value;
 
             // 기본 검증
             if (!userId) {
                 showAlert('아이디를 입력해주세요.');
+                return;
+            }
+
+            if (!password) {
+                showAlert('비밀번호를 입력해주세요.');
                 return;
             }
 
@@ -246,12 +322,12 @@
             loginBtn.innerHTML = '<span class="loading-spinner"></span>로그인 중...';
 
             try {
-                const response = await fetch('/api/intranet/auth/email-only', {
+                const response = await fetch('/api/intranet/auth/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ email })
+                    body: JSON.stringify({ email, password })
                 });
 
                 const data = await response.json();
@@ -286,8 +362,48 @@
             }
         });
 
+        // 네이버웍스 로그인
+        function loginWithNaverWorks() {
+            window.location.href = '/api/intranet/auth/naver-works/login';
+        }
+
+        // URL 파라미터에서 에러 확인
+        function checkUrlError() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const error = urlParams.get('error');
+
+            if (error) {
+                let message = '로그인에 실패했습니다.';
+
+                switch (error) {
+                    case 'invalid_state':
+                        message = '잘못된 요청입니다. 다시 시도해주세요.';
+                        break;
+                    case 'no_email':
+                        message = '이메일 정보를 가져올 수 없습니다.';
+                        break;
+                    case 'user_not_found':
+                        message = '등록되지 않은 사용자입니다. 관리자에게 문의하세요.';
+                        break;
+                    case 'user_inactive':
+                        message = '비활성화된 계정입니다. 관리자에게 문의하세요.';
+                        break;
+                    case 'login_failed':
+                        message = '로그인 처리 중 오류가 발생했습니다.';
+                        break;
+                }
+
+                showAlert(message);
+                // URL에서 에러 파라미터 제거
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+
         // 페이지 로드 시 이미 로그인된 경우 체크
         window.addEventListener('load', () => {
+            // URL 에러 확인
+            checkUrlError();
+
             const user = sessionStorage.getItem('user');
             if (user) {
                 // 세션 검증 API 호출

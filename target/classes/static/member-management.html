@@ -231,6 +231,110 @@
             to { transform: rotate(360deg); }
         }
 
+        /* 모달 스타일 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 50px auto;
+            max-width: 600px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px;
+            border-bottom: 1px solid #edf2f7;
+        }
+
+        .modal-header h3 {
+            color: #2d3748;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .close {
+            color: #a0aec0;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .close:hover {
+            color: #2d3748;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #2d3748;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #edf2f7;
+        }
+
+        .btn-secondary {
+            padding: 10px 20px;
+            background: #e2e8f0;
+            color: #2d3748;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
         @media (max-width: 768px) {
             .member-table {
                 overflow-x: auto;
@@ -238,6 +342,11 @@
 
             table {
                 min-width: 800px;
+            }
+
+            .modal-content {
+                margin: 20px;
+                max-width: calc(100% - 40px);
             }
         }
     </style>
@@ -256,7 +365,7 @@
     <div class="container">
         <div class="page-header">
             <h2>사원 관리</h2>
-            <button class="btn-primary" onclick="alert('사원 등록 기능은 준비 중입니다')">+ 사원 등록</button>
+            <button class="btn-primary" onclick="showAddMemberModal()">+ 사원 등록</button>
         </div>
 
         <div class="search-bar">
@@ -267,6 +376,79 @@
             <div id="memberTableContent" class="loading">
                 <div class="loading-spinner"></div>
                 <p style="margin-top: 16px;">로딩 중...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 사원 등록 모달 -->
+    <div id="addMemberModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>사원 등록</h3>
+                <span class="close" onclick="closeAddMemberModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="addMemberForm" onsubmit="submitAddMember(event)">
+                    <div class="form-group">
+                        <label>이메일 <span style="color: #f56565;">*</span></label>
+                        <input type="email" id="newEmail" required placeholder="example@yncsmart.com">
+                    </div>
+                    <div class="form-group">
+                        <label>비밀번호 <span style="color: #f56565;">*</span></label>
+                        <input type="password" id="newPassword" required placeholder="초기 비밀번호">
+                    </div>
+                    <div class="form-group">
+                        <label>이름 <span style="color: #f56565;">*</span></label>
+                        <input type="text" id="newName" required placeholder="홍길동">
+                    </div>
+                    <div class="form-group">
+                        <label>전화번호</label>
+                        <input type="tel" id="newPhone" placeholder="010-1234-5678">
+                    </div>
+                    <div class="form-group">
+                        <label>본부 <span style="color: #f56565;">*</span></label>
+                        <select id="newDivisionId" required onchange="loadDepartmentsByDivision()">
+                            <option value="">본부 선택</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>부서 <span style="color: #f56565;">*</span></label>
+                        <select id="newDepartmentId" required disabled>
+                            <option value="">먼저 본부를 선택하세요</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>직급 <span style="color: #f56565;">*</span></label>
+                        <select id="newPosition" required>
+                            <option value="">직급 선택</option>
+                            <option value="본부장">본부장</option>
+                            <option value="연구소장">연구소장</option>
+                            <option value="전문위원">전문위원</option>
+                            <option value="Unit장">Unit장</option>
+                            <option value="매니저">매니저</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>권한 <span style="color: #f56565;">*</span></label>
+                        <select id="newRole" required>
+                            <option value="USER">일반 사용자</option>
+                            <option value="APPROVER">결재권자</option>
+                            <option value="ADMIN">관리자</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>입사일 <span style="color: #f56565;">*</span></label>
+                        <input type="date" id="newHireDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>연차 부여일수</label>
+                        <input type="number" id="newAnnualLeave" value="15" min="0" step="0.5">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" onclick="closeAddMemberModal()">취소</button>
+                        <button type="submit" class="btn-primary">등록</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -430,6 +612,148 @@
             } finally {
                 sessionStorage.removeItem('user');
                 window.location.href = '/intranet-login.html';
+            }
+        }
+
+        // 본부 목록 로드 (회사명의 하위 부서 = 실제 본부들)
+        async function loadDivisions() {
+            try {
+                // 1. 먼저 최상위 부서(회사명) 조회
+                const rootResponse = await fetch('/api/intranet/departments/root');
+                const rootData = await rootResponse.json();
+
+                const select = document.getElementById('newDivisionId');
+                select.innerHTML = '<option value="">본부 선택</option>';
+
+                if (rootData.success && rootData.departments && rootData.departments.length > 0) {
+                    // 2. 회사명(첫 번째 최상위 부서)의 하위 부서들을 본부로 표시
+                    const companyId = rootData.departments[0].id;
+
+                    const divisionResponse = await fetch(`/api/intranet/departments/children/${companyId}`);
+                    const divisionData = await divisionResponse.json();
+
+                    if (divisionData.success && divisionData.departments) {
+                        divisionData.departments.forEach(dept => {
+                            const option = document.createElement('option');
+                            option.value = dept.id;
+                            option.textContent = dept.name;
+                            select.appendChild(option);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('본부 목록 로드 실패:', error);
+            }
+        }
+
+        // 선택한 본부의 하위 부서 로드
+        async function loadDepartmentsByDivision() {
+            const divisionId = document.getElementById('newDivisionId').value;
+            const deptSelect = document.getElementById('newDepartmentId');
+
+            if (!divisionId) {
+                deptSelect.innerHTML = '<option value="">먼저 본부를 선택하세요</option>';
+                deptSelect.disabled = true;
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/intranet/departments/children/${divisionId}`);
+                const data = await response.json();
+
+                deptSelect.innerHTML = '<option value="">부서 선택</option>';
+                deptSelect.disabled = false;
+
+                if (data.success && data.departments && data.departments.length > 0) {
+                    data.departments.forEach(dept => {
+                        const option = document.createElement('option');
+                        option.value = dept.id;
+                        option.textContent = dept.name;
+                        deptSelect.appendChild(option);
+                    });
+                } else {
+                    deptSelect.innerHTML = '<option value="">하위 부서가 없습니다</option>';
+                }
+            } catch (error) {
+                console.error('부서 목록 로드 실패:', error);
+                deptSelect.innerHTML = '<option value="">부서 로드 실패</option>';
+            }
+        }
+
+        // 사원 등록 모달 열기
+        function showAddMemberModal() {
+            document.getElementById('addMemberModal').style.display = 'block';
+            document.getElementById('addMemberForm').reset();
+
+            // 부서 선택 초기화
+            document.getElementById('newDepartmentId').innerHTML = '<option value="">먼저 본부를 선택하세요</option>';
+            document.getElementById('newDepartmentId').disabled = true;
+
+            // 본부 목록 로드
+            loadDivisions();
+        }
+
+        // 사원 등록 모달 닫기
+        function closeAddMemberModal() {
+            document.getElementById('addMemberModal').style.display = 'none';
+        }
+
+        // 사원 등록 제출
+        async function submitAddMember(event) {
+            event.preventDefault();
+
+            // 부서 선택 확인
+            const departmentId = document.getElementById('newDepartmentId').value;
+            if (!departmentId || departmentId === '') {
+                alert('부서를 선택해주세요');
+                return;
+            }
+
+            const memberData = {
+                email: document.getElementById('newEmail').value,
+                password: document.getElementById('newPassword').value,
+                name: document.getElementById('newName').value,
+                phone: document.getElementById('newPhone').value || null,
+                departmentId: parseInt(departmentId),
+                position: document.getElementById('newPosition').value,
+                role: document.getElementById('newRole').value,
+                hireDate: document.getElementById('newHireDate').value,
+                annualLeaveGranted: parseFloat(document.getElementById('newAnnualLeave').value) || 15,
+                isActive: true
+            };
+
+            console.log('사원 등록 요청 데이터:', memberData);
+
+            try {
+                const response = await fetch('/api/intranet/members', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(memberData)
+                });
+
+                const data = await response.json();
+                console.log('사원 등록 응답:', data);
+
+                if (data.success) {
+                    alert('사원이 등록되었습니다');
+                    closeAddMemberModal();
+                    loadMembers();
+                } else {
+                    alert(data.message || '사원 등록에 실패했습니다');
+                }
+            } catch (error) {
+                console.error('사원 등록 오류:', error);
+                alert('서버 오류가 발생했습니다: ' + error.message);
+            }
+        }
+
+        // 모달 외부 클릭 시 닫기
+        window.onclick = function(event) {
+            const modal = document.getElementById('addMemberModal');
+            if (event.target === modal) {
+                closeAddMemberModal();
             }
         }
 
