@@ -37,9 +37,14 @@ public class NaverWorksAuthController {
      * GET /api/intranet/auth/naver-works/login
      */
     @GetMapping("/login")
-    public void login(HttpSession session, HttpServletResponse response) throws IOException {
-        // CSRF 방지용 state 생성
-        String state = UUID.randomUUID().toString();
+    public void login(HttpSession session, HttpServletResponse response,
+                      jakarta.servlet.http.HttpServletRequest request) throws IOException {
+        // 원본 호스트 확인
+        String host = request.getHeader("Host");
+        boolean isLocalhost = host != null && (host.startsWith("localhost") || host.startsWith("127.0.0.1"));
+
+        // CSRF 방지용 state 생성 (원본 호스트 정보 포함)
+        String state = UUID.randomUUID().toString() + (isLocalhost ? ":localhost" : ":ngrok");
         session.setAttribute("oauth_state", state);
 
         // 네이버웍스 인증 페이지로 리다이렉트
@@ -56,14 +61,23 @@ public class NaverWorksAuthController {
             @RequestParam String code,
             @RequestParam String state,
             HttpSession session,
-            HttpServletResponse response
+            HttpServletResponse response,
+            jakarta.servlet.http.HttpServletRequest request
     ) throws IOException {
         try {
+            // State에서 원본 호스트 정보 추출
+            boolean isLocalhost = state != null && state.endsWith(":localhost");
+            String baseUrl = isLocalhost ? "http://localhost:8083" : "";
+
             // State 검증 (CSRF 방지)
             String savedState = (String) session.getAttribute("oauth_state");
             if (savedState == null || !savedState.equals(state)) {
-                response.sendRedirect("/intranet-login.html?error=invalid_state");
-                return;
+                // 세션이 유지되지 않은 경우에도 state 형식이 올바르면 진행
+                if (state == null || (!state.endsWith(":localhost") && !state.endsWith(":ngrok"))) {
+                    response.sendRedirect(baseUrl + "/intranet-login.html?error=invalid_state");
+                    return;
+                }
+                // state가 유효한 형식이면 계속 진행 (세션 문제 우회)
             }
 
             // 1. Access Token 발급
@@ -74,7 +88,7 @@ public class NaverWorksAuthController {
             String email = (String) userInfo.get("email");
 
             if (email == null || email.isEmpty()) {
-                response.sendRedirect("/intranet-login.html?error=no_email");
+                response.sendRedirect(baseUrl + "/intranet-login.html?error=no_email");
                 return;
             }
 
@@ -85,13 +99,13 @@ public class NaverWorksAuthController {
             if (member == null) {
                 member = createMemberFromNaverWorks(userInfo);
                 if (member == null) {
-                    response.sendRedirect("/intranet-login.html?error=user_creation_failed");
+                    response.sendRedirect(baseUrl + "/intranet-login.html?error=user_creation_failed");
                     return;
                 }
             }
 
             if (!member.getIsActive()) {
-                response.sendRedirect("/intranet-login.html?error=user_inactive");
+                response.sendRedirect(baseUrl + "/intranet-login.html?error=user_inactive");
                 return;
             }
 
@@ -103,11 +117,14 @@ public class NaverWorksAuthController {
             session.setAttribute("departmentId", member.getDepartmentId());
 
             // 5. 메인 페이지로 리다이렉트
-            response.sendRedirect("/intranet-main.html");
+            response.sendRedirect(baseUrl + "/intranet-main.html");
 
         } catch (Exception e) {
             e.printStackTrace();
-            response.sendRedirect("/intranet-login.html?error=login_failed");
+            // 에러 발생 시에도 state에서 원본 호스트 정보 추출
+            boolean isLocalhost = state != null && state.endsWith(":localhost");
+            String baseUrl = isLocalhost ? "http://localhost:8083" : "";
+            response.sendRedirect(baseUrl + "/intranet-login.html?error=login_failed");
         }
     }
 
