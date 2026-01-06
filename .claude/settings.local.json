@@ -34,7 +34,10 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(git pull:*)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "Bash(git rm:*)",
+      "Bash(netstat:*)",
+      "Bash(tasklist:*)"
     ]
   }
 }

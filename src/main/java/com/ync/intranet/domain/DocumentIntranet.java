@@ -13,6 +13,8 @@ public class DocumentIntranet {
     private DocumentType documentType;
     private Long authorId;
     private String authorName;  // JOIN용
+    private String authorPosition;  // JOIN용 (작성자 직급)
+    private String authorDepartment;  // JOIN용 (작성자 부서)
     private String title;
     private String content;
     private DocumentStatus status;
@@ -82,6 +84,22 @@ public class DocumentIntranet {
 
     public void setAuthorName(String authorName) {
         this.authorName = authorName;
+    }
+
+    public String getAuthorPosition() {
+        return authorPosition;
+    }
+
+    public void setAuthorPosition(String authorPosition) {
+        this.authorPosition = authorPosition;
+    }
+
+    public String getAuthorDepartment() {
+        return authorDepartment;
+    }
+
+    public void setAuthorDepartment(String authorDepartment) {
+        this.authorDepartment = authorDepartment;
     }
 
     public String getTitle() {
@@ -179,6 +197,8 @@ public class DocumentIntranet {
         private DocumentType documentType;
         private Long authorId;
         private String authorName;
+        private String authorPosition;
+        private String authorDepartment;
         private String title;
         private String content;
         private DocumentStatus status;
@@ -208,6 +228,16 @@ public class DocumentIntranet {
 
         public DocumentIntranetBuilder authorName(String authorName) {
             this.authorName = authorName;
+            return this;
+        }
+
+        public DocumentIntranetBuilder authorPosition(String authorPosition) {
+            this.authorPosition = authorPosition;
+            return this;
+        }
+
+        public DocumentIntranetBuilder authorDepartment(String authorDepartment) {
+            this.authorDepartment = authorDepartment;
             return this;
         }
 

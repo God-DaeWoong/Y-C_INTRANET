@@ -95,6 +95,13 @@ public class ApprovalService {
     }
 
     /**
+     * 완료된 결재 목록 조회 (제목/기간 검색 가능)
+     */
+    public List<ApprovalLineIntranet> getCompletedApprovals(Long approverId, String title, String startDate, String endDate) {
+        return approvalLineMapper.findCompletedByApproverId(approverId, title, startDate, endDate);
+    }
+
+    /**
      * 결재 반려
      */
     @Transactional

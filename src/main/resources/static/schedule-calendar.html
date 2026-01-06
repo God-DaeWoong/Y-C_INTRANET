@@ -588,7 +588,7 @@
             </div>
 
             <!-- 결재 대기 -->
-            <div class="sidebar-card" style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
+            <div class="sidebar-card" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
                 <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #2d3748;">
                     📋 결재 대기
                     <span id="approvalBadge" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 12px; margin-left: 8px;">0</span>
@@ -597,46 +597,52 @@
                     <div style="text-align: center; padding: 20px; color: #a0aec0; font-size: 13px;">결재 요청이 없습니다</div>
                 </div>
             </div>
-
-            <!-- 내 일정 목록 -->
-            <div class="sidebar-card" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); max-height: 500px; overflow-y: auto;">
-                <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #2d3748;">📝 내 일정</h3>
-                <div id="myScheduleList">
-                    <div style="text-align: center; padding: 20px; color: #a0aec0; font-size: 13px;">등록된 일정이 없습니다</div>
-                </div>
-            </div>
         </aside>
 
-        <!-- 메인 영역 -->
-        <div style="flex: 1; min-width: 0;">
-            <div class="page-header">
-                <h2>일정 및 휴가 관리</h2>
-                <div class="header-buttons">
-                    <button class="btn btn-success" onclick="openEventModal()">+ 새 일정</button>
+        <!-- 메인 영역 (달력 + 내 일정) -->
+        <div style="flex: 1; min-width: 0; display: flex; gap: 20px;">
+            <!-- 달력 영역 -->
+            <div style="flex: 1; min-width: 600px;">
+                <div class="page-header">
+                    <h2>일정 및 휴가 관리</h2>
+                    <div class="header-buttons">
+                        <button class="btn btn-success" onclick="openEventModal()">+ 새 일정</button>
+                    </div>
+                </div>
+
+                <div class="calendar-container">
+                    <div id="calendar"></div>
+                </div>
+
+                <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);"></div>
+                    <span>연차</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);"></div>
+                    <span>반차</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);"></div>
+                    <span>출장</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #10b981 0%, #34d399 100%);"></div>
+                    <span>회의</span>
                 </div>
             </div>
-
-            <div class="calendar-container">
-                <div id="calendar"></div>
             </div>
 
-            <div class="legend">
-            <div class="legend-item">
-                <div class="legend-color" style="background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);"></div>
-                <span>연차</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);"></div>
-                <span>반차</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);"></div>
-                <span>출장</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: linear-gradient(135deg, #10b981 0%, #34d399 100%);"></div>
-                <span>회의</span>
-            </div>
+            <!-- 내 일정 사이드바 (오른쪽) -->
+            <aside style="width: 340px; flex-shrink: 0;">
+                <div class="sidebar-card" style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); height: calc(100vh - 220px); display: flex; flex-direction: column;">
+                    <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 20px; color: #2d3748; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">📝 내 일정</h3>
+                    <div id="myScheduleList" style="flex: 1; overflow-y: auto; padding-right: 8px;">
+                        <div style="text-align: center; padding: 40px 20px; color: #a0aec0; font-size: 14px;">등록된 일정이 없습니다</div>
+                    </div>
+                </div>
+            </aside>
         </div>
     </div>
 
@@ -1022,14 +1028,20 @@
                 console.log('[달력] 조회된 일정 개수:', schedules.length);
                 console.log('[달력] 조회된 일정:', schedules);
 
-                if (schedules.length === 0) {
-                    console.log('[달력] 일정이 없어서 빈 배열 반환');
+                // 승인된 일정만 필터링 (취소된 일정 제외)
+                const approvedSchedules = schedules.filter(schedule =>
+                    schedule.status === 'APPROVED'
+                );
+                console.log('[달력] 승인된 일정 개수:', approvedSchedules.length);
+
+                if (approvedSchedules.length === 0) {
+                    console.log('[달력] 승인된 일정이 없어서 빈 배열 반환');
                     return [];
                 }
 
                 // FullCalendar 이벤트 형식으로 변환
                 console.log('[달력] 이벤트 변환 시작');
-                const events = schedules.map(schedule => {
+                const events = approvedSchedules.map(schedule => {
                     const event = {
                         id: schedule.id,
                         title: schedule.title,
@@ -1155,6 +1167,19 @@
             // 결재 상태 영역 숨기기
             document.getElementById('approvalStatusSection').style.display = 'none';
 
+            // 모든 입력 필드 활성화 (새 일정 작성이므로)
+            const form = document.getElementById('eventForm');
+            form.querySelectorAll('input, select, textarea').forEach(field => {
+                field.disabled = false;
+            });
+
+            // 제출 버튼 초기화
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.textContent = '저장 및 결재요청';
+            submitBtn.disabled = false;
+            submitBtn.style.background = '';
+            submitBtn.style.cursor = '';
+
             if (startDate) {
                 document.getElementById('eventStartDate').value = startDate;
 
@@ -1183,7 +1208,21 @@
 
         function closeEventModal() {
             document.getElementById('eventModal').classList.remove('show');
-            document.getElementById('eventForm').reset();
+            const form = document.getElementById('eventForm');
+            form.reset();
+
+            // 모든 입력 필드 활성화 (disabled 상태 초기화)
+            form.querySelectorAll('input, select, textarea').forEach(field => {
+                field.disabled = false;
+            });
+
+            // 제출 버튼 초기화
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.textContent = '저장 및 결재요청';
+            submitBtn.disabled = false;
+            submitBtn.style.background = '';
+            submitBtn.style.cursor = '';
+
             // 숨겨진 필드들 초기화
             document.getElementById('timeGroup').style.display = 'none';
             document.getElementById('halfDayTypeGroup').style.display = 'none';
@@ -1922,13 +1961,59 @@
         // 휴가 현황 로드
         async function loadLeaveBalance() {
             try {
-                // TODO: 실제 API 연동
-                // 임시로 하드코딩
-                document.getElementById('leaveGranted').textContent = '15';
-                document.getElementById('leaveUsed').textContent = '2';
-                document.getElementById('leaveRemaining').textContent = '13';
+                if (!currentUser || !currentUser.id) {
+                    console.error('사용자 정보가 없습니다.');
+                    return;
+                }
+
+                // 현재 연도의 시작일과 종료일 계산
+                const currentYear = new Date().getFullYear();
+                const startDate = `${currentYear}-01-01`;
+                const endDate = `${currentYear}-12-31`;
+
+                // 해당 사용자의 일정 조회
+                const response = await fetch(`/api/intranet/schedules?memberId=${currentUser.id}&startDate=${startDate}&endDate=${endDate}`, {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error('일정 조회 실패');
+                }
+
+                const schedules = await response.json();
+
+                // 승인된 연차/반차만 필터링하여 사용 일수 계산
+                const approvedLeaves = schedules.filter(s =>
+                    s.status === 'APPROVED' &&
+                    (s.scheduleType === 'VACATION' || s.scheduleType === 'HALF_DAY')
+                );
+
+                let usedDays = 0;
+                approvedLeaves.forEach(leave => {
+                    // daysUsed 필드가 있으면 그것을 사용, 없으면 타입으로 계산
+                    if (leave.daysUsed != null && leave.daysUsed > 0) {
+                        usedDays += parseFloat(leave.daysUsed);
+                    } else if (leave.scheduleType === 'VACATION') {
+                        usedDays += 1; // 연차는 1일
+                    } else if (leave.scheduleType === 'HALF_DAY') {
+                        usedDays += 0.5; // 반차는 0.5일
+                    }
+                });
+
+                // 부여된 연차 (사용자 정보에서 가져오기)
+                const grantedLeave = currentUser.annualLeaveGranted || 15;
+                const remainingLeave = grantedLeave - usedDays;
+
+                // UI 업데이트
+                document.getElementById('leaveGranted').textContent = grantedLeave;
+                document.getElementById('leaveUsed').textContent = usedDays.toFixed(1);
+                document.getElementById('leaveRemaining').textContent = remainingLeave.toFixed(1);
             } catch (error) {
                 console.error('휴가 현황 조회 실패:', error);
+                // 오류 시 기본값 표시
+                document.getElementById('leaveGranted').textContent = '15';
+                document.getElementById('leaveUsed').textContent = '0';
+                document.getElementById('leaveRemaining').textContent = '15';
             }
         }
 
@@ -1967,31 +2052,35 @@
         // 내 일정 목록 로드
         async function loadMySchedules() {
             try {
-                // TODO: 실제 API 연동
-                // 임시 데이터 (시간 정보 포함)
-                const schedules = [
-                    {
-                        type: 'VACATION',
-                        title: '연차',
-                        startDate: '2026-01-15',
-                        endDate: '2026-01-15',
-                        status: 'APPROVED'
-                    },
-                    {
-                        type: 'MEETING',
-                        title: '팀 회의',
-                        startDate: '2026-01-10',
-                        endDate: '2026-01-10',
-                        startTime: '14:00',
-                        endTime: '16:00',
-                        status: 'APPROVED'
-                    }
-                ];
+                if (!currentUser || !currentUser.id) {
+                    console.log('[내 일정] 사용자 정보 없음');
+                    return;
+                }
+
+                // 로그인한 사용자의 일정만 조회
+                const response = await fetch(`/api/intranet/schedules?memberId=${currentUser.id}`, {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    console.error('[내 일정] 조회 실패:', response.status);
+                    return;
+                }
+
+                let schedules = await response.json();
+                console.log('[내 일정] 조회된 일정:', schedules);
+
+                // 날짜순 정렬 (최신순)
+                schedules.sort((a, b) => {
+                    const dateA = new Date(a.startDate);
+                    const dateB = new Date(b.startDate);
+                    return dateB - dateA;
+                });
 
                 const list = document.getElementById('myScheduleList');
 
                 if (schedules.length === 0) {
-                    list.innerHTML = '<div style="text-align: center; padding: 20px; color: #a0aec0; font-size: 13px;">등록된 일정이 없습니다</div>';
+                    list.innerHTML = '<div style="text-align: center; padding: 40px 20px; color: #a0aec0; font-size: 14px;">등록된 일정이 없습니다</div>';
                     return;
                 }
 
@@ -2003,23 +2092,63 @@
                         'MEETING': '#10b981'
                     };
 
-                    let dateText = schedule.startDate;
+                    const icons = {
+                        'VACATION': '🌴',
+                        'HALF_DAY': '⏰',
+                        'BUSINESS_TRIP': '✈️',
+                        'MEETING': '📄'
+                    };
+
+                    const statusLabels = {
+                        'DRAFT': '작성중',
+                        'PENDING': '대기',
+                        'APPROVED': '승인',
+                        'REJECTED': '반려',
+                        'CANCELLED': '취소'
+                    };
+
+                    const statusColors = {
+                        'DRAFT': '#94a3b8',
+                        'PENDING': '#f59e0b',
+                        'APPROVED': '#10b981',
+                        'REJECTED': '#ef4444',
+                        'CANCELLED': '#64748b'
+                    };
+
+                    // 날짜 포맷
+                    const formatDate = (dateStr) => {
+                        if (!dateStr) return '';
+                        const date = new Date(dateStr);
+                        return `${date.getMonth() + 1}/${date.getDate()}`;
+                    };
+
+                    let dateText = formatDate(schedule.startDate);
                     if (schedule.endDate && schedule.endDate !== schedule.startDate) {
-                        dateText += ` ~ ${schedule.endDate}`;
+                        dateText += ` ~ ${formatDate(schedule.endDate)}`;
                     }
 
                     // 시간 정보가 있으면 추가
                     if (schedule.startTime) {
-                        dateText += ` ${schedule.startTime}`;
+                        dateText += ` ${schedule.startTime.substring(0, 5)}`;
                         if (schedule.endTime) {
-                            dateText += `-${schedule.endTime}`;
+                            dateText += `-${schedule.endTime.substring(0, 5)}`;
                         }
                     }
 
+                    const icon = icons[schedule.scheduleType] || '📌';
+                    const color = colors[schedule.scheduleType] || '#6b7280';
+                    const status = schedule.status || 'DRAFT';
+                    const statusLabel = statusLabels[status] || status;
+                    const statusColor = statusColors[status] || '#6b7280';
+
                     return `
-                        <div style="padding: 10px 12px; margin-bottom: 8px; background: #f7fafc; border-radius: 8px; border-left: 4px solid ${colors[schedule.type]};">
-                            <div style="font-size: 13px; font-weight: 700; color: #2d3748; margin-bottom: 4px;">${schedule.title}</div>
-                            <div style="font-size: 11px; color: #718096;">${dateText}</div>
+                        <div onclick="showEventDetail(${schedule.id})" style="padding: 14px 16px; margin-bottom: 10px; background: #f7fafc; border-radius: 10px; border-left: 4px solid ${color}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#edf2f7'" onmouseout="this.style.background='#f7fafc'">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                                <div style="font-size: 14px; font-weight: 700; color: #2d3748;">${icon} ${schedule.title || '제목 없음'}</div>
+                                <span style="font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: ${statusColor}; color: white;">${statusLabel}</span>
+                            </div>
+                            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">📅 ${dateText}</div>
+                            ${schedule.description ? `<div style="font-size: 11px; color: #94a3b8; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${schedule.description}</div>` : ''}
                         </div>
                     `;
                 }).join('');

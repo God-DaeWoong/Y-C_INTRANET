@@ -93,11 +93,161 @@
             font-size: 16px;
         }
 
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #718096;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .search-form {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            display: none;
+        }
+
+        .search-form.show {
+            display: block;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .search-group {
+            flex: 1;
+        }
+
+        .search-group label {
+            display: block;
+            color: #2d3748;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .search-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .search-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-search {
+            padding: 10px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-search:hover {
+            background: #5a67d8;
+        }
+
+        .btn-reset {
+            padding: 10px 24px;
+            background: #e2e8f0;
+            color: #2d3748;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-reset:hover {
+            background: #cbd5e0;
+        }
+
         .approval-list {
             background: white;
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
             overflow: hidden;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 24px;
+            background: white;
+            border-radius: 12px;
+            margin-top: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            color: #2d3748;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 40px;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #f7fafc;
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .pagination button.active {
+            background: #667eea;
+            border-color: #667eea;
+            color: white;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .pagination .page-info {
+            margin: 0 12px;
+            color: #718096;
+            font-size: 14px;
         }
 
         .approval-item {
@@ -409,8 +559,32 @@
 
     <div class="container">
         <div class="page-header">
-            <h2>결재 대기함</h2>
-            <p>승인 또는 반려가 필요한 문서 목록입니다</p>
+            <h2 id="pageTitle">결재 대기함</h2>
+            <p id="pageDesc">승인 또는 반려가 필요한 문서 목록입니다</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('pending')">결재 대기</button>
+            <button class="tab" onclick="switchTab('completed')">완료 문서함</button>
+        </div>
+
+        <div id="searchForm" class="search-form">
+            <div class="search-row">
+                <div class="search-group">
+                    <label for="searchTitle">문서 제목</label>
+                    <input type="text" id="searchTitle" placeholder="제목을 입력하세요">
+                </div>
+                <div class="search-group">
+                    <label for="searchStartDate">시작일</label>
+                    <input type="date" id="searchStartDate">
+                </div>
+                <div class="search-group">
+                    <label for="searchEndDate">종료일</label>
+                    <input type="date" id="searchEndDate">
+                </div>
+                <button class="btn-search" onclick="searchCompletedApprovals()">검색</button>
+                <button class="btn-reset" onclick="resetSearch()">초기화</button>
+            </div>
         </div>
 
         <div id="approvalList" class="approval-list">
@@ -418,6 +592,18 @@
                 <div class="loading-spinner"></div>
                 <p style="margin-top: 16px;">로딩 중...</p>
             </div>
+        </div>
+
+        <!-- 페이징 -->
+        <div id="pagination" class="pagination" style="display: none;">
+            <button onclick="goToPage(1)" id="firstPage">«</button>
+            <button onclick="goToPage(currentPage - 1)" id="prevPage">‹</button>
+            <div id="pageNumbers" style="display: flex; gap: 8px;"></div>
+            <button onclick="goToPage(currentPage + 1)" id="nextPage">›</button>
+            <button onclick="goToPage(totalPages)" id="lastPage">»</button>
+            <span class="page-info">
+                <span id="pageInfo"></span>
+            </span>
         </div>
     </div>
 
@@ -454,6 +640,13 @@
     <script>
         let currentApprovalId = null;
         let currentAction = null;
+        let currentTab = 'pending';
+
+        // 페이징 변수
+        let currentPage = 1;
+        let totalPages = 1;
+        let pageSize = 5;
+        let allApprovals = [];
 
         function checkLogin() {
             const user = sessionStorage.getItem('user');
@@ -499,10 +692,36 @@
                             <p>대기 중인 결재가 없습니다</p>
                         </div>
                     `;
+                    document.getElementById('pagination').style.display = 'none';
                     return;
                 }
 
-                listContainer.innerHTML = data.approvals.map(approval => {
+                // 전체 데이터 저장
+                allApprovals = data.approvals;
+                currentPage = 1;
+                totalPages = Math.ceil(allApprovals.length / pageSize);
+
+                // 페이징 처리된 데이터 표시
+                displayPendingApprovals();
+
+            } catch (error) {
+                console.error('결재 목록 조회 실패:', error);
+                document.getElementById('approvalList').innerHTML = `
+                    <div class="empty-state">
+                        <p>데이터를 불러올 수 없습니다</p>
+                    </div>
+                `;
+                document.getElementById('pagination').style.display = 'none';
+            }
+        }
+
+        function displayPendingApprovals() {
+            const listContainer = document.getElementById('approvalList');
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageApprovals = allApprovals.slice(start, end);
+
+            listContainer.innerHTML = pageApprovals.map(approval => {
                     const doc = approval.document || {};
                     const documentTypeText = getDocumentTypeText(doc.documentType);
                     const attachmentCount = doc.attachments ? doc.attachments.length : 0;
@@ -542,14 +761,8 @@
                     </div>
                 `}).join('');
 
-            } catch (error) {
-                console.error('결재 목록 조회 실패:', error);
-                document.getElementById('approvalList').innerHTML = `
-                    <div class="empty-state">
-                        <p>데이터를 불러올 수 없습니다</p>
-                    </div>
-                `;
-            }
+            // 페이징 UI 업데이트
+            updatePagination();
         }
 
         function formatDate(dateString) {
@@ -629,15 +842,11 @@
                 const approval = data.approval;
                 const doc = approval.document || {};
 
-                let documentTypeText = '';
-                switch(doc.documentType) {
-                    case 'EXPENSE': documentTypeText = '지출결의서'; break;
-                    case 'VACATION': documentTypeText = '휴가신청서'; break;
-                    case 'BUSINESS_TRIP': documentTypeText = '출장신청서'; break;
-                    case 'PURCHASE': documentTypeText = '구매요청서'; break;
-                    case 'GENERAL': documentTypeText = '일반기안서'; break;
-                    default: documentTypeText = doc.documentType || '기타';
-                }
+                const documentTypeText = getDocumentTypeText(doc.documentType);
+
+                // 결재선 정보 가져오기
+                const approvalLineResponse = await fetch(`/api/intranet/approvals/document/${doc.id}`);
+                const approvalLines = await approvalLineResponse.json();
 
                 let vacationInfo = '';
                 if (doc.documentType === 'VACATION' && doc.vacationRequest) {
@@ -676,7 +885,7 @@
                 }
 
                 let approvalLineHtml = '';
-                if (approval.allSteps && approval.allSteps.length > 0) {
+                if (approvalLines && approvalLines.length > 0) {
                     approvalLineHtml = `
                         <div class="detail-section">
                             <div class="detail-label">결재선</div>
@@ -685,19 +894,29 @@
                                     <tr>
                                         <th>단계</th>
                                         <th>결재자</th>
+                                        <th>직급</th>
                                         <th>상태</th>
                                         <th>처리일시</th>
+                                        <th>의견</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${approval.allSteps.map(step => `
+                                    ${approvalLines.map(line => {
+                                        let statusBadge = '';
+                                        if (line.decision === 'PENDING') statusBadge = '<span class="badge badge-pending">대기중</span>';
+                                        else if (line.decision === 'APPROVED') statusBadge = '<span class="badge" style="background:#d4edda;color:#155724;">승인</span>';
+                                        else if (line.decision === 'REJECTED') statusBadge = '<span class="badge" style="background:#f8d7da;color:#721c24;">반려</span>';
+
+                                        return `
                                         <tr>
-                                            <td>${step.stepOrder}단계</td>
-                                            <td>${step.approverName || '-'}</td>
-                                            <td>${getStatusBadge(step.status)}</td>
-                                            <td>${step.approvedAt ? formatDateTime(step.approvedAt) : '-'}</td>
+                                            <td>${line.stepOrder}단계</td>
+                                            <td>${line.approverName || '-'}</td>
+                                            <td>${line.approverPosition || '-'}</td>
+                                            <td>${statusBadge}</td>
+                                            <td>${line.decidedAt ? formatDateTime(line.decidedAt) : '-'}</td>
+                                            <td>${line.approvalComment || '-'}</td>
                                         </tr>
-                                    `).join('')}
+                                    `}).join('')}
                                 </tbody>
                             </table>
                         </div>
@@ -717,7 +936,7 @@
 
                     <div class="detail-section">
                         <div class="detail-label">작성자</div>
-                        <div class="detail-value">${doc.authorName || '알 수 없음'} (${doc.authorDepartment || ''})</div>
+                        <div class="detail-value">${doc.authorName || '알 수 없음'}${doc.authorDepartment ? ' (' + doc.authorDepartment + ')' : ''}</div>
                     </div>
 
                     <div class="detail-section">
@@ -792,6 +1011,336 @@
             } finally {
                 sessionStorage.removeItem('user');
                 window.location.href = '/intranet-login.html';
+            }
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const searchForm = document.getElementById('searchForm');
+            const pageTitle = document.getElementById('pageTitle');
+            const pageDesc = document.getElementById('pageDesc');
+
+            if (tab === 'pending') {
+                searchForm.classList.remove('show');
+                pageTitle.textContent = '결재 대기함';
+                pageDesc.textContent = '승인 또는 반려가 필요한 문서 목록입니다';
+                loadApprovals();
+            } else {
+                searchForm.classList.add('show');
+                pageTitle.textContent = '완료 문서함';
+                pageDesc.textContent = '승인 또는 반려가 완료된 문서 목록입니다';
+                setDefaultDateRange();
+                const startDate = document.getElementById('searchStartDate').value;
+                const endDate = document.getElementById('searchEndDate').value;
+                loadCompletedApprovals('', startDate, endDate);
+            }
+        }
+
+        function setDefaultDateRange() {
+            const today = new Date();
+            const endDate = today.toISOString().split('T')[0];
+
+            const startDateObj = new Date();
+            startDateObj.setDate(startDateObj.getDate() - 7);
+            const startDate = startDateObj.toISOString().split('T')[0];
+
+            document.getElementById('searchStartDate').value = startDate;
+            document.getElementById('searchEndDate').value = endDate;
+        }
+
+        async function loadCompletedApprovals(title = '', startDate = '', endDate = '') {
+            try {
+                let url = '/api/intranet/approvals/completed';
+                const params = new URLSearchParams();
+                if (title) params.append('title', title);
+                if (startDate) params.append('startDate', startDate);
+                if (endDate) params.append('endDate', endDate);
+                if (params.toString()) url += '?' + params.toString();
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                const listContainer = document.getElementById('approvalList');
+
+                if (!data.success || !data.approvals || data.approvals.length === 0) {
+                    listContainer.innerHTML = `
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <p>완료된 결재가 없습니다</p>
+                        </div>
+                    `;
+                    document.getElementById('pagination').style.display = 'none';
+                    return;
+                }
+
+                // 전체 데이터 저장
+                allApprovals = data.approvals;
+                currentPage = 1;
+                totalPages = Math.ceil(allApprovals.length / pageSize);
+
+                // 페이징 처리된 데이터 표시
+                displayCompletedApprovals();
+
+            } catch (error) {
+                console.error('완료 결재 목록 조회 실패:', error);
+                document.getElementById('approvalList').innerHTML = `
+                    <div class="empty-state">
+                        <p>데이터를 불러올 수 없습니다</p>
+                    </div>
+                `;
+                document.getElementById('pagination').style.display = 'none';
+            }
+        }
+
+        function displayCompletedApprovals() {
+            const listContainer = document.getElementById('approvalList');
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageApprovals = allApprovals.slice(start, end);
+
+            listContainer.innerHTML = pageApprovals.map(approval => {
+                    const doc = approval.document || {};
+                    const documentTypeText = getDocumentTypeText(doc.documentType);
+                    const decisionText = approval.decision === 'APPROVED' ? '승인' : '반려';
+                    const decisionBadge = approval.decision === 'APPROVED'
+                        ? '<span class="badge" style="background:#d4edda;color:#155724;">✓ 승인</span>'
+                        : '<span class="badge" style="background:#f8d7da;color:#721c24;">✗ 반려</span>';
+
+                    return `
+                    <div class="approval-item">
+                        <div class="approval-header">
+                            <div>
+                                <div class="approval-title">${doc.title || '제목 없음'}</div>
+                                <div class="approval-meta">
+                                    <span>📋 유형: ${documentTypeText}</span>
+                                    <span>📝 작성자: ${doc.authorName || '알 수 없음'}</span>
+                                    <span>📅 결재일: ${formatDate(approval.decidedAt)}</span>
+                                </div>
+                            </div>
+                            <div>
+                                ${decisionBadge}
+                            </div>
+                        </div>
+                        <div class="approval-content">
+                            ${doc.content ? doc.content.substring(0, 150) + '...' : '내용 없음'}
+                        </div>
+                        ${approval.approvalComment ? `<div style="margin-top:12px;padding:12px;background:#f7fafc;border-radius:8px;font-size:14px;color:#4a5568;"><strong>의견:</strong> ${approval.approvalComment}</div>` : ''}
+                        <div class="approval-actions">
+                            <button class="btn btn-detail" onclick="viewCompletedDetail(${approval.id})">
+                                📄 상세보기
+                            </button>
+                        </div>
+                    </div>
+                `}).join('');
+
+            // 페이징 UI 업데이트
+            updatePagination();
+        }
+
+        function searchCompletedApprovals() {
+            const title = document.getElementById('searchTitle').value.trim();
+            const startDate = document.getElementById('searchStartDate').value;
+            const endDate = document.getElementById('searchEndDate').value;
+            loadCompletedApprovals(title, startDate, endDate);
+        }
+
+        function resetSearch() {
+            document.getElementById('searchTitle').value = '';
+            document.getElementById('searchStartDate').value = '';
+            document.getElementById('searchEndDate').value = '';
+            loadCompletedApprovals();
+        }
+
+        async function viewCompletedDetail(approvalId) {
+            try {
+                const response = await fetch(`/api/intranet/approvals/${approvalId}`);
+                const data = await response.json();
+
+                if (!data.success || !data.approval) {
+                    alert('문서를 불러올 수 없습니다');
+                    return;
+                }
+
+                const approval = data.approval;
+                const doc = approval.document || {};
+
+                const documentTypeText = getDocumentTypeText(doc.documentType);
+                const statusBadge = doc.status === 'APPROVED'
+                    ? '<span class="badge" style="background:#d4edda;color:#155724;">✓ 승인 완료</span>'
+                    : '<span class="badge" style="background:#f8d7da;color:#721c24;">✗ 반려</span>';
+
+                // 결재선 정보 가져오기
+                const approvalLineResponse = await fetch(`/api/intranet/approvals/document/${doc.id}`);
+                const approvalLines = await approvalLineResponse.json();
+
+                let vacationInfo = '';
+                if (doc.documentType === 'VACATION' && doc.vacationRequest) {
+                    const vr = doc.vacationRequest;
+                    let leaveTypeText = vr.leaveType === 'FULL_DAY' ? '연차' : '반차';
+                    if (vr.leaveType === 'HALF_DAY' && vr.halfDayType) {
+                        leaveTypeText += ` (${vr.halfDayType === 'AM' ? '오전' : '오후'})`;
+                    }
+                    vacationInfo = `
+                        <div class="detail-section">
+                            <div class="detail-label">휴가 정보</div>
+                            <div class="detail-value">
+                                <p><strong>휴가 유형:</strong> ${leaveTypeText}</p>
+                                <p><strong>시작일:</strong> ${vr.startDate || '-'}</p>
+                                <p><strong>종료일:</strong> ${vr.endDate || '-'}</p>
+                                <p><strong>사용 일수:</strong> ${vr.usedDays || 0}일</p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                let approvalLineHtml = '';
+                if (approvalLines && approvalLines.length > 0) {
+                    approvalLineHtml = `
+                        <div class="detail-section">
+                            <div class="detail-label">결재선</div>
+                            <table class="approval-line-table">
+                                <thead>
+                                    <tr>
+                                        <th>단계</th>
+                                        <th>결재자</th>
+                                        <th>직급</th>
+                                        <th>상태</th>
+                                        <th>처리일시</th>
+                                        <th>의견</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${approvalLines.map(line => {
+                                        let statusBadge = '';
+                                        if (line.decision === 'PENDING') statusBadge = '<span class="badge badge-pending">대기중</span>';
+                                        else if (line.decision === 'APPROVED') statusBadge = '<span class="badge" style="background:#d4edda;color:#155724;">승인</span>';
+                                        else if (line.decision === 'REJECTED') statusBadge = '<span class="badge" style="background:#f8d7da;color:#721c24;">반려</span>';
+
+                                        return `
+                                        <tr>
+                                            <td>${line.stepOrder}단계</td>
+                                            <td>${line.approverName || '-'}</td>
+                                            <td>${line.approverPosition || '-'}</td>
+                                            <td>${statusBadge}</td>
+                                            <td>${line.decidedAt ? formatDateTime(line.decidedAt) : '-'}</td>
+                                            <td>${line.approvalComment || '-'}</td>
+                                        </tr>
+                                    `}).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('detailContent').innerHTML = `
+                    <div class="detail-section">
+                        <div class="detail-label">문서 제목</div>
+                        <div class="detail-value">${doc.title || '제목 없음'}</div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-label">문서 유형</div>
+                        <div class="detail-value">${documentTypeText}</div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-label">작성자</div>
+                        <div class="detail-value">${doc.authorName || '알 수 없음'}${doc.authorDepartment ? ' (' + doc.authorDepartment + ')' : ''}</div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-label">작성일</div>
+                        <div class="detail-value">${formatDateTime(doc.createdAt)}</div>
+                    </div>
+
+                    ${vacationInfo}
+
+                    <div class="detail-section">
+                        <div class="detail-label">문서 내용</div>
+                        <div class="detail-value" style="white-space: pre-wrap;">${doc.content || '내용 없음'}</div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-label">최종 결재 결과</div>
+                        <div class="detail-value">${statusBadge}</div>
+                    </div>
+
+                    ${approvalLineHtml}
+                `;
+
+                document.querySelector('#detailModal .modal-footer').innerHTML = `
+                    <button class="btn btn-cancel" onclick="closeDetailModal()">닫기</button>
+                `;
+
+                document.getElementById('detailModal').classList.add('show');
+
+            } catch (error) {
+                console.error('상세보기 오류:', error);
+                alert('문서를 불러오는 중 오류가 발생했습니다');
+            }
+        }
+
+        // 페이징 함수들
+        function updatePagination() {
+            const paginationEl = document.getElementById('pagination');
+
+            // 데이터가 5개 이하면 페이징 숨김
+            if (allApprovals.length <= pageSize) {
+                paginationEl.style.display = 'none';
+                return;
+            }
+
+            paginationEl.style.display = 'flex';
+
+            // 버튼 활성화/비활성화
+            document.getElementById('firstPage').disabled = currentPage === 1;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage === totalPages;
+            document.getElementById('lastPage').disabled = currentPage === totalPages;
+
+            // 페이지 번호 버튼 생성
+            const pageNumbers = document.getElementById('pageNumbers');
+            pageNumbers.innerHTML = '';
+
+            // 최대 5개 페이지 번호 표시
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + 4);
+
+            if (endPage - startPage < 4) {
+                startPage = Math.max(1, endPage - 4);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                btn.onclick = () => goToPage(i);
+                if (i === currentPage) {
+                    btn.className = 'active';
+                }
+                pageNumbers.appendChild(btn);
+            }
+
+            // 페이지 정보 표시
+            document.getElementById('pageInfo').textContent =
+                `${currentPage} / ${totalPages} 페이지 (총 ${allApprovals.length}건)`;
+        }
+
+        function goToPage(page) {
+            if (page < 1 || page > totalPages || page === currentPage) return;
+
+            currentPage = page;
+
+            // 현재 탭에 맞는 데이터 표시
+            if (currentTab === 'pending') {
+                displayPendingApprovals();
+            } else {
+                displayCompletedApprovals();
             }
         }
 

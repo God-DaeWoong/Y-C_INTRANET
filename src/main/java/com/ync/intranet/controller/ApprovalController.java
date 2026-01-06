@@ -58,8 +58,12 @@ public class ApprovalController {
                         .body(Map.of("success", false, "message", "결재를 찾을 수 없습니다."));
             }
 
-            // 결재 권한 확인 (본인 결재건인지)
-            if (!approval.getApproverId().equals(userId)) {
+            // 결재 권한 확인 (본인 결재건이거나 본인이 작성한 문서인지)
+            boolean isApprover = approval.getApproverId().equals(userId);
+            boolean isAuthor = approval.getDocument() != null &&
+                             approval.getDocument().getAuthorId().equals(userId);
+
+            if (!isApprover && !isAuthor) {
                 return ResponseEntity.status(403)
                         .body(Map.of("success", false, "message", "권한이 없습니다."));
             }
@@ -170,6 +174,32 @@ public class ApprovalController {
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest()
                     .body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    /**
+     * 완료된 결재 목록 조회 (승인/반려 완료)
+     * GET /api/intranet/approvals/completed
+     */
+    @GetMapping("/completed")
+    public ResponseEntity<Map<String, Object>> getCompletedApprovals(
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            HttpSession session) {
+        try {
+            Long userId = (Long) session.getAttribute("userId");
+            if (userId == null) {
+                return ResponseEntity.status(401)
+                        .body(Map.of("success", false, "message", "로그인이 필요합니다."));
+            }
+
+            List<ApprovalLineIntranet> approvals = approvalService.getCompletedApprovals(userId, title, startDate, endDate);
+            return ResponseEntity.ok(Map.of("success", true, "approvals", approvals));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(Map.of("success", false, "message", "조회 중 오류가 발생했습니다."));
         }
     }
 }

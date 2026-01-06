@@ -33,6 +33,14 @@ public interface ApprovalLineIntranetMapper {
     List<ApprovalLineIntranet> findByApproverId(@Param("approverId") Long approverId);
 
     /**
+     * 결재자별 완료된 결재 조회 (제목, 날짜 검색 가능)
+     */
+    List<ApprovalLineIntranet> findCompletedByApproverId(@Param("approverId") Long approverId,
+                                                          @Param("title") String title,
+                                                          @Param("startDate") String startDate,
+                                                          @Param("endDate") String endDate);
+
+    /**
      * 문서 + 결재 순서로 조회
      */
     ApprovalLineIntranet findByDocumentIdAndStepOrder(@Param("documentId") Long documentId,

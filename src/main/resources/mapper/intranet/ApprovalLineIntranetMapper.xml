@@ -23,6 +23,8 @@
             <result property="status" column="doc_status"/>
             <result property="authorId" column="doc_author_id"/>
             <result property="authorName" column="doc_author_name"/>
+            <result property="authorPosition" column="doc_author_position"/>
+            <result property="authorDepartment" column="doc_author_department"/>
             <result property="createdAt" column="doc_created_at"/>
         </association>
     </resultMap>
@@ -33,10 +35,13 @@
                d.id as doc_id, d.title as doc_title, d.content as doc_content,
                d.document_type as doc_type, d.status as doc_status, d.author_id as doc_author_id,
                d.created_at as doc_created_at,
-               m.name as doc_author_name
+               m.name as doc_author_name,
+               m.position as doc_author_position,
+               dept.name as doc_author_department
         FROM approval_lines_intranet a
         LEFT JOIN documents_intranet d ON a.document_id = d.id
         LEFT JOIN members_intranet m ON d.author_id = m.id
+        LEFT JOIN departments_intranet dept ON m.department_id = dept.id
         WHERE a.id = #{id}
     </select>
 
@@ -46,10 +51,13 @@
                d.id as doc_id, d.title as doc_title, d.content as doc_content,
                d.document_type as doc_type, d.status as doc_status, d.author_id as doc_author_id,
                d.created_at as doc_created_at,
-               m.name as doc_author_name
+               m.name as doc_author_name,
+               m.position as doc_author_position,
+               dept.name as doc_author_department
         FROM approval_lines_intranet a
         LEFT JOIN documents_intranet d ON a.document_id = d.id
         LEFT JOIN members_intranet m ON d.author_id = m.id
+        LEFT JOIN departments_intranet dept ON m.department_id = dept.id
         WHERE a.document_id = #{documentId}
         ORDER BY a.step_order
     </select>
@@ -60,10 +68,13 @@
                d.id as doc_id, d.title as doc_title, d.content as doc_content,
                d.document_type as doc_type, d.status as doc_status, d.author_id as doc_author_id,
                d.created_at as doc_created_at,
-               m.name as doc_author_name
+               m.name as doc_author_name,
+               m.position as doc_author_position,
+               dept.name as doc_author_department
         FROM approval_lines_intranet a
         LEFT JOIN documents_intranet d ON a.document_id = d.id
         LEFT JOIN members_intranet m ON d.author_id = m.id
+        LEFT JOIN departments_intranet dept ON m.department_id = dept.id
         WHERE a.approver_id = #{approverId}
           AND a.decision = 'PENDING'
         ORDER BY a.submitted_at DESC
@@ -75,12 +86,42 @@
                d.id as doc_id, d.title as doc_title, d.content as doc_content,
                d.document_type as doc_type, d.status as doc_status, d.author_id as doc_author_id,
                d.created_at as doc_created_at,
-               m.name as doc_author_name
+               m.name as doc_author_name,
+               m.position as doc_author_position,
+               dept.name as doc_author_department
         FROM approval_lines_intranet a
         LEFT JOIN documents_intranet d ON a.document_id = d.id
         LEFT JOIN members_intranet m ON d.author_id = m.id
+        LEFT JOIN departments_intranet dept ON m.department_id = dept.id
         WHERE a.approver_id = #{approverId}
         ORDER BY a.submitted_at DESC
+    </select>
+
+    <!-- 결재자별 완료된 문서 조회 (제목, 날짜 검색 가능) -->
+    <select id="findCompletedByApproverId" resultMap="ApprovalLineIntranetResultMap">
+        SELECT a.*,
+               d.id as doc_id, d.title as doc_title, d.content as doc_content,
+               d.document_type as doc_type, d.status as doc_status, d.author_id as doc_author_id,
+               d.created_at as doc_created_at,
+               m.name as doc_author_name,
+               m.position as doc_author_position,
+               dept.name as doc_author_department
+        FROM approval_lines_intranet a
+        INNER JOIN documents_intranet d ON a.document_id = d.id
+        LEFT JOIN members_intranet m ON d.author_id = m.id
+        LEFT JOIN departments_intranet dept ON m.department_id = dept.id
+        WHERE a.approver_id = #{approverId}
+          AND a.decision IN ('APPROVED', 'REJECTED')
+        <if test="title != null and title != ''">
+          AND d.title LIKE '%' || #{title} || '%'
+        </if>
+        <if test="startDate != null and startDate != ''">
+          AND a.decided_at &gt;= TO_DATE(#{startDate}, 'YYYY-MM-DD')
+        </if>
+        <if test="endDate != null and endDate != ''">
+          AND a.decided_at &lt;= TO_DATE(#{endDate}, 'YYYY-MM-DD') + 1
+        </if>
+        ORDER BY a.decided_at DESC
     </select>
 
     <!-- 문서 + 결재 순서로 조회 -->
