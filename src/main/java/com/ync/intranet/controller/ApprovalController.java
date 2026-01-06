@@ -40,6 +40,39 @@ public class ApprovalController {
     }
 
     /**
+     * 결재 상세 조회 (ID로)
+     * GET /api/intranet/approvals/{id}
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> getApprovalDetail(@PathVariable Long id, HttpSession session) {
+        try {
+            Long userId = (Long) session.getAttribute("userId");
+            if (userId == null) {
+                return ResponseEntity.status(401)
+                        .body(Map.of("success", false, "message", "로그인이 필요합니다."));
+            }
+
+            ApprovalLineIntranet approval = approvalService.getApprovalById(id);
+            if (approval == null) {
+                return ResponseEntity.status(404)
+                        .body(Map.of("success", false, "message", "결재를 찾을 수 없습니다."));
+            }
+
+            // 결재 권한 확인 (본인 결재건인지)
+            if (!approval.getApproverId().equals(userId)) {
+                return ResponseEntity.status(403)
+                        .body(Map.of("success", false, "message", "권한이 없습니다."));
+            }
+
+            return ResponseEntity.ok(Map.of("success", true, "approval", approval));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(Map.of("success", false, "message", "조회 중 오류가 발생했습니다."));
+        }
+    }
+
+    /**
      * 내 모든 결재 목록
      * GET /api/intranet/approvals/my
      */

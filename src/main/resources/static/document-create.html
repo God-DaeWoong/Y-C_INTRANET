@@ -246,6 +246,48 @@
             color: #718096;
             margin-top: 6px;
         }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin-bottom: 6px;
+        }
+
+        .file-item-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .file-item-name {
+            font-size: 14px;
+            color: #2d3748;
+        }
+
+        .file-item-size {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .btn-file-remove {
+            padding: 4px 10px;
+            background: #f56565;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .btn-file-remove:hover {
+            background: #e53e3e;
+        }
     </style>
 </head>
 <body>
@@ -312,6 +354,13 @@
                 </div>
 
                 <div class="form-group">
+                    <label for="attachments">첨부파일</label>
+                    <input type="file" id="attachments" multiple accept="*/*">
+                    <div class="help-text">여러 파일을 선택할 수 있습니다 (최대 10MB)</div>
+                    <div id="fileList" style="margin-top: 12px;"></div>
+                </div>
+
+                <div class="form-group">
                     <label>결재선 설정 <span class="required">*</span></label>
                     <div class="approval-line">
                         <div class="approval-line-header">
@@ -354,6 +403,65 @@
             const user = checkLogin();
             if (!user) return;
             document.getElementById('userAvatar').textContent = user.name.charAt(0);
+        }
+
+        // 첨부파일 관리
+        const attachmentFiles = [];
+        const attachmentsInput = document.getElementById('attachments');
+        const fileListDiv = document.getElementById('fileList');
+
+        attachmentsInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+
+            files.forEach(file => {
+                // 파일 크기 체크 (10MB)
+                if (file.size > 10 * 1024 * 1024) {
+                    alert(`${file.name}은(는) 10MB를 초과합니다.`);
+                    return;
+                }
+
+                // 중복 체크
+                if (attachmentFiles.find(f => f.name === file.name && f.size === file.size)) {
+                    return;
+                }
+
+                attachmentFiles.push(file);
+            });
+
+            // input 초기화 (같은 파일 재선택 가능하도록)
+            e.target.value = '';
+
+            updateFileList();
+        });
+
+        function updateFileList() {
+            if (attachmentFiles.length === 0) {
+                fileListDiv.innerHTML = '';
+                return;
+            }
+
+            fileListDiv.innerHTML = attachmentFiles.map((file, index) => `
+                <div class="file-item">
+                    <div class="file-item-info">
+                        <span class="file-item-name">📎 ${file.name}</span>
+                        <span class="file-item-size">(${formatFileSize(file.size)})</span>
+                    </div>
+                    <button type="button" class="btn-file-remove" onclick="removeFile(${index})">삭제</button>
+                </div>
+            `).join('');
+        }
+
+        function removeFile(index) {
+            attachmentFiles.splice(index, 1);
+            updateFileList();
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
 
         // 문서 유형 변경 시 휴가 필드 표시/숨김

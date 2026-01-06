@@ -320,6 +320,78 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        .detail-modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .detail-section {
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #edf2f7;
+        }
+
+        .detail-section:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #718096;
+            margin-bottom: 8px;
+        }
+
+        .detail-value {
+            font-size: 16px;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+
+        .attachment-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .attachment-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .attachment-item:hover {
+            background: #edf2f7;
+        }
+
+        .approval-line-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .approval-line-table th,
+        .approval-line-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #edf2f7;
+        }
+
+        .approval-line-table th {
+            background: #f7fafc;
+            font-weight: 600;
+            color: #2d3748;
+        }
     </style>
 </head>
 <body>
@@ -345,6 +417,19 @@
             <div class="loading">
                 <div class="loading-spinner"></div>
                 <p style="margin-top: 16px;">로딩 중...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 문서 상세보기 모달 -->
+    <div id="detailModal" class="modal">
+        <div class="detail-modal-content">
+            <div class="modal-header">문서 상세</div>
+            <div id="detailContent"></div>
+            <div class="modal-footer">
+                <button class="btn btn-cancel" onclick="closeDetailModal()">닫기</button>
+                <button class="btn btn-approve" onclick="approveFromDetail()">승인</button>
+                <button class="btn btn-reject" onclick="rejectFromDetail()">반려</button>
             </div>
         </div>
     </div>
@@ -386,6 +471,18 @@
             document.getElementById('userAvatar').textContent = initial;
         }
 
+        function getDocumentTypeText(docType) {
+            const types = {
+                'EXPENSE': '지출결의서',
+                'VACATION': '휴가신청서',
+                'LEAVE': '휴가신청서',
+                'BUSINESS_TRIP': '출장신청서',
+                'PURCHASE': '구매요청서',
+                'GENERAL': '일반기안서'
+            };
+            return types[docType] || docType || '기타';
+        }
+
         async function loadApprovals() {
             try {
                 const response = await fetch('/api/intranet/approvals/pending');
@@ -405,15 +502,22 @@
                     return;
                 }
 
-                listContainer.innerHTML = data.approvals.map(approval => `
+                listContainer.innerHTML = data.approvals.map(approval => {
+                    const doc = approval.document || {};
+                    const documentTypeText = getDocumentTypeText(doc.documentType);
+                    const attachmentCount = doc.attachments ? doc.attachments.length : 0;
+                    const attachmentBadge = attachmentCount > 0 ? `<span class="badge" style="background:#e0f2fe;color:#0369a1;">📎 ${attachmentCount}개</span>` : '';
+
+                    return `
                     <div class="approval-item">
                         <div class="approval-header">
                             <div>
-                                <div class="approval-title">${approval.document?.title || '제목 없음'}</div>
+                                <div class="approval-title">${doc.title || '제목 없음'}</div>
                                 <div class="approval-meta">
-                                    <span>📝 작성자: ${approval.document?.authorName || '알 수 없음'}</span>
-                                    <span>🔢 문서번호: #${approval.documentId}</span>
-                                    <span>📅 ${formatDate(approval.document?.createdAt || approval.submittedAt)}</span>
+                                    <span>📋 유형: ${documentTypeText}</span>
+                                    <span>📝 작성자: ${doc.authorName || '알 수 없음'}</span>
+                                    <span>📅 ${formatDate(doc.createdAt || approval.submittedAt)}</span>
+                                    ${attachmentBadge}
                                 </div>
                             </div>
                             <div>
@@ -422,9 +526,12 @@
                             </div>
                         </div>
                         <div class="approval-content">
-                            ${approval.document?.content ? approval.document.content.substring(0, 150) + '...' : '내용 없음'}
+                            ${doc.content ? doc.content.substring(0, 150) + '...' : '내용 없음'}
                         </div>
                         <div class="approval-actions">
+                            <button class="btn btn-detail" onclick="viewDetail(${approval.id})">
+                                📄 상세보기
+                            </button>
                             <button class="btn btn-approve" onclick="openApprovalModal(${approval.id}, 'approve')">
                                 ✓ 승인
                             </button>
@@ -433,7 +540,7 @@
                             </button>
                         </div>
                     </div>
-                `).join('');
+                `}).join('');
 
             } catch (error) {
                 console.error('결재 목록 조회 실패:', error);
@@ -509,6 +616,173 @@
             }
         }
 
+        async function viewDetail(approvalId) {
+            try {
+                const response = await fetch(`/api/intranet/approvals/${approvalId}`);
+                const data = await response.json();
+
+                if (!data.success || !data.approval) {
+                    alert('문서를 불러올 수 없습니다');
+                    return;
+                }
+
+                const approval = data.approval;
+                const doc = approval.document || {};
+
+                let documentTypeText = '';
+                switch(doc.documentType) {
+                    case 'EXPENSE': documentTypeText = '지출결의서'; break;
+                    case 'VACATION': documentTypeText = '휴가신청서'; break;
+                    case 'BUSINESS_TRIP': documentTypeText = '출장신청서'; break;
+                    case 'PURCHASE': documentTypeText = '구매요청서'; break;
+                    case 'GENERAL': documentTypeText = '일반기안서'; break;
+                    default: documentTypeText = doc.documentType || '기타';
+                }
+
+                let vacationInfo = '';
+                if (doc.documentType === 'VACATION' && doc.vacationRequest) {
+                    const vr = doc.vacationRequest;
+                    let leaveTypeText = vr.leaveType === 'FULL_DAY' ? '연차' : '반차';
+                    if (vr.leaveType === 'HALF_DAY' && vr.halfDayType) {
+                        leaveTypeText += ` (${vr.halfDayType === 'AM' ? '오전' : '오후'})`;
+                    }
+                    vacationInfo = `
+                        <div class="detail-section">
+                            <div class="detail-label">휴가 정보</div>
+                            <div class="detail-value">
+                                <p><strong>휴가 유형:</strong> ${leaveTypeText}</p>
+                                <p><strong>시작일:</strong> ${vr.startDate || '-'}</p>
+                                <p><strong>종료일:</strong> ${vr.endDate || '-'}</p>
+                                <p><strong>사용 일수:</strong> ${vr.usedDays || 0}일</p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                let attachmentsHtml = '';
+                if (doc.attachments && doc.attachments.length > 0) {
+                    attachmentsHtml = `
+                        <div class="detail-section">
+                            <div class="detail-label">첨부파일 (${doc.attachments.length}개)</div>
+                            <div class="attachment-list">
+                                ${doc.attachments.map(att => `
+                                    <a href="/api/intranet/documents/attachments/${att.id}/download" class="attachment-item" download>
+                                        📎 ${att.originalFileName} (${formatFileSize(att.fileSize)})
+                                    </a>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                let approvalLineHtml = '';
+                if (approval.allSteps && approval.allSteps.length > 0) {
+                    approvalLineHtml = `
+                        <div class="detail-section">
+                            <div class="detail-label">결재선</div>
+                            <table class="approval-line-table">
+                                <thead>
+                                    <tr>
+                                        <th>단계</th>
+                                        <th>결재자</th>
+                                        <th>상태</th>
+                                        <th>처리일시</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${approval.allSteps.map(step => `
+                                        <tr>
+                                            <td>${step.stepOrder}단계</td>
+                                            <td>${step.approverName || '-'}</td>
+                                            <td>${getStatusBadge(step.status)}</td>
+                                            <td>${step.approvedAt ? formatDateTime(step.approvedAt) : '-'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('detailContent').innerHTML = `
+                    <div class="detail-section">
+                        <div class="detail-label">문서 제목</div>
+                        <div class="detail-value">${doc.title || '제목 없음'}</div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-label">문서 유형</div>
+                        <div class="detail-value">${documentTypeText}</div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-label">작성자</div>
+                        <div class="detail-value">${doc.authorName || '알 수 없음'} (${doc.authorDepartment || ''})</div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-label">작성일</div>
+                        <div class="detail-value">${formatDateTime(doc.createdAt)}</div>
+                    </div>
+
+                    ${vacationInfo}
+
+                    <div class="detail-section">
+                        <div class="detail-label">문서 내용</div>
+                        <div class="detail-value" style="white-space: pre-wrap;">${doc.content || '내용 없음'}</div>
+                    </div>
+
+                    ${attachmentsHtml}
+
+                    ${approvalLineHtml}
+                `;
+
+                currentApprovalId = approvalId;
+                document.getElementById('detailModal').classList.add('show');
+
+            } catch (error) {
+                console.error('상세보기 오류:', error);
+                alert('문서를 불러오는 중 오류가 발생했습니다');
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function formatDateTime(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleString('ko-KR');
+        }
+
+        function getStatusBadge(status) {
+            const badges = {
+                'PENDING': '<span class="badge badge-pending">대기중</span>',
+                'APPROVED': '<span class="badge" style="background:#d4edda;color:#155724;">승인</span>',
+                'REJECTED': '<span class="badge" style="background:#f8d7da;color:#721c24;">반려</span>'
+            };
+            return badges[status] || status;
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detailModal').classList.remove('show');
+        }
+
+        function approveFromDetail() {
+            closeDetailModal();
+            openApprovalModal(currentApprovalId, 'approve');
+        }
+
+        function rejectFromDetail() {
+            closeDetailModal();
+            openApprovalModal(currentApprovalId, 'reject');
+        }
+
         async function logout() {
             if (!confirm('로그아웃 하시겠습니까?')) return;
             try {
@@ -530,6 +804,12 @@
         document.getElementById('approvalModal').addEventListener('click', (e) => {
             if (e.target.id === 'approvalModal') {
                 closeModal();
+            }
+        });
+
+        document.getElementById('detailModal').addEventListener('click', (e) => {
+            if (e.target.id === 'detailModal') {
+                closeDetailModal();
             }
         });
     </script>

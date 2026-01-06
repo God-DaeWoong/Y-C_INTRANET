@@ -48,6 +48,13 @@ public class ApprovalService {
     }
 
     /**
+     * 결재 ID로 조회
+     */
+    public ApprovalLineIntranet getApprovalById(Long approvalLineId) {
+        return approvalLineMapper.findById(approvalLineId);
+    }
+
+    /**
      * 결재 승인
      */
     @Transactional
