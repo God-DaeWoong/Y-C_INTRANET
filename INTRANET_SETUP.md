@@ -352,6 +352,21 @@ public class ExampleController {
 ### Q: Domain 클래스 타입 인식 안됨
 → application.yml에서 `type-aliases-package`에 패키지 추가 확인
 
+### Q: 일정이 캘린더에 표시되지 않음
+→ **원인**: 회의/출장 일정이 DRAFT 상태로 저장되었으나 캘린더는 APPROVED 상태만 표시
+→ **해결**: ScheduleIntranetService.java에서 MEETING/BUSINESS_TRIP 타입은 자동으로 APPROVED 상태로 저장하도록 수정 (v0.6)
+
+### Q: 일정 수정 시 "수정에 실패하였습니다: null" 오류 및 중복 생성
+→ **원인 1**: ScheduleIntranetMapper.xml의 UPDATE 쿼리에 `approver_id`, `document_id` 필드 누락
+→ **원인 2**: 프론트엔드에서 기존 일정 데이터를 보존하지 않고 항상 DRAFT 상태로 전송
+→ **해결**:
+  - Mapper XML에 누락된 필드 추가
+  - schedule-calendar.html에 `currentEditingSchedule` 전역 변수 추가하여 기존 데이터 보존 (v0.6)
+
+### Q: 휴가 현황 계산이 정확하지 않음
+→ 휴가 현황은 APPROVED 상태 일정만 집계하도록 구현되어 있음 (정상 작동)
+→ 일정이 표시되지 않는 경우 위의 "일정이 캘린더에 표시되지 않음" 문제 확인
+
 ---
 
 ## 📞 현재 상태 및 사용 방법
@@ -595,7 +610,46 @@ CREATE TABLE expense_items_intranet (
 
 ## 📅 버전 히스토리
 
-- **v0.5** (2026-01-04) - 지출보고서 복지비 자동 태깅 기능 추가 🆕
+- **v0.6** (2026-01-07) - 일정/휴가 관리 핵심 버그 수정 🆕
+  - **일정 표시 버그 수정**:
+    - 회의/출장 일정이 화면에 표시되지 않던 문제 해결
+    - ScheduleIntranetService.java 수정: MEETING/BUSINESS_TRIP 타입은 자동으로 APPROVED 상태로 저장 (결재 불필요)
+    - 캘린더는 APPROVED 상태 일정만 표시하므로 이제 정상 표시됨
+
+  - **일정 수정 버그 수정**:
+    - 일정 수정 시 "수정에 실패하였습니다: null" 오류 발생 및 중복 생성 문제 해결
+    - ScheduleIntranetMapper.xml UPDATE 쿼리에 누락된 필드 추가: `approver_id`, `document_id`
+    - schedule-calendar.html 수정: 전역 변수 `currentEditingSchedule` 추가하여 기존 일정 데이터 보존
+    - 일정 수정 시 memberId, approverId, documentId, status 등 기존 값 유지
+    - 모달 닫을 때 currentEditingSchedule 초기화
+
+  - **레이아웃 개선**:
+    - "내 일정" 섹션을 오른쪽 사이드바에서 왼쪽 사이드바로 이동
+    - "결재 대기" 아래 배치하여 레이아웃 균형 개선
+    - 양쪽 사이드바 섹션에 스크롤 기능 추가 (max-height: 320px)
+    - 캘린더가 전체 너비 사용 가능하도록 개선
+
+  - **캘린더 UI 개선**:
+    - 폰트 크기 증가: 기본 14px, 제목 24px
+    - 날짜 셀 높이 증가: 100px (텍스트 오버플로우 방지)
+    - 이벤트 제목 텍스트 줄바꿈 처리
+    - 시간 정보 표시 개선
+
+  - **결재 시스템 개선**:
+    - approval-pending.html에 탭 기능 추가: "결재 대기" / "완료 문서함"
+    - 완료 문서함에서 제목, 날짜 검색 기능 추가
+    - 페이지네이션 기능 추가 (페이지당 5건)
+    - 부서 정보 표시 (ApprovalLineIntranetMapper.xml에 JOIN 추가)
+
+  - **휴가 현황 계산**:
+    - 기존 로직 검증 완료 (APPROVED 상태만 집계)
+    - 정상 작동 확인
+
+  - **데이터베이스 유틸리티**:
+    - sql/delete_member_신의섭.sql 스크립트 생성
+    - 특정 사용자의 결재선, 일정, 문서 데이터 일괄 삭제 가능
+
+- **v0.5** (2026-01-04) - 지출보고서 복지비 자동 태깅 기능 추가
   - expense-report_intranet.html에 복지비 체크박스 자동 태깅 기능 구현
   - 복지비 체크 시 메모 필드에 "[복지비]" 자동 추가/제거
   - "지출 추가" 팝업 모달에서 복지비 체크박스 연동
