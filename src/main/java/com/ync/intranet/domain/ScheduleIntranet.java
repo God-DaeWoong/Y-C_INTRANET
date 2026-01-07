@@ -19,7 +19,7 @@ public class ScheduleIntranet {
     private Double daysUsed;
     private Long approverId;            // 결재자 ID
     private Long documentId;
-    private String status;              // DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED
+    private String status;              // DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED, RESERVED, IN_PROGRESS, COMPLETED
     private Timestamp createdAt;
     private Timestamp updatedAt;
 

@@ -53,6 +53,8 @@
             start_time = #{startTime, jdbcType=VARCHAR},
             end_time = #{endTime, jdbcType=VARCHAR},
             days_used = #{daysUsed},
+            approver_id = #{approverId, jdbcType=NUMERIC},
+            document_id = #{documentId, jdbcType=NUMERIC},
             status = #{status},
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}

@@ -2,8 +2,10 @@ package com.ync.intranet.service;
 
 import com.ync.intranet.domain.ApprovalLineIntranet;
 import com.ync.intranet.domain.DocumentIntranet;
+import com.ync.intranet.domain.ScheduleIntranet;
 import com.ync.intranet.mapper.ApprovalLineIntranetMapper;
 import com.ync.intranet.mapper.DocumentIntranetMapper;
+import com.ync.intranet.mapper.ScheduleIntranetMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,11 +21,14 @@ public class ApprovalService {
 
     private final ApprovalLineIntranetMapper approvalLineMapper;
     private final DocumentIntranetMapper documentMapper;
+    private final ScheduleIntranetMapper scheduleMapper;
 
     public ApprovalService(ApprovalLineIntranetMapper approvalLineMapper,
-                          DocumentIntranetMapper documentMapper) {
+                          DocumentIntranetMapper documentMapper,
+                          ScheduleIntranetMapper scheduleMapper) {
         this.approvalLineMapper = approvalLineMapper;
         this.documentMapper = documentMapper;
+        this.scheduleMapper = scheduleMapper;
     }
 
     /**
@@ -91,6 +96,17 @@ public class ApprovalService {
         // 6. 모든 결재가 완료되면 문서 상태를 APPROVED로 변경
         if (allApproved) {
             documentMapper.approve(approvalLine.getDocumentId());
+
+            // 7. 연결된 일정이 있으면 일정 상태 업데이트
+            // 취소 문서인 경우 CANCELLED, 일반 문서인 경우 APPROVED
+            DocumentIntranet document = documentMapper.findById(approvalLine.getDocumentId());
+            if (document != null && document.getTitle() != null && document.getTitle().startsWith("[취소]")) {
+                // 취소 승인: metadata에서 원본 일정 ID를 찾아서 CANCELLED로 변경
+                syncCancellationStatus(document);
+            } else {
+                // 일반 승인: 일정 상태를 APPROVED로 변경
+                syncScheduleStatus(approvalLine.getDocumentId(), "APPROVED");
+            }
         }
     }
 
@@ -135,6 +151,9 @@ public class ApprovalService {
 
         // 6. 문서 상태를 REJECTED로 변경 (한 명이라도 반려하면 전체 반려)
         documentMapper.reject(approvalLine.getDocumentId());
+
+        // 7. 연결된 일정이 있으면 일정 상태도 REJECTED로 업데이트
+        syncScheduleStatus(approvalLine.getDocumentId(), "REJECTED");
     }
 
     /**
@@ -172,5 +191,64 @@ public class ApprovalService {
 
         // 6. 문서 상태를 DRAFT로 변경
         documentMapper.updateStatus(documentId, "DRAFT");
+
+        // 7. 연결된 일정이 있으면 일정 상태도 DRAFT로 업데이트
+        syncScheduleStatus(documentId, "DRAFT");
+    }
+
+    /**
+     * 문서와 연결된 일정의 상태를 동기화
+     * 승인/반려/취소 시 일정 상태도 함께 업데이트
+     */
+    private void syncScheduleStatus(Long documentId, String status) {
+        try {
+            // 문서 ID로 연결된 일정 조회
+            List<ScheduleIntranet> schedules = scheduleMapper.findAll();
+            for (ScheduleIntranet schedule : schedules) {
+                if (schedule.getDocumentId() != null && schedule.getDocumentId().equals(documentId)) {
+                    // 연차/반차 일정인 경우에만 상태 동기화
+                    if ("VACATION".equals(schedule.getScheduleType()) || "HALF_DAY".equals(schedule.getScheduleType())) {
+                        schedule.setStatus(status);
+                        scheduleMapper.update(schedule);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // 일정 업데이트 실패는 로그만 남기고 결재 처리는 계속 진행
+            System.err.println("일정 상태 동기화 실패: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 취소 문서 승인 시 원본 일정의 상태를 CANCELLED로 변경
+     * metadata에서 originalScheduleId를 추출하여 사용
+     */
+    private void syncCancellationStatus(DocumentIntranet cancelDocument) {
+        try {
+            // metadata에서 원본 일정 ID 추출
+            String metadata = cancelDocument.getMetadata();
+            if (metadata != null && metadata.contains("originalScheduleId")) {
+                // JSON 파싱 (간단한 방법)
+                String scheduleIdStr = metadata.replaceAll("[^0-9]", "");
+                if (!scheduleIdStr.isEmpty()) {
+                    Long originalScheduleId = Long.parseLong(scheduleIdStr);
+
+                    // 원본 일정 조회 및 상태 업데이트
+                    ScheduleIntranet schedule = scheduleMapper.findById(originalScheduleId);
+                    if (schedule != null) {
+                        schedule.setStatus("CANCELLED");
+                        scheduleMapper.update(schedule);
+                        System.out.println("취소 승인 완료 - 일정 ID: " + originalScheduleId + " 상태를 CANCELLED로 변경");
+                    } else {
+                        System.err.println("취소 대상 일정을 찾을 수 없습니다. ID: " + originalScheduleId);
+                    }
+                }
+            } else {
+                System.err.println("취소 문서에 originalScheduleId 정보가 없습니다.");
+            }
+        } catch (Exception e) {
+            System.err.println("취소 상태 동기화 실패: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }

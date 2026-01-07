@@ -12,6 +12,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -43,15 +47,16 @@ public class ScheduleIntranetService {
     @Transactional
     public void createSchedule(ScheduleIntranet schedule) {
         // 기본값 설정
-        if (schedule.getStatus() == null) {
-            schedule.setStatus("DRAFT");
-        }
         if (schedule.getDaysUsed() == null) {
             schedule.setDaysUsed(0.0);
         }
 
+        // 회의/출장인 경우 결재 불필요 (시간 기반 상태로 저장)
+        if ("MEETING".equals(schedule.getScheduleType()) || "BUSINESS_TRIP".equals(schedule.getScheduleType())) {
+            schedule.setStatus(calculateMeetingStatus(schedule));
+        }
         // 연차/반차인 경우 문서 생성 및 결재 요청
-        if (("VACATION".equals(schedule.getScheduleType()) || "HALF_DAY".equals(schedule.getScheduleType()))
+        else if (("VACATION".equals(schedule.getScheduleType()) || "HALF_DAY".equals(schedule.getScheduleType()))
                 && schedule.getApproverId() != null) {
 
             // 1. 문서 생성
@@ -84,6 +89,12 @@ public class ScheduleIntranetService {
                 approvalLineMapper.insert(approvalLine);
             }
         }
+        // 기타 경우 (결재자가 없는 연차/반차 등) DRAFT 상태
+        else {
+            if (schedule.getStatus() == null) {
+                schedule.setStatus("DRAFT");
+            }
+        }
 
         // 일정 저장
         scheduleMapper.insert(schedule);
@@ -107,22 +118,37 @@ public class ScheduleIntranetService {
 
     /**
      * ID로 일정 조회
+     *
+     * 연차/반차의 경우 문서 상태와 동기화하여 최신 상태 반환
+     * 이를 통해 데이터 불일치 문제를 방지
      */
+    @Transactional
     public ScheduleIntranet getScheduleById(Long id) {
         ScheduleIntranet schedule = scheduleMapper.findById(id);
 
         // 연차/반차이고 문서가 연결된 경우, 문서 상태와 일정 상태 동기화
-        if (schedule != null && schedule.getDocumentId() != null) {
+        if (schedule != null && schedule.getDocumentId() != null &&
+            ("VACATION".equals(schedule.getScheduleType()) || "HALF_DAY".equals(schedule.getScheduleType()))) {
+
             DocumentIntranet document = documentMapper.findById(schedule.getDocumentId());
             if (document != null) {
                 // 문서 상태를 일정 상태로 매핑
                 String documentStatus = document.getStatus().name();
+                String currentScheduleStatus = schedule.getStatus();
 
                 // PENDING -> SUBMITTED (프론트엔드에서는 SUBMITTED로 사용)
+                String newStatus;
                 if ("PENDING".equals(documentStatus)) {
-                    schedule.setStatus("SUBMITTED");
+                    newStatus = "SUBMITTED";
                 } else {
-                    schedule.setStatus(documentStatus);
+                    newStatus = documentStatus;
+                }
+
+                // 상태가 변경된 경우 DB에도 반영 (데이터 일관성 유지)
+                if (!newStatus.equals(currentScheduleStatus)) {
+                    schedule.setStatus(newStatus);
+                    scheduleMapper.update(schedule);
+                    System.out.println("일정 상태 자동 동기화: ID=" + id + ", " + currentScheduleStatus + " -> " + newStatus);
                 }
             }
         }
@@ -170,6 +196,21 @@ public class ScheduleIntranetService {
             throw new RuntimeException("일정을 찾을 수 없습니다.");
         }
 
+        // 상태 검증: APPROVED 상태만 취소 신청 가능
+        if (!"APPROVED".equals(schedule.getStatus())) {
+            throw new RuntimeException("승인된 일정만 취소 신청이 가능합니다. 현재 상태: " + schedule.getStatus());
+        }
+
+        // 이미 취소된 일정인지 확인
+        if ("CANCELLED".equals(schedule.getStatus())) {
+            throw new RuntimeException("이미 취소된 일정입니다.");
+        }
+
+        // 취소 진행중인지 확인 (PENDING 상태)
+        if ("PENDING".equals(schedule.getStatus())) {
+            throw new RuntimeException("이미 취소 신청이 진행 중입니다.");
+        }
+
         // 기존 문서 확인
         if (schedule.getDocumentId() == null) {
             throw new RuntimeException("연결된 문서가 없습니다.");
@@ -194,6 +235,8 @@ public class ScheduleIntranetService {
         cancelDocument.setContent("원본 일정 취소 요청\n\n" + (schedule.getDescription() != null ? schedule.getDescription() : ""));
         cancelDocument.setStatus(DocumentIntranet.DocumentStatus.PENDING);
         cancelDocument.setSubmittedAt(LocalDateTime.now());
+        // 원본 일정 ID를 metadata에 저장 (취소 승인 시 사용)
+        cancelDocument.setMetadata("{\"originalScheduleId\":" + scheduleId + "}");
 
         documentMapper.insert(cancelDocument);
 
@@ -217,5 +260,108 @@ public class ScheduleIntranetService {
         // 취소 문서 ID를 별도로 저장할 필요가 있다면 metadata나 별도 필드 활용
         // 여기서는 간단히 상태만 변경
         scheduleMapper.update(schedule);
+    }
+
+    /**
+     * 회의/출장 일정의 시간 기반 상태 계산 (KST 기준)
+     * RESERVED: 시작 전
+     * IN_PROGRESS: 진행 중
+     * COMPLETED: 완료
+     */
+    private String calculateMeetingStatus(ScheduleIntranet schedule) {
+        // 한국 표준시(KST) 기준 현재 시간
+        ZonedDateTime nowKST = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
+
+        try {
+            // 시작 날짜/시간 계산
+            ZonedDateTime startDateTime;
+            if (schedule.getStartTime() != null && !schedule.getStartTime().isEmpty()) {
+                // 시간 정보가 있는 경우
+                LocalDateTime startLocal = schedule.getStartDate().toInstant()
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .atTime(parseTime(schedule.getStartTime()));
+                startDateTime = startLocal.atZone(ZoneId.of("Asia/Seoul"));
+            } else {
+                // 시간 정보가 없는 경우, 00:00:00으로 설정
+                LocalDateTime startLocal = schedule.getStartDate().toInstant()
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .atStartOfDay();
+                startDateTime = startLocal.atZone(ZoneId.of("Asia/Seoul"));
+            }
+
+            // 종료 날짜/시간 계산
+            ZonedDateTime endDateTime;
+            if (schedule.getEndTime() != null && !schedule.getEndTime().isEmpty()) {
+                // 시간 정보가 있는 경우
+                LocalDateTime endLocal = schedule.getEndDate().toInstant()
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .atTime(parseTime(schedule.getEndTime()));
+                endDateTime = endLocal.atZone(ZoneId.of("Asia/Seoul"));
+            } else {
+                // 시간 정보가 없는 경우, 23:59:59로 설정
+                LocalDateTime endLocal = schedule.getEndDate().toInstant()
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .atTime(23, 59, 59);
+                endDateTime = endLocal.atZone(ZoneId.of("Asia/Seoul"));
+            }
+
+            // 상태 판정
+            if (nowKST.isBefore(startDateTime)) {
+                return "RESERVED";
+            } else if (nowKST.isAfter(endDateTime)) {
+                return "COMPLETED";
+            } else {
+                return "IN_PROGRESS";
+            }
+        } catch (Exception e) {
+            // 파싱 오류 시 기본값으로 RESERVED 반환
+            return "RESERVED";
+        }
+    }
+
+    /**
+     * 시간 문자열(HH:MI) 파싱
+     */
+    private java.time.LocalTime parseTime(String timeStr) {
+        if (timeStr == null || timeStr.isEmpty()) {
+            return java.time.LocalTime.of(0, 0);
+        }
+        String[] parts = timeStr.split(":");
+        int hour = Integer.parseInt(parts[0]);
+        int minute = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+        return java.time.LocalTime.of(hour, minute);
+    }
+
+    /**
+     * 회의/출장 일정의 상태를 현재 시간 기준으로 업데이트
+     * 배치 작업에서 호출됨
+     */
+    @Transactional
+    public int updateMeetingStatuses() {
+        // 회의/출장 일정 중 RESERVED, IN_PROGRESS 상태인 것만 조회
+        List<ScheduleIntranet> schedules = scheduleMapper.findAll();
+        int updateCount = 0;
+
+        for (ScheduleIntranet schedule : schedules) {
+            // 회의/출장 타입이고, 완료되지 않은 일정만 처리
+            if (("MEETING".equals(schedule.getScheduleType()) || "BUSINESS_TRIP".equals(schedule.getScheduleType()))
+                && !"COMPLETED".equals(schedule.getStatus())) {
+
+                String newStatus = calculateMeetingStatus(schedule);
+
+                // 상태가 변경된 경우에만 업데이트
+                if (!newStatus.equals(schedule.getStatus())) {
+                    schedule.setStatus(newStatus);
+                    scheduleMapper.update(schedule);
+                    updateCount++;
+                }
+            }
+        }
+
+        return updateCount;
     }
 }

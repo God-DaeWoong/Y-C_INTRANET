@@ -142,6 +142,27 @@
         .fc {
             --fc-border-color: #e2e8f0;
             --fc-today-bg-color: rgba(102, 126, 234, 0.1);
+            font-size: 14px;
+        }
+
+        .fc .fc-toolbar-title {
+            font-size: 24px !important;
+            font-weight: 700;
+        }
+
+        .fc .fc-daygrid-day-number {
+            font-size: 14px;
+            padding: 6px;
+        }
+
+        .fc .fc-col-header-cell-cushion {
+            font-size: 14px;
+            font-weight: 700;
+            padding: 10px 4px;
+        }
+
+        .fc .fc-daygrid-day {
+            min-height: 100px;
         }
 
         .fc .fc-button {
@@ -184,17 +205,29 @@
         .fc-event {
             border: none;
             border-radius: 6px;
-            padding: 4px 8px;
+            padding: 5px 8px;
             cursor: pointer;
             font-weight: 700;
-            font-size: 12px;
+            font-size: 13px;
+            line-height: 1.4;
         }
 
         /* 이벤트 제목 말줄임 및 툴팁 */
         .fc-event-title {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            display: block !important;
+            max-width: 100% !important;
+        }
+
+        .fc-daygrid-event-harness .fc-event,
+        .fc-daygrid-event {
+            overflow: hidden !important;
+        }
+
+        .fc-event-main {
+            overflow: hidden !important;
         }
 
         .fc-event:hover .fc-event-title {
@@ -588,21 +621,29 @@
             </div>
 
             <!-- 결재 대기 -->
-            <div class="sidebar-card" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
+            <div class="sidebar-card" style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
                 <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #2d3748;">
                     📋 결재 대기
                     <span id="approvalBadge" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 12px; margin-left: 8px;">0</span>
                 </h3>
-                <div id="approvalList">
+                <div id="approvalList" style="max-height: 320px; overflow-y: auto;">
                     <div style="text-align: center; padding: 20px; color: #a0aec0; font-size: 13px;">결재 요청이 없습니다</div>
+                </div>
+            </div>
+
+            <!-- 내 일정 -->
+            <div class="sidebar-card" style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
+                <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #2d3748;">📝 내 일정</h3>
+                <div id="myScheduleList" style="max-height: 320px; overflow-y: auto;">
+                    <div style="text-align: center; padding: 20px; color: #a0aec0; font-size: 13px;">등록된 일정이 없습니다</div>
                 </div>
             </div>
         </aside>
 
-        <!-- 메인 영역 (달력 + 내 일정) -->
-        <div style="flex: 1; min-width: 0; display: flex; gap: 20px;">
+        <!-- 메인 영역 (달력만) -->
+        <div style="flex: 1; min-width: 0;">
             <!-- 달력 영역 -->
-            <div style="flex: 1; min-width: 600px;">
+            <div style="flex: 1;">
                 <div class="page-header">
                     <h2>일정 및 휴가 관리</h2>
                     <div class="header-buttons">
@@ -633,16 +674,6 @@
                 </div>
             </div>
             </div>
-
-            <!-- 내 일정 사이드바 (오른쪽) -->
-            <aside style="width: 340px; flex-shrink: 0;">
-                <div class="sidebar-card" style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); height: calc(100vh - 220px); display: flex; flex-direction: column;">
-                    <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 20px; color: #2d3748; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">📝 내 일정</h3>
-                    <div id="myScheduleList" style="flex: 1; overflow-y: auto; padding-right: 8px;">
-                        <div style="text-align: center; padding: 40px 20px; color: #a0aec0; font-size: 14px;">등록된 일정이 없습니다</div>
-                    </div>
-                </div>
-            </aside>
         </div>
     </div>
 
@@ -890,6 +921,60 @@
                 eventClick: function(info) {
                     showEventDetail(info.event);
                 },
+                // 이벤트 마우스 호버 (툴팁 표시)
+                eventMouseEnter: function(info) {
+                    const event = info.event;
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'event-tooltip';
+                    tooltip.id = `tooltip-${event.id}`;
+
+                    // 일정 유형 한글 매핑
+                    const scheduleTypeLabels = {
+                        'VACATION': '연차',
+                        'HALF_DAY': '반차',
+                        'MEETING': '회의',
+                        'BUSINESS_TRIP': '출장'
+                    };
+
+                    // 상태 한글 매핑
+                    const statusLabels = {
+                        'DRAFT': '초안',
+                        'SUBMITTED': '결재 대기',
+                        'APPROVED': '승인됨',
+                        'REJECTED': '반려',
+                        'CANCELLED': '취소',
+                        'RESERVED': '예약됨',
+                        'IN_PROGRESS': '진행 중',
+                        'COMPLETED': '종료됨'
+                    };
+
+                    const scheduleType = scheduleTypeLabels[event.extendedProps.scheduleType] || event.extendedProps.scheduleType;
+                    const statusText = statusLabels[event.extendedProps.status] || event.extendedProps.status;
+
+                    tooltip.innerHTML = `
+                        <div style="padding: 12px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 150px; max-width: 250px;">
+                            <div style="font-size: 14px; font-weight: 700; color: #2d3748; margin-bottom: 4px;">${scheduleType}</div>
+                            <div style="font-size: 13px; color: #718096; margin-bottom: 8px;">${event.extendedProps.memberName || ''}</div>
+                            <div style="font-size: 13px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 8px;">
+                                <strong>상태:</strong> ${statusText}
+                            </div>
+                        </div>
+                    `;
+
+                    document.body.appendChild(tooltip);
+
+                    const rect = info.el.getBoundingClientRect();
+                    tooltip.style.position = 'fixed';
+                    tooltip.style.left = rect.left + 'px';
+                    tooltip.style.top = (rect.bottom + 5) + 'px';
+                    tooltip.style.zIndex = '10000';
+                },
+                eventMouseLeave: function(info) {
+                    const tooltip = document.getElementById(`tooltip-${info.event.id}`);
+                    if (tooltip) {
+                        tooltip.remove();
+                    }
+                },
                 // 이벤트 표시
                 events: function(fetchInfo, successCallback, failureCallback) {
                     loadEvents(fetchInfo)
@@ -1028,11 +1113,26 @@
                 console.log('[달력] 조회된 일정 개수:', schedules.length);
                 console.log('[달력] 조회된 일정:', schedules);
 
-                // 승인된 일정만 필터링 (취소된 일정 제외)
-                const approvedSchedules = schedules.filter(schedule =>
-                    schedule.status === 'APPROVED'
-                );
-                console.log('[달력] 승인된 일정 개수:', approvedSchedules.length);
+                // 표시할 일정 필터링
+                // 연차/반차: APPROVED만 표시
+                // 회의/출장: 모든 상태 표시 (DRAFT, REJECTED, CANCELLED 제외)
+                const approvedSchedules = schedules.filter(schedule => {
+                    // 연차/반차는 APPROVED만 표시
+                    if (schedule.scheduleType === 'VACATION' || schedule.scheduleType === 'HALF_DAY') {
+                        return schedule.status === 'APPROVED';
+                    }
+                    // 회의/출장은 DRAFT, REJECTED, CANCELLED 제외하고 모두 표시
+                    else if (schedule.scheduleType === 'MEETING' || schedule.scheduleType === 'BUSINESS_TRIP') {
+                        return schedule.status !== 'DRAFT' &&
+                               schedule.status !== 'REJECTED' &&
+                               schedule.status !== 'CANCELLED';
+                    }
+                    // 기타 타입은 기본 필터링
+                    return schedule.status !== 'DRAFT' &&
+                           schedule.status !== 'REJECTED' &&
+                           schedule.status !== 'CANCELLED';
+                });
+                console.log('[달력] 표시할 일정 개수:', approvedSchedules.length);
 
                 if (approvedSchedules.length === 0) {
                     console.log('[달력] 승인된 일정이 없어서 빈 배열 반환');
@@ -1233,11 +1333,17 @@
             document.getElementById('btnCancelRequest').style.display = 'none';
             // 폼 제출 이벤트 초기화 (기본 저장 동작으로)
             document.getElementById('eventForm').onsubmit = null;
+            // 현재 수정 중인 일정 정보 초기화
+            currentEditingSchedule = null;
         }
 
+        // 현재 수정 중인 일정 정보 (전역 변수로 저장)
+        let currentEditingSchedule = null;
+
         // 이벤트 상세 보기 (수정 모드)
-        async function showEventDetail(event) {
-            const scheduleId = event.id;
+        async function showEventDetail(eventOrId) {
+            // event 객체 또는 숫자 ID 모두 처리
+            const scheduleId = typeof eventOrId === 'object' ? eventOrId.id : eventOrId;
             console.log('일정 ID:', scheduleId);
 
             try {
@@ -1257,6 +1363,9 @@
 
                 const schedule = await response.json();
                 console.log('조회된 일정 데이터:', schedule);
+
+                // 현재 일정 정보 저장
+                currentEditingSchedule = schedule;
 
                 // 모달 열기 (수정 모드)
                 const modal = document.getElementById('eventModal');
@@ -1325,8 +1434,12 @@
                                 deleteSchedule(scheduleId);
                             }
                         };
+                    } else if (schedule.status === 'CANCELLED') {
+                        // 취소된 연차/반차: 삭제/취소 불가 (읽기 전용)
+                        deleteBtn.style.display = 'none';
+                        cancelRequestBtn.style.display = 'none';
                     } else {
-                        // 진행중(PENDING): 삭제/취소 불가
+                        // 진행중(PENDING/SUBMITTED): 삭제/취소 불가
                         deleteBtn.style.display = 'none';
                         cancelRequestBtn.style.display = 'none';
                     }
@@ -1473,13 +1586,20 @@
 
         // 일정 수정
         async function updateSchedule(scheduleId) {
+            // 기존 일정 정보를 기반으로 데이터 구성
             const eventData = {
+                id: scheduleId,
                 scheduleType: document.getElementById('eventType').value,
                 title: document.getElementById('eventTitle').value,
                 description: document.getElementById('eventDescription').value,
                 startDate: document.getElementById('eventStartDate').value,
                 endDate: document.getElementById('eventEndDate').value,
-                status: 'DRAFT'
+                // 기존 필드 유지
+                memberId: currentEditingSchedule?.memberId,
+                approverId: currentEditingSchedule?.approverId,
+                documentId: currentEditingSchedule?.documentId,
+                status: currentEditingSchedule?.status || 'DRAFT',
+                daysUsed: currentEditingSchedule?.daysUsed || 0
             };
 
             const type = eventData.scheduleType;
@@ -1487,11 +1607,17 @@
             if (type === 'MEETING' || type === 'BUSINESS_TRIP') {
                 eventData.startTime = document.getElementById('eventStartTime').value;
                 eventData.endTime = document.getElementById('eventEndTime').value;
+            } else {
+                eventData.startTime = null;
+                eventData.endTime = null;
             }
 
             if (type === 'VACATION' || type === 'HALF_DAY') {
-                eventData.daysUsed = parseFloat(document.getElementById('eventDaysUsed').value) || 0;
+                const daysInput = document.getElementById('eventDaysUsed').value;
+                eventData.daysUsed = parseFloat(daysInput) || 0;
             }
+
+            console.log('[일정 수정] 전송 데이터:', eventData);
 
             try {
                 const response = await fetch(`/api/intranet/schedules/${scheduleId}`, {
@@ -1504,12 +1630,14 @@
                 });
 
                 const data = await response.json();
+                console.log('[일정 수정] 응답:', data);
 
                 if (data.success) {
                     alert('일정이 수정되었습니다!');
                     closeEventModal();
                     calendar.refetchEvents();
                     loadSidebarData();
+                    loadMySchedules(); // 내 일정도 다시 로드
                 } else {
                     alert(data.message || '수정에 실패했습니다');
                 }
@@ -1727,6 +1855,14 @@
         document.getElementById('eventForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            // 수정 모드인지 확인
+            if (currentEditingSchedule && currentEditingSchedule.id) {
+                // 수정 모드: updateSchedule 함수 호출
+                await updateSchedule(currentEditingSchedule.id);
+                return;
+            }
+
+            // 신규 생성 모드
             const type = document.getElementById('eventType').value;
             const eventData = {
                 scheduleType: type,
@@ -1830,13 +1966,8 @@
                     // 본부 목록 로드
                     loadDivisions();
 
-                    // 저장된 필터 복원 시도
-                    const restored = await restoreSavedFilters();
-
-                    // 저장된 필터가 없으면 로그인한 사용자 정보 기반으로 기본값 설정
-                    if (!restored) {
-                        await setDefaultFilters();
-                    }
+                    // 페이지 로드 시 항상 '내 일정 보기' 필터로 초기화
+                    await setDefaultFilters();
                 }
             } catch (error) {
                 console.error('부서 목록 조회 실패:', error);
@@ -2137,18 +2268,40 @@
 
                     const icon = icons[schedule.scheduleType] || '📌';
                     const color = colors[schedule.scheduleType] || '#6b7280';
-                    const status = schedule.status || 'DRAFT';
-                    const statusLabel = statusLabels[status] || status;
-                    const statusColor = statusColors[status] || '#6b7280';
+
+                    // 상태 표시 (백엔드에서 계산된 상태 사용)
+                    let status = schedule.status || 'DRAFT';
+                    let statusLabel = statusLabels[status] || status;
+                    let statusColor = statusColors[status] || '#6b7280';
+
+                    // 회의/출장의 경우 새로운 상태값 한글 매핑
+                    if (schedule.scheduleType === 'MEETING' || schedule.scheduleType === 'BUSINESS_TRIP') {
+                        if (status === 'RESERVED') {
+                            statusLabel = '예약됨';
+                            statusColor = '#94a3b8';
+                        } else if (status === 'IN_PROGRESS') {
+                            statusLabel = '진행 중';
+                            statusColor = '#3b82f6';
+                        } else if (status === 'COMPLETED') {
+                            statusLabel = '종료됨';
+                            statusColor = '#64748b';
+                        }
+                    } else if (schedule.scheduleType === 'VACATION' || schedule.scheduleType === 'HALF_DAY') {
+                        // 연차/반차는 결재 상태 매핑
+                        if (status === 'SUBMITTED') {
+                            statusLabel = '결재대기';
+                            statusColor = '#f59e0b';
+                        }
+                    }
 
                     return `
-                        <div onclick="showEventDetail(${schedule.id})" style="padding: 14px 16px; margin-bottom: 10px; background: #f7fafc; border-radius: 10px; border-left: 4px solid ${color}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#edf2f7'" onmouseout="this.style.background='#f7fafc'">
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                                <div style="font-size: 14px; font-weight: 700; color: #2d3748;">${icon} ${schedule.title || '제목 없음'}</div>
-                                <span style="font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: ${statusColor}; color: white;">${statusLabel}</span>
+                        <div onclick="showEventDetail(${schedule.id})" style="padding: 12px 14px; margin-bottom: 10px; background: #f7fafc; border-radius: 10px; border-left: 4px solid ${color}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#edf2f7'" onmouseout="this.style.background='#f7fafc'">
+                            <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; gap: 8px;">
+                                <div style="font-size: 13px; font-weight: 700; color: #2d3748; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${icon} ${schedule.title || '제목 없음'}</div>
+                                <span style="font-size: 10px; font-weight: 700; padding: 3px 6px; border-radius: 8px; background: ${statusColor}; color: white; white-space: nowrap; flex-shrink: 0;">${statusLabel}</span>
                             </div>
-                            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">📅 ${dateText}</div>
-                            ${schedule.description ? `<div style="font-size: 11px; color: #94a3b8; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${schedule.description}</div>` : ''}
+                            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">📅 ${dateText}</div>
+                            ${schedule.description ? `<div style="font-size: 10px; color: #94a3b8; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${schedule.description}</div>` : ''}
                         </div>
                     `;
                 }).join('');

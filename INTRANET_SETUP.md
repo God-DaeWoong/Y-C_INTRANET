@@ -610,7 +610,33 @@ CREATE TABLE expense_items_intranet (
 
 ## 📅 버전 히스토리
 
-- **v0.6** (2026-01-07) - 일정/휴가 관리 핵심 버그 수정 🆕
+- **v0.7** (2026-01-07) - 회의/출장 일정 실시간 상태 관리 시스템 🆕
+  - **STATUS 값 확장**:
+    - 회의/출장 전용 상태 추가: RESERVED (예약됨), IN_PROGRESS (진행중), COMPLETED (완료됨)
+    - 기존 STATUS: DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED
+    - sql/13_alter_schedules_status.sql 마이그레이션 스크립트 생성
+
+  - **시간 기반 자동 상태 업데이트**:
+    - ScheduleIntranetService에 calculateMeetingStatus() 메서드 추가
+    - 한국 표준시(KST) 기준으로 현재 시간과 일정 시간 비교
+    - START_TIME, END_TIME 컬럼 활용하여 실시간 상태 판정
+
+  - **배치 작업 구현**:
+    - ScheduleStatusUpdateTask 클래스 생성
+    - 매 5분마다 회의/출장 일정 상태 자동 업데이트
+    - 매일 자정 전체 일정 재계산
+    - @EnableScheduling 활성화
+
+  - **결재 승인 후 상태 동기화**:
+    - ApprovalService에 syncScheduleStatus() 메서드 추가
+    - 결재 승인/반려/취소 시 연결된 일정 상태 자동 업데이트
+    - 연차/반차 결재 워크플로우와 일정 상태 완전 동기화
+
+  - **문서화**:
+    - SCHEDULE_STATUS_UPDATE_v0.7.md 상세 가이드 생성
+    - 데이터 흐름, 상태 다이어그램, 트러블슈팅 가이드 포함
+
+- **v0.6** (2026-01-07) - 일정/휴가 관리 핵심 버그 수정
   - **일정 표시 버그 수정**:
     - 회의/출장 일정이 화면에 표시되지 않던 문제 해결
     - ScheduleIntranetService.java 수정: MEETING/BUSINESS_TRIP 타입은 자동으로 APPROVED 상태로 저장 (결재 불필요)
