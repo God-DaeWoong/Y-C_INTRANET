@@ -1114,12 +1114,14 @@
                 console.log('[달력] 조회된 일정:', schedules);
 
                 // 표시할 일정 필터링
-                // 연차/반차: APPROVED만 표시
+                // 연차/반차: APPROVED, SUBMITTED, PENDING 표시
                 // 회의/출장: 모든 상태 표시 (DRAFT, REJECTED, CANCELLED 제외)
                 const approvedSchedules = schedules.filter(schedule => {
-                    // 연차/반차는 APPROVED만 표시
+                    // 연차/반차는 APPROVED, SUBMITTED, PENDING 표시
                     if (schedule.scheduleType === 'VACATION' || schedule.scheduleType === 'HALF_DAY') {
-                        return schedule.status === 'APPROVED';
+                        return schedule.status === 'APPROVED' ||
+                               schedule.status === 'SUBMITTED' ||
+                               schedule.status === 'PENDING';
                     }
                     // 회의/출장은 DRAFT, REJECTED, CANCELLED 제외하고 모두 표시
                     else if (schedule.scheduleType === 'MEETING' || schedule.scheduleType === 'BUSINESS_TRIP') {
@@ -1188,58 +1190,64 @@
                         event.end = endDate.toISOString().split('T')[0];
                     }
 
-                    // 일정 유형별 색상
+                    // 일정 유형별 색상 및 상태별 시각적 구분
+                    let baseColor, className;
                     switch (schedule.scheduleType) {
                         case 'VACATION':
-                            event.backgroundColor = '#ec4899';
-                            event.borderColor = '#ec4899';
-                            event.className = 'event-vacation';
+                            baseColor = '#ec4899';
+                            className = 'event-vacation';
                             break;
                         case 'HALF_DAY':
-                            event.backgroundColor = '#8b5cf6';
-                            event.borderColor = '#8b5cf6';
-                            event.className = 'event-half-day';
+                            baseColor = '#8b5cf6';
+                            className = 'event-half-day';
                             break;
                         case 'BUSINESS_TRIP':
-                            event.backgroundColor = '#3b82f6';
-                            event.borderColor = '#3b82f6';
-                            event.className = 'event-business';
+                            baseColor = '#3b82f6';
+                            className = 'event-business';
                             break;
                         case 'MEETING':
-                            event.backgroundColor = '#10b981';
-                            event.borderColor = '#10b981';
-                            event.className = 'event-meeting';
+                            baseColor = '#10b981';
+                            className = 'event-meeting';
                             break;
                         default:
-                            event.backgroundColor = '#6b7280';
-                            event.borderColor = '#6b7280';
+                            baseColor = '#6b7280';
+                            className = 'event-default';
                     }
 
-                    // 제목 포맷 (아이콘 먼저)
-                    let displayTitle = '';
-                    if (schedule.scheduleType === 'VACATION') {
-                        // 연차: 🌴 연차 이름
-                        displayTitle = `🌴 연차 ${schedule.memberName || ''}`;
-                    } else if (schedule.scheduleType === 'HALF_DAY') {
-                        // 반차: ⏰ 반차 이름
-                        displayTitle = `⏰ 반차 ${schedule.memberName || ''}`;
-                    } else if (schedule.scheduleType === 'MEETING') {
-                        // 회의: 📄 제목 (이름)
-                        displayTitle = `📄 ${schedule.title}`;
-                        if (schedule.memberName) {
-                            displayTitle += ` (${schedule.memberName})`;
-                        }
-                    } else if (schedule.scheduleType === 'BUSINESS_TRIP') {
-                        // 출장: 💼 제목 (이름)
-                        displayTitle = `💼 ${schedule.title}`;
-                        if (schedule.memberName) {
-                            displayTitle += ` (${schedule.memberName})`;
-                        }
+                    // 상태별 시각적 구분 (PENDING/SUBMITTED는 투명도 적용)
+                    if (schedule.status === 'SUBMITTED' || schedule.status === 'PENDING') {
+                        event.backgroundColor = baseColor + '80'; // 50% 투명도
+                        event.borderColor = baseColor;
+                        event.className = className + ' event-pending';
+                    } else if (schedule.status === 'IN_PROGRESS') {
+                        event.backgroundColor = baseColor;
+                        event.borderColor = '#fbbf24'; // 노란색 테두리
+                        event.className = className + ' event-in-progress';
                     } else {
-                        displayTitle = schedule.title;
-                        if (schedule.memberName) {
-                            displayTitle += ` (${schedule.memberName})`;
-                        }
+                        event.backgroundColor = baseColor;
+                        event.borderColor = baseColor;
+                        event.className = className;
+                    }
+
+                    // 제목 포맷 통일: [일정 타입] [사용자명]
+                    const scheduleTypeLabels = {
+                        'VACATION': '연차',
+                        'HALF_DAY': '반차',
+                        'MEETING': '회의',
+                        'BUSINESS_TRIP': '출장'
+                    };
+
+                    let displayTitle = '';
+                    const typeName = scheduleTypeLabels[schedule.scheduleType] || schedule.scheduleType;
+                    const memberName = schedule.memberName || '';
+
+                    displayTitle = `${typeName} ${memberName}`.trim();
+
+                    // 상태 아이콘 추가
+                    if (schedule.status === 'SUBMITTED' || schedule.status === 'PENDING') {
+                        displayTitle = '⏳ ' + displayTitle; // 결재 대기
+                    } else if (schedule.status === 'IN_PROGRESS') {
+                        displayTitle = '▶ ' + displayTitle; // 진행 중
                     }
 
                     event.title = displayTitle;
@@ -1705,6 +1713,19 @@
             const startDateInput = document.getElementById('eventStartDate');
             const endDateInput = document.getElementById('eventEndDate');
             const submitBtn = document.querySelector('.modal-footer .btn-success');
+            const titleInput = document.getElementById('eventTitle');
+
+            // 제목 자동 매핑 (수정 모드가 아니거나 제목이 비어있을 때만)
+            const scheduleTypeLabels = {
+                'VACATION': '연차',
+                'HALF_DAY': '반차',
+                'MEETING': '회의',
+                'BUSINESS_TRIP': '출장'
+            };
+
+            if (!currentEditingSchedule || !titleInput.value) {
+                titleInput.value = scheduleTypeLabels[type] || '';
+            }
 
             // 모든 추가 필드 초기 숨김
             timeGroup.style.display = 'none';

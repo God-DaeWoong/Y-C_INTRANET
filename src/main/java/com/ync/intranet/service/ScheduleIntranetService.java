@@ -121,10 +121,18 @@ public class ScheduleIntranetService {
      *
      * 연차/반차의 경우 문서 상태와 동기화하여 최신 상태 반환
      * 이를 통해 데이터 불일치 문제를 방지
+     *
+     * 주의: CANCELLED 상태는 동기화하지 않음 (취소 승인 후 상태 유지)
      */
     @Transactional
     public ScheduleIntranet getScheduleById(Long id) {
         ScheduleIntranet schedule = scheduleMapper.findById(id);
+
+        // CANCELLED 상태인 경우 동기화하지 않고 그대로 반환
+        // (취소 승인 후 원본 문서가 APPROVED여도 일정은 CANCELLED 유지)
+        if (schedule != null && "CANCELLED".equals(schedule.getStatus())) {
+            return schedule;
+        }
 
         // 연차/반차이고 문서가 연결된 경우, 문서 상태와 일정 상태 동기화
         if (schedule != null && schedule.getDocumentId() != null &&

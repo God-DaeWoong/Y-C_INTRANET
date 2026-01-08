@@ -610,7 +610,40 @@ CREATE TABLE expense_items_intranet (
 
 ## 📅 버전 히스토리
 
-- **v0.7** (2026-01-07) - 회의/출장 일정 실시간 상태 관리 시스템 🆕
+- **v0.10** (2026-01-08) - 캘린더 및 취소 상태 UI/UX 개선 🆕
+  - **PENDING 연차/반차 캘린더 표시**:
+    - 결재 대기 중인 연차/반차도 캘린더에 표시
+    - 상태별 시각적 구분: PENDING/SUBMITTED (50% 투명도), IN_PROGRESS (노란색 테두리)
+    - 상태 아이콘 추가: ⏳ (결재 대기), ▶ (진행 중)
+
+  - **캘린더 이벤트 제목 통일**:
+    - 모든 일정 제목을 "[일정 타입] [사용자명]" 형식으로 통일
+    - 예: "연차 홍길동", "회의 김철수", "출장 이영희"
+    - schedule-calendar.html lines 1232-1251 수정
+
+  - **일정 수정 시 제목 자동 매핑**:
+    - 일정 유형 선택 시 제목 자동 설정
+    - handleEventTypeChange() 함수에 자동 매핑 로직 추가
+    - schedule-calendar.html lines 1718-1728
+
+  - **CANCELLED 상태 동기화 문제 해결**:
+    - 취소 승인 후 상태가 APPROVED로 되돌아가는 버그 수정
+    - getScheduleById() 메서드에 CANCELLED 상태 보호 로직 추가
+    - 취소된 일정은 원본 문서 상태와 동기화하지 않음
+    - ScheduleIntranetService.java lines 131-135
+
+  - **취소 요청 버튼 숨김 로직 강화**:
+    - CANCELLED 상태 일정은 "취소 신청" 버튼 표시 안 함
+    - 프론트엔드 검증 로직 이미 구현되어 있음 (lines 1445-1448)
+    - 백엔드 검증 로직 이미 구현되어 있음 (lines 207-215)
+
+  - **상태 일관성 보장**:
+    - Calendar View: 필터링된 상태만 표시
+    - My Schedule View: 실시간 상태 반영
+    - Detail View: DB 상태와 동기화
+    - CANCELLED 상태는 영구 보존
+
+- **v0.7** (2026-01-07) - 회의/출장 일정 실시간 상태 관리 시스템
   - **STATUS 값 확장**:
     - 회의/출장 전용 상태 추가: RESERVED (예약됨), IN_PROGRESS (진행중), COMPLETED (완료됨)
     - 기존 STATUS: DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED
