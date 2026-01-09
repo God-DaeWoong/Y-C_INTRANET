@@ -317,7 +317,7 @@ public class ScheduleIntranetService {
         }
 
         // 4. 취소 문서 찾기 (metadata에 scheduleId가 포함된 문서)
-        List<DocumentIntranet> allDocuments = documentMapper.findAll();
+        List<DocumentIntranet> allDocuments = documentMapper.findAllOrderByCreatedAtDesc();
         DocumentIntranet cancelDoc = null;
         for (DocumentIntranet doc : allDocuments) {
             if (doc.getTitle() != null && doc.getTitle().startsWith("[취소]") &&
@@ -340,7 +340,7 @@ public class ScheduleIntranetService {
         approvalLineMapper.deleteByDocumentId(cancelDoc.getId());
 
         // 7. 취소 문서 삭제
-        documentMapper.delete(cancelDoc.getId());
+        documentMapper.deleteById(cancelDoc.getId());
 
         // 8. 일정 상태를 APPROVED로 복원
         schedule.setStatus("APPROVED");

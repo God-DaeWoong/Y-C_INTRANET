@@ -610,7 +610,16 @@ CREATE TABLE expense_items_intranet (
 
 ## 📅 버전 히스토리
 
-- **v0.16** (2026-01-09) - 완료 문서함 날짜 범위 동적 설정 🆕
+- **v0.16.1** (2026-01-09) - ScheduleIntranetService 메서드명 오류 수정 🆕
+  - **DocumentIntranetMapper 메서드 호출 오류 수정**:
+    - 기존 문제: withdrawCancellation() 메서드에서 존재하지 않는 메서드 호출로 컴파일 에러 발생
+    - 원인: DocumentIntranetMapper에 findAll(), delete(Long) 메서드 없음
+    - 수정 내용:
+      - `documentMapper.findAll()` → `documentMapper.findAllOrderByCreatedAtDesc()`
+      - `documentMapper.delete(cancelDoc.getId())` → `documentMapper.deleteById(cancelDoc.getId())`
+    - ScheduleIntranetService.java lines 320, 343
+
+- **v0.16** (2026-01-09) - 완료 문서함 날짜 범위 동적 설정
   - **현재 월 기준 날짜 범위 자동 설정**:
     - 기존 문제: 완료 문서함 날짜 범위가 1/1~1/8로 하드코딩됨
     - 요구사항: 시작일 = 현재 월의 1일, 종료일 = 현재 월의 말일
