@@ -1042,14 +1042,27 @@
 
         function setDefaultDateRange() {
             const today = new Date();
-            const endDate = today.toISOString().split('T')[0];
+            const year = today.getFullYear();
+            const month = today.getMonth(); // 0-based (0 = January)
 
-            const startDateObj = new Date();
-            startDateObj.setDate(startDateObj.getDate() - 7);
-            const startDate = startDateObj.toISOString().split('T')[0];
+            // 현재 월의 1일
+            const startDateObj = new Date(year, month, 1);
+            const startDate = formatDateToYYYYMMDD(startDateObj);
+
+            // 현재 월의 말일 (다음 달 0일 = 현재 월의 마지막 날)
+            const endDateObj = new Date(year, month + 1, 0);
+            const endDate = formatDateToYYYYMMDD(endDateObj);
 
             document.getElementById('searchStartDate').value = startDate;
             document.getElementById('searchEndDate').value = endDate;
+        }
+
+        // 로컬 시간 기준 YYYY-MM-DD 포맷 함수
+        function formatDateToYYYYMMDD(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
         }
 
         async function loadCompletedApprovals(title = '', startDate = '', endDate = '') {

@@ -102,9 +102,33 @@ public class ScheduleIntranetService {
 
     /**
      * 일정 수정
+     * - 연차/반차: DRAFT, REJECTED 상태만 수정 가능
+     * - 회의/출장: CANCELLED 제외하고 항상 수정 가능
      */
     @Transactional
     public void updateSchedule(ScheduleIntranet schedule) {
+        ScheduleIntranet existing = scheduleMapper.findById(schedule.getId());
+
+        if (existing != null) {
+            String status = existing.getStatus();
+            String scheduleType = existing.getScheduleType();
+
+            // 연차/반차 검증
+            if ("VACATION".equals(scheduleType) || "HALF_DAY".equals(scheduleType)) {
+                if ("CANCELLED".equals(status) || "SUBMITTED".equals(status) ||
+                    "PENDING".equals(status) || "APPROVED".equals(status)) {
+                    throw new IllegalStateException("이 일정은 " + status + " 상태로 수정할 수 없습니다.");
+                }
+            }
+
+            // 회의/출장 검증 (CANCELLED, COMPLETED 불가)
+            if ("MEETING".equals(scheduleType) || "BUSINESS_TRIP".equals(scheduleType)) {
+                if ("CANCELLED".equals(status) || "COMPLETED".equals(status)) {
+                    throw new IllegalStateException("취소되거나 완료된 일정은 수정할 수 없습니다.");
+                }
+            }
+        }
+
         scheduleMapper.update(schedule);
     }
 
@@ -267,6 +291,59 @@ public class ScheduleIntranetService {
         schedule.setStatus("PENDING");
         // 취소 문서 ID를 별도로 저장할 필요가 있다면 metadata나 별도 필드 활용
         // 여기서는 간단히 상태만 변경
+        scheduleMapper.update(schedule);
+    }
+
+    /**
+     * 취소 신청 철회
+     * 취소 신청 중인 일정을 다시 승인 상태로 복원
+     */
+    @Transactional
+    public void withdrawCancellation(Long scheduleId, Long userId) {
+        // 1. 일정 조회
+        ScheduleIntranet schedule = scheduleMapper.findById(scheduleId);
+        if (schedule == null) {
+            throw new IllegalStateException("일정을 찾을 수 없습니다.");
+        }
+
+        // 2. 권한 확인
+        if (!schedule.getMemberId().equals(userId)) {
+            throw new IllegalStateException("본인의 일정만 철회할 수 있습니다.");
+        }
+
+        // 3. 상태 확인 (PENDING 상태만 철회 가능)
+        if (!"PENDING".equals(schedule.getStatus())) {
+            throw new IllegalStateException("취소 신청 중인 일정만 철회할 수 있습니다.");
+        }
+
+        // 4. 취소 문서 찾기 (metadata에 scheduleId가 포함된 문서)
+        List<DocumentIntranet> allDocuments = documentMapper.findAll();
+        DocumentIntranet cancelDoc = null;
+        for (DocumentIntranet doc : allDocuments) {
+            if (doc.getTitle() != null && doc.getTitle().startsWith("[취소]") &&
+                doc.getMetadata() != null && doc.getMetadata().contains("\"originalScheduleId\":" + scheduleId)) {
+                cancelDoc = doc;
+                break;
+            }
+        }
+
+        if (cancelDoc == null) {
+            throw new IllegalStateException("취소 신청 문서를 찾을 수 없습니다.");
+        }
+
+        // 5. 취소 문서의 결재가 이미 승인되었는지 확인
+        if (cancelDoc.getStatus() == DocumentIntranet.DocumentStatus.APPROVED) {
+            throw new IllegalStateException("이미 승인된 취소 신청은 철회할 수 없습니다.");
+        }
+
+        // 6. 결재선 삭제
+        approvalLineMapper.deleteByDocumentId(cancelDoc.getId());
+
+        // 7. 취소 문서 삭제
+        documentMapper.delete(cancelDoc.getId());
+
+        // 8. 일정 상태를 APPROVED로 복원
+        schedule.setStatus("APPROVED");
         scheduleMapper.update(schedule);
     }
 

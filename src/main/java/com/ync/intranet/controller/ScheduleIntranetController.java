@@ -256,4 +256,38 @@ public class ScheduleIntranetController {
                     .body(Map.of("success", false, "message", "취소 신청에 실패했습니다: " + e.getMessage()));
         }
     }
+
+    /**
+     * 취소 신청 철회
+     * POST /api/intranet/schedules/{id}/withdraw-cancellation
+     */
+    @PostMapping("/{id}/withdraw-cancellation")
+    public ResponseEntity<Map<String, Object>> withdrawCancellation(
+            @PathVariable Long id,
+            HttpSession session
+    ) {
+        try {
+            // 세션에서 사용자 ID 가져오기
+            Long userId = (Long) session.getAttribute("userId");
+            if (userId == null) {
+                return ResponseEntity.status(401)
+                        .body(Map.of("success", false, "message", "로그인이 필요합니다."));
+            }
+
+            // 철회 처리
+            scheduleService.withdrawCancellation(id, userId);
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "취소 신청이 철회되었습니다."
+            ));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("success", false, "message", e.getMessage()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(Map.of("success", false, "message", "철회 처리에 실패했습니다: " + e.getMessage()));
+        }
+    }
 }

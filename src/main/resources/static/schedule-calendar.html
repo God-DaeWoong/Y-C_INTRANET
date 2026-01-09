@@ -176,12 +176,15 @@
         }
 
         .fc .fc-button-primary:not(:disabled).fc-button-active {
-            color: #2d3748;
+            background-color: #667eea !important;
+            border-color: #667eea !important;
+            color: white !important;
+            font-weight: 600 !important;
         }
 
         /* FullCalendar 버튼 효과 제거 */
         .fc .fc-button-primary:hover {
-            background-color: white !important;
+            background-color: #f0f0f0 !important;
             border-color: #e2e8f0 !important;
             color: #2d3748 !important;
         }
@@ -195,7 +198,6 @@
             outline: none !important;
         }
 
-        .fc .fc-button-primary:not(:disabled).fc-button-active,
         .fc .fc-button-primary:not(:disabled):active {
             background-color: white !important;
             border-color: #e2e8f0 !important;
@@ -940,6 +942,7 @@
                     const statusLabels = {
                         'DRAFT': '초안',
                         'SUBMITTED': '결재 대기',
+                        'PENDING': '결재 대기',
                         'APPROVED': '승인됨',
                         'REJECTED': '반려',
                         'CANCELLED': '취소',
@@ -948,8 +951,20 @@
                         'COMPLETED': '종료됨'
                     };
 
+                    // 취소 신청 여부 확인
+                    const isCancellationRequest =
+                        event.extendedProps.status === 'PENDING' &&
+                        event.extendedProps.documentId &&
+                        event.extendedProps.documentTitle &&
+                        event.extendedProps.documentTitle.startsWith('[취소]');
+
                     const scheduleType = scheduleTypeLabels[event.extendedProps.scheduleType] || event.extendedProps.scheduleType;
-                    const statusText = statusLabels[event.extendedProps.status] || event.extendedProps.status;
+                    let statusText = statusLabels[event.extendedProps.status] || event.extendedProps.status;
+
+                    // 취소 신청 중인 경우 상태 텍스트 변경
+                    if (isCancellationRequest) {
+                        statusText = '취소 대기중';
+                    }
 
                     tooltip.innerHTML = `
                         <div style="padding: 12px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 150px; max-width: 250px;">
@@ -1153,6 +1168,7 @@
                             description: schedule.description,
                             status: schedule.status,
                             documentId: schedule.documentId,
+                            documentTitle: schedule.documentTitle,
                             daysUsed: schedule.daysUsed,
                             startTime: schedule.startTime,
                             endTime: schedule.endTime,
@@ -1229,7 +1245,7 @@
                         event.className = className;
                     }
 
-                    // 제목 포맷 통일: [일정 타입] [사용자명]
+                    // 제목 포맷 통일: [상태 아이콘] [일정 타입] [사용자명]
                     const scheduleTypeLabels = {
                         'VACATION': '연차',
                         'HALF_DAY': '반차',
@@ -1237,18 +1253,51 @@
                         'BUSINESS_TRIP': '출장'
                     };
 
+                    const statusIcons = {
+                        'DRAFT': '📝',
+                        'SUBMITTED': '⏳',
+                        'PENDING': '⏳',
+                        'APPROVED': '✅',
+                        'REJECTED': '❌',
+                        'CANCELLED': '🚫',
+                        'RESERVED': '📅',
+                        'IN_PROGRESS': '▶',
+                        'COMPLETED': '✔'
+                    };
+
+                    // 취소 신청 여부 판단 함수
+                    function isCancellationRequest(schedule) {
+                        return schedule.status === 'PENDING' &&
+                               schedule.documentId &&
+                               schedule.documentTitle &&
+                               schedule.documentTitle.startsWith('[취소]');
+                    }
+
+                    // 상태 표시 텍스트 매핑
+                    const statusDisplayText = {
+                        'DRAFT': '임시저장',
+                        'SUBMITTED': '결재 대기',
+                        'PENDING': '결재 대기',
+                        'APPROVED': '승인',
+                        'REJECTED': '반려',
+                        'CANCELLED': '취소됨',
+                        'RESERVED': '예약됨',
+                        'IN_PROGRESS': '진행중',
+                        'COMPLETED': '완료'
+                    };
+
                     let displayTitle = '';
+                    const statusIcon = statusIcons[schedule.status] || '📌';
                     const typeName = scheduleTypeLabels[schedule.scheduleType] || schedule.scheduleType;
                     const memberName = schedule.memberName || '';
 
-                    displayTitle = `${typeName} ${memberName}`.trim();
-
-                    // 상태 아이콘 추가
-                    if (schedule.status === 'SUBMITTED' || schedule.status === 'PENDING') {
-                        displayTitle = '⏳ ' + displayTitle; // 결재 대기
-                    } else if (schedule.status === 'IN_PROGRESS') {
-                        displayTitle = '▶ ' + displayTitle; // 진행 중
+                    // 취소 신청 중인 경우 상태 텍스트 변경
+                    let statusText = '';
+                    if (isCancellationRequest(schedule)) {
+                        statusText = ' (취소 신청 중)';
                     }
+
+                    displayTitle = `${statusIcon} ${typeName} ${memberName}${statusText}`.trim();
 
                     event.title = displayTitle;
 
@@ -1266,6 +1315,9 @@
         }
 
         async function openEventModal(startDate = null, endDate = null, startTime = null, endTime = null) {
+            // 새 일정 생성이므로 currentEditingSchedule 초기화
+            currentEditingSchedule = null;
+
             const modal = document.getElementById('eventModal');
             modal.classList.add('show');
 
@@ -1379,8 +1431,21 @@
                 const modal = document.getElementById('eventModal');
                 modal.classList.add('show');
 
-                // 모달 제목 변경
-                document.getElementById('modalHeaderTitle').textContent = '일정 수정';
+                // ✅ 초기화: 이전 일정의 상태가 남아있지 않도록 모든 필드와 버튼을 먼저 활성화
+                const form = document.getElementById('eventForm');
+
+                // 1️⃣ 모든 필드 초기화 (이전 일정의 disabled 상태 제거)
+                form.querySelectorAll('input, select, textarea').forEach(field => {
+                    field.disabled = false;
+                });
+
+                // 2️⃣ 모든 버튼 초기화 (이전 일정의 숨김 상태 제거)
+                const submitBtn = form.querySelector('button[type="submit"]');
+                const deleteBtn = document.getElementById('btnDeleteEvent');
+                const cancelRequestBtn = document.getElementById('btnCancelRequest');
+                if (submitBtn) submitBtn.style.display = 'inline-block';
+                if (deleteBtn) deleteBtn.style.display = 'inline-block';
+                if (cancelRequestBtn) cancelRequestBtn.style.display = 'none';
 
                 // 폼 데이터 채우기
                 document.getElementById('eventType').value = schedule.scheduleType;
@@ -1413,102 +1478,107 @@
                     document.getElementById('eventDaysUsed').value = schedule.daysUsed;
                 }
 
-                // 삭제/취소 신청 버튼 표시 여부 결정
-                const deleteBtn = document.getElementById('btnDeleteEvent');
-                const cancelRequestBtn = document.getElementById('btnCancelRequest');
+                // 일정 타입 확인
                 const isVacationOrHalfDay = schedule.scheduleType === 'VACATION' || schedule.scheduleType === 'HALF_DAY';
+                const isMeetingOrTrip = schedule.scheduleType === 'MEETING' || schedule.scheduleType === 'BUSINESS_TRIP';
 
-                // 회의/출장: 언제든지 삭제 가능
-                // 연차/반차: 결재 전(DRAFT/null) 또는 반려(REJECTED)된 경우만 삭제 가능
-                // 연차/반차: 승인(APPROVED)된 경우 취소 신청 가능
+                // 상태별 가능한 액션 결정 (일정 타입별로 다르게 처리)
+                function determineAvailableActions(schedule) {
+                    const status = schedule.status;
+                    const isVacation = schedule.scheduleType === 'VACATION' || schedule.scheduleType === 'HALF_DAY';
+                    const isMeeting = schedule.scheduleType === 'MEETING' || schedule.scheduleType === 'BUSINESS_TRIP';
 
-                if (isVacationOrHalfDay) {
-                    // 연차/반차인 경우
-                    if (schedule.status === 'APPROVED') {
-                        // 승인된 연차/반차: 취소 신청 버튼 표시
-                        deleteBtn.style.display = 'none';
-                        cancelRequestBtn.style.display = 'inline-block';
-                        cancelRequestBtn.onclick = async () => {
-                            if (confirm('이 일정에 대한 취소를 신청하시겠습니까?\n결재가 필요합니다.')) {
-                                await requestCancellation(scheduleId);
-                            }
-                        };
-                    } else if (!schedule.status || schedule.status === 'DRAFT' || schedule.status === 'REJECTED') {
-                        // 결재 전 또는 반려된 연차/반차: 삭제 가능
-                        deleteBtn.style.display = 'inline-block';
-                        cancelRequestBtn.style.display = 'none';
-                        deleteBtn.onclick = () => {
-                            if (confirm('이 일정을 삭제하시겠습니까?')) {
-                                deleteSchedule(scheduleId);
-                            }
-                        };
-                    } else if (schedule.status === 'CANCELLED') {
-                        // 취소된 연차/반차: 삭제/취소 불가 (읽기 전용)
-                        deleteBtn.style.display = 'none';
-                        cancelRequestBtn.style.display = 'none';
+                    // 연차/반차 액션 규칙
+                    if (isVacation) {
+                        switch(status) {
+                            case 'DRAFT':
+                                return { canEdit: true, canDelete: true, canSubmit: true, canCancelRequest: false, isReadOnly: false };
+                            case 'REJECTED':
+                                // ✅ REJECTED: 읽기 전용, 삭제만 가능
+                                return { canEdit: false, canDelete: true, canSubmit: false, canCancelRequest: false, isReadOnly: true };
+                            case 'SUBMITTED':
+                            case 'PENDING':
+                                return { canEdit: false, canDelete: false, canSubmit: false, canCancelRequest: false, isReadOnly: true };
+                            case 'APPROVED':
+                                return { canEdit: false, canDelete: false, canSubmit: false, canCancelRequest: true, isReadOnly: true };
+                            case 'CANCELLED':
+                                return { canEdit: false, canDelete: false, canSubmit: false, canCancelRequest: false, isReadOnly: true };
+                            default:
+                                return { canEdit: true, canDelete: true, canSubmit: true, canCancelRequest: false, isReadOnly: false };
+                        }
+                    }
+
+                    // 회의/출장 액션 규칙 (CANCELLED, COMPLETED 읽기 전용)
+                    if (isMeeting) {
+                        switch(status) {
+                            case 'REJECTED':
+                                // ✅ REJECTED: 읽기 전용, 삭제만 가능
+                                return { canEdit: false, canDelete: true, canSubmit: false, canCancelRequest: false, isReadOnly: true };
+                            case 'CANCELLED':
+                            case 'COMPLETED':
+                                return { canEdit: false, canDelete: false, canSubmit: false, canCancelRequest: false, isReadOnly: true };
+                            default:
+                                return { canEdit: true, canDelete: true, canSubmit: true, canCancelRequest: false, isReadOnly: false };
+                        }
+                    }
+
+                    // 기타 일정
+                    return { canEdit: true, canDelete: true, canSubmit: true, canCancelRequest: false, isReadOnly: false };
+                }
+
+                const actions = determineAvailableActions(schedule);
+
+                // 모달 제목 설정
+                document.getElementById('modalHeaderTitle').textContent = actions.isReadOnly ? '일정 상세 (읽기 전용)' : '일정 수정';
+
+                // 3️⃣ 새로 조회한 일정의 상태에 따라 필드 재설정
+                form.querySelectorAll('input, select, textarea').forEach(field => {
+                    field.disabled = actions.isReadOnly;
+                });
+
+                // 4️⃣ 버튼 표시 제어 (새로 조회한 일정 기준)
+                // 저장/결재 버튼
+                if (actions.canEdit) {
+                    submitBtn.style.display = 'inline-block';
+                    // ✅ canSubmit에 따라 버튼 텍스트 변경
+                    if (actions.canSubmit && schedule.status === 'DRAFT') {
+                        submitBtn.textContent = '저장 및 결재요청';
                     } else {
-                        // 진행중(PENDING/SUBMITTED): 삭제/취소 불가
-                        deleteBtn.style.display = 'none';
-                        cancelRequestBtn.style.display = 'none';
+                        submitBtn.textContent = '저장';
                     }
                 } else {
-                    // 회의/출장: 언제든지 삭제 가능
+                    submitBtn.style.display = 'none';
+                }
+
+                // 삭제 버튼
+                if (actions.canDelete) {
                     deleteBtn.style.display = 'inline-block';
-                    cancelRequestBtn.style.display = 'none';
                     deleteBtn.onclick = () => {
                         if (confirm('이 일정을 삭제하시겠습니까?')) {
                             deleteSchedule(scheduleId);
                         }
                     };
+                } else {
+                    deleteBtn.style.display = 'none';
                 }
 
-                // 저장 버튼을 수정 버튼으로 변경
-                const form = document.getElementById('eventForm');
-                const submitBtn = form.querySelector('button[type="submit"]');
-
-                // 수정 가능 여부 판단:
-                // - 회의/출장: 항상 수정 가능
-                // - 연차/반차: DRAFT, null, REJECTED 상태만 수정 가능
-                //            PENDING/SUBMITTED(진행중), APPROVED(승인완료)는 수정 불가
-                let canEdit = true;
-                let disabledReason = '';
-
-                if (isVacationOrHalfDay) {
-                    if (schedule.status === 'PENDING' || schedule.status === 'SUBMITTED') {
-                        canEdit = false;
-                        disabledReason = '결재 진행 중 (수정 불가)';
-                    } else if (schedule.status === 'APPROVED') {
-                        canEdit = false;
-                        disabledReason = '승인 완료 (수정 불가)';
-                    } else {
-                        // DRAFT, null, REJECTED는 수정 가능
-                        canEdit = true;
-                    }
-                }
-
-                if (canEdit) {
-                    submitBtn.textContent = '수정';
-                    submitBtn.disabled = false;
-                    submitBtn.style.background = '';
-                    submitBtn.style.cursor = '';
-                    // 모든 입력 필드 활성화
-                    form.querySelectorAll('input, select, textarea').forEach(field => {
-                        field.disabled = false;
-                    });
-                    form.onsubmit = async (e) => {
-                        e.preventDefault();
-                        await updateSchedule(scheduleId);
+                // 취소 신청 버튼 (연차/반차 APPROVED 상태에만 표시)
+                if (actions.canCancelRequest) {
+                    cancelRequestBtn.style.display = 'inline-block';
+                    cancelRequestBtn.onclick = async () => {
+                        if (confirm('이 일정에 대한 취소를 신청하시겠습니까?\n결재가 필요합니다.')) {
+                            await requestCancellation(scheduleId);
+                        }
                     };
                 } else {
-                    submitBtn.textContent = disabledReason;
-                    submitBtn.disabled = true;
-                    submitBtn.style.background = '#cbd5e0';
-                    submitBtn.style.cursor = 'not-allowed';
-                    // 모든 입력 필드 비활성화
-                    form.querySelectorAll('input, select, textarea').forEach(field => {
-                        field.disabled = true;
-                    });
+                    cancelRequestBtn.style.display = 'none';
                 }
+
+                // 폼 제출 이벤트 설정
+                form.onsubmit = async (e) => {
+                    e.preventDefault();
+                    await updateSchedule(scheduleId);
+                };
 
                 // 결재 상태 표시 (연차/반차이고 documentId가 있는 경우)
                 const statusSection = document.getElementById('approvalStatusSection');
@@ -1699,6 +1769,34 @@
                 }
             } catch (error) {
                 console.error('취소 신청 오류:', error);
+                alert('서버 오류가 발생했습니다.');
+            }
+        }
+
+        // 취소 신청 철회 함수
+        async function withdrawCancellation(scheduleId) {
+            if (!confirm('취소 신청을 철회하시겠습니까?\n일정이 승인 상태로 복원됩니다.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/intranet/schedules/${scheduleId}/withdraw-cancellation`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    alert('취소 신청이 철회되었습니다.');
+                    // UI 즉시 갱신
+                    await loadMySchedules();
+                    calendar.refetchEvents();
+                    loadSidebarData();
+                } else {
+                    const data = await response.json();
+                    alert(data.message || '철회 처리 중 오류가 발생했습니다.');
+                }
+            } catch (error) {
+                console.error('철회 처리 오류:', error);
                 alert('서버 오류가 발생했습니다.');
             }
         }
@@ -2290,13 +2388,24 @@
                     const icon = icons[schedule.scheduleType] || '📌';
                     const color = colors[schedule.scheduleType] || '#6b7280';
 
+                    // 취소 신청 여부 확인
+                    const isCancellation = schedule.status === 'PENDING' &&
+                                          schedule.documentId &&
+                                          schedule.documentTitle &&
+                                          schedule.documentTitle.startsWith('[취소]');
+
                     // 상태 표시 (백엔드에서 계산된 상태 사용)
                     let status = schedule.status || 'DRAFT';
                     let statusLabel = statusLabels[status] || status;
                     let statusColor = statusColors[status] || '#6b7280';
 
+                    // 취소 신청 중인 경우 상태 표시 변경
+                    if (isCancellation) {
+                        statusLabel = '취소 신청 중';
+                        statusColor = '#f59e0b';
+                    }
                     // 회의/출장의 경우 새로운 상태값 한글 매핑
-                    if (schedule.scheduleType === 'MEETING' || schedule.scheduleType === 'BUSINESS_TRIP') {
+                    else if (schedule.scheduleType === 'MEETING' || schedule.scheduleType === 'BUSINESS_TRIP') {
                         if (status === 'RESERVED') {
                             statusLabel = '예약됨';
                             statusColor = '#94a3b8';
@@ -2315,6 +2424,11 @@
                         }
                     }
 
+                    // 취소 신청 철회 버튼 (취소 신청 중인 경우만)
+                    const withdrawBtn = isCancellation
+                        ? `<button onclick="event.stopPropagation(); withdrawCancellation(${schedule.id});" style="margin-top: 6px; padding: 4px 10px; font-size: 11px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">철회</button>`
+                        : '';
+
                     return `
                         <div onclick="showEventDetail(${schedule.id})" style="padding: 12px 14px; margin-bottom: 10px; background: #f7fafc; border-radius: 10px; border-left: 4px solid ${color}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#edf2f7'" onmouseout="this.style.background='#f7fafc'">
                             <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; gap: 8px;">
@@ -2323,6 +2437,7 @@
                             </div>
                             <div style="font-size: 11px; color: #64748b; margin-top: 4px;">📅 ${dateText}</div>
                             ${schedule.description ? `<div style="font-size: 10px; color: #94a3b8; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${schedule.description}</div>` : ''}
+                            ${withdrawBtn}
                         </div>
                     `;
                 }).join('');

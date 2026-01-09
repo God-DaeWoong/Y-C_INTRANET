@@ -152,8 +152,16 @@ public class ApprovalService {
         // 6. 문서 상태를 REJECTED로 변경 (한 명이라도 반려하면 전체 반려)
         documentMapper.reject(approvalLine.getDocumentId());
 
-        // 7. 연결된 일정이 있으면 일정 상태도 REJECTED로 업데이트
-        syncScheduleStatus(approvalLine.getDocumentId(), "REJECTED");
+        // 7. 연결된 일정이 있으면 일정 상태 업데이트
+        // 취소 문서인 경우 원본 일정을 APPROVED로 복원, 일반 문서인 경우 REJECTED
+        DocumentIntranet document = documentMapper.findById(approvalLine.getDocumentId());
+        if (document != null && document.getTitle() != null && document.getTitle().startsWith("[취소]")) {
+            // 취소 반려: metadata에서 원본 일정 ID를 찾아서 APPROVED로 복원
+            restoreCancellationRejection(document);
+        } else {
+            // 일반 반려: 일정 상태를 REJECTED로 변경
+            syncScheduleStatus(approvalLine.getDocumentId(), "REJECTED");
+        }
     }
 
     /**
@@ -248,6 +256,39 @@ public class ApprovalService {
             }
         } catch (Exception e) {
             System.err.println("취소 상태 동기화 실패: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 취소 문서 반려 시 원본 일정의 상태를 APPROVED로 복원
+     * metadata에서 originalScheduleId를 추출하여 사용
+     */
+    private void restoreCancellationRejection(DocumentIntranet cancelDocument) {
+        try {
+            // metadata에서 원본 일정 ID 추출
+            String metadata = cancelDocument.getMetadata();
+            if (metadata != null && metadata.contains("originalScheduleId")) {
+                // JSON 파싱 (간단한 방법)
+                String scheduleIdStr = metadata.replaceAll("[^0-9]", "");
+                if (!scheduleIdStr.isEmpty()) {
+                    Long originalScheduleId = Long.parseLong(scheduleIdStr);
+
+                    // 원본 일정 조회 및 상태 복원
+                    ScheduleIntranet schedule = scheduleMapper.findById(originalScheduleId);
+                    if (schedule != null) {
+                        schedule.setStatus("APPROVED");
+                        scheduleMapper.update(schedule);
+                        System.out.println("취소 반려 완료 - 일정 ID: " + originalScheduleId + " 상태를 APPROVED로 복원");
+                    } else {
+                        System.err.println("취소 대상 일정을 찾을 수 없습니다. ID: " + originalScheduleId);
+                    }
+                }
+            } else {
+                System.err.println("취소 문서에 originalScheduleId 정보가 없습니다.");
+            }
+        } catch (Exception e) {
+            System.err.println("취소 반려 상태 복원 실패: " + e.getMessage());
             e.printStackTrace();
         }
     }

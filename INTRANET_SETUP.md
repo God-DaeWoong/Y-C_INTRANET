@@ -610,7 +610,158 @@ CREATE TABLE expense_items_intranet (
 
 ## 📅 버전 히스토리
 
-- **v0.10** (2026-01-08) - 캘린더 및 취소 상태 UI/UX 개선 🆕
+- **v0.16** (2026-01-09) - 완료 문서함 날짜 범위 동적 설정 🆕
+  - **현재 월 기준 날짜 범위 자동 설정**:
+    - 기존 문제: 완료 문서함 날짜 범위가 1/1~1/8로 하드코딩됨
+    - 요구사항: 시작일 = 현재 월의 1일, 종료일 = 현재 월의 말일
+    - 개선: setDefaultDateRange() 함수 수정
+      - `new Date(year, month, 1)` - 현재 월의 1일
+      - `new Date(year, month + 1, 0)` - 현재 월의 말일
+      - formatDateToYYYYMMDD() 함수 추가 (로컬 시간 기준 포맷)
+    - 타임존 이슈 해결: toISOString() 대신 로컬 시간 기준 포맷 사용
+    - UTC 변환으로 인한 날짜 오차 방지 (KST는 UTC+9)
+    - 매월 동적으로 날짜 범위가 자동 계산됨
+    - approval-pending.html lines 1043-1066
+
+- **v0.15** (2026-01-08) - 취소 신청 반려 시 상태 복원 로직 추가
+  - **취소 신청 반려 시 원본 일정 APPROVED 복원**:
+    - 기존 문제: 취소 신청 반려 시 원본 일정이 REJECTED로 변경됨
+    - 요구사항: 취소 신청이 반려되면 원본 일정은 APPROVED 상태로 복원되어야 함
+    - 개선: reject() 메서드에 취소 문서 여부 확인 로직 추가
+      - 취소 문서 반려: 원본 일정 → APPROVED 복원
+      - 일반 문서 반려: 연결된 일정 → REJECTED
+    - restoreCancellationRejection() 메서드 추가
+      - syncCancellationStatus()와 동일한 패턴 사용
+      - metadata에서 originalScheduleId 추출
+      - 원본 일정 상태를 APPROVED로 복원
+    - ApprovalService.java lines 155-164, 259-286
+
+- **v0.14.1** (2026-01-08) - 일정 상태 제어 로직 버그 수정
+  - **REJECTED 상태 읽기 전용 처리**:
+    - 기존 문제: v0.14에서 REJECTED 상태를 수정 가능하도록 설정하여 요구사항 불일치
+    - 요구사항: REJECTED는 읽기 전용, 삭제만 가능 (CANCELLED, COMPLETED와 동일)
+    - 개선: REJECTED 상태를 완전 읽기 전용으로 변경
+    - canEdit: true → false, isReadOnly: false → true
+    - canDelete: true 유지 (삭제는 허용)
+    - schedule-calendar.html lines 1480-1482, 1498-1500
+
+  - **내 일정 선택 후 캘린더 비활성화 문제 완전 해결**:
+    - 기존 문제: v0.14에서 초기화 로직 위치 오류로 버튼 상태가 이전 일정으로 고정됨
+    - 근본 원인: 필드 초기화는 했으나 버튼 초기화를 누락
+    - 개선: showEventDetail() 함수 시작 시 완전한 초기화 로직 추가
+      1. 모달 열기
+      2. 모든 필드 활성화 (disabled = false)
+      3. 모든 버튼 표시 (display = inline-block)
+      4. 폼 데이터 채우기
+      5. 액션 결정 (determineAvailableActions)
+      6. 새로운 일정의 상태에 따라 필드/버튼 재설정
+    - 캘린더 정상 동작 보장: 초기화 대상은 모달 내부 요소만, 캘린더 자체는 절대 비활성화 안 됨
+    - schedule-calendar.html lines 1434-1448, 1534-1537
+
+- **v0.14** (2026-01-08) - 일정 상태 제어 로직 개선 (결함 있음, v0.14.1에서 수정)
+  - **내 일정 선택 후 캘린더 상태 초기화** (불완전):
+    - 기존 문제: 내 일정에서 읽기 전용 일정(APPROVED/CANCELLED) 선택 후 캘린더에서 다른 일정 클릭 시 이전 상태가 유지되어 비활성화됨
+    - 개선 시도: showEventDetail() 함수에서 필드 초기화 추가
+    - 결함: 버튼 초기화 누락, 초기화 로직 위치 오류로 form 변수 중복 선언
+    - ⚠️ v0.14.1에서 완전히 수정됨
+
+  - **REJECTED 상태 버튼 제어 로직 명확화** (요구사항 불일치):
+    - 개선 시도: canSubmit 플래그 추가로 저장과 결재 신청 분리
+    - 결함: REJECTED를 수정 가능(canEdit: true)으로 설정하여 요구사항과 불일치
+    - ⚠️ v0.14.1에서 읽기 전용으로 수정됨
+
+- **v0.13.1** (2026-01-08) - 취소 신청 tooltip 표시 및 지출보고서 링크 개선
+  - **취소 신청 tooltip 상태 표시 개선**:
+    - 기존: 캘린더 이벤트 제목에만 "(취소 신청 중)" 표시, tooltip은 "결재 대기" 표시
+    - 개선: tooltip에도 "취소 대기중" 상태 표시 추가
+    - isCancellationRequest() 로직을 tooltip 렌더링에도 적용
+    - documentTitle을 extendedProps에 추가하여 tooltip에서도 취소 신청 여부 감지
+    - schedule-calendar.html lines 941-967 (tooltip), line 1171 (extendedProps)
+
+  - **새 일정 작성 시 캘린더 활성화 보장**:
+    - 기존: 결재 항목 선택 후 새 일정 작성 시 캘린더가 비활성화되는 버그
+    - 개선: openEventModal() 함수에 currentEditingSchedule = null 초기화 추가
+    - 새 일정 작성과 기존 일정 수정을 명확히 구분
+    - schedule-calendar.html line 1319
+
+  - **지출보고서 페이지 일정관리 버튼 링크 수정**:
+    - 기존: schedule.html로 이동 (구 캘린더)
+    - 개선: schedule-calendar.html로 이동 (신규 캘린더)
+    - expense-report_intranet.html line 1334
+    - expense-report.html line 1118
+
+- **v0.13** (2026-01-08) - 취소 신청 UX 개선 및 완료 일정 제한
+  - **취소 신청 상태 표시 개선 (캘린더)**:
+    - 백엔드 상태값: PENDING 유지
+    - UI 표시: "취소 신청 중" 텍스트 추가
+    - isCancellationRequest() 함수로 취소 신청 여부 판단
+    - 캘린더 이벤트 제목에 "(취소 신청 중)" 표시
+    - schedule-calendar.html lines 1254-1286
+
+  - **내 일정 취소 신청 표시 및 철회 기능**:
+    - 취소 신청 중인 일정: 상태 배지 "취소 신청 중" (주황색)
+    - "철회" 버튼 추가: 취소 신청을 철회하고 승인 상태로 복원
+    - withdrawCancellation() API 구현 (프론트엔드 + 백엔드)
+    - 철회 시 취소 문서 및 결재선 삭제, 일정 상태 APPROVED로 복원
+    - UI 즉시 갱신: loadMySchedules() + calendar.refetchEvents()
+    - schedule-calendar.html lines 2319-2358, 1733-1758
+    - ScheduleIntranetService.java lines 297-348
+    - ScheduleIntranetController.java lines 260-293
+
+  - **회의/출장 COMPLETED 상태 수정 제한**:
+    - 기존: CANCELLED만 수정 불가
+    - 개선: CANCELLED, COMPLETED 모두 수정 불가
+    - 완료된 회의/출장은 읽기 전용으로 변경
+    - 프론트엔드: determineAvailableActions() 함수 수정
+    - 백엔드: updateSchedule() 검증 로직 추가
+    - schedule-calendar.html lines 1476-1485
+    - ScheduleIntranetService.java lines 124-129
+
+- **v0.12** (2026-01-08) - 일정 타입별 상태 관리 개선
+  - **일정 타입별 차별화된 액션 로직**:
+    - 기존 문제: v0.11에서 CANCELLED/REJECTED/APPROVED를 동일하게 처리하여 회의/출장 일정이 APPROVED 상태일 때 수정 불가한 버그 발생
+    - 개선: 일정 타입(연차/반차 vs 회의/출장)에 따라 다른 액션 규칙 적용
+    - `determineAvailableActions()` 함수 도입으로 상태별 가능한 액션 명확히 정의
+
+  - **연차/반차 액션 규칙**:
+    - DRAFT/REJECTED: 수정 + 삭제 가능
+    - SUBMITTED/PENDING: 읽기 전용 (결재 진행 중)
+    - APPROVED: 읽기 전용 + 취소 신청 버튼만 표시
+    - CANCELLED: 완전 읽기 전용
+
+  - **회의/출장 액션 규칙**:
+    - CANCELLED: 읽기 전용
+    - 그 외 모든 상태: 수정 + 삭제 가능 (APPROVED 포함)
+
+  - **백엔드 검증 로직 개선**:
+    - ScheduleIntranetService.updateSchedule() 메서드 수정
+    - 일정 타입별로 다른 상태 검증 규칙 적용
+    - 연차/반차: DRAFT, REJECTED 상태만 수정 가능
+    - 회의/출장: CANCELLED 제외하고 항상 수정 가능
+    - schedule-calendar.html lines 1426-1504
+    - ScheduleIntranetService.java lines 103-133
+
+- **v0.11** (2026-01-08) - 일정 상태 관리 및 UI 개선
+  - **일정 상태별 수정 제한**:
+    - CANCELLED, REJECTED, APPROVED 상태 일정은 수정 불가
+    - 프론트엔드: 폼 필드 disabled 처리, 버튼 숨김
+    - 모달 제목: "일정 상세 (읽기 전용)" 표시
+    - 백엔드: ScheduleIntranetService.updateSchedule()에 상태 검증 로직 추가
+    - IllegalStateException 발생으로 수정 차단
+
+  - **모든 상태 아이콘 통일**:
+    - 기존: PENDING, IN_PROGRESS만 아이콘 표시
+    - 개선: 모든 상태에 아이콘 적용
+    - 📝 DRAFT, ⏳ SUBMITTED/PENDING, ✅ APPROVED, ❌ REJECTED, 🚫 CANCELLED, 📅 RESERVED, ▶ IN_PROGRESS, ✔ COMPLETED
+    - schedule-calendar.html lines 1240-1250
+
+  - **캘린더 뷰 버튼 활성화 표시**:
+    - 월/주/목록 버튼 선택 시 시각적 강조
+    - 활성 버튼: 보라색 배경 (#667eea), 흰색 텍스트, 굵은 글씨
+    - 비활성 버튼: 흰색 배경, 회색 텍스트
+    - CSS .fc-button-active 스타일 수정
+
+- **v0.10** (2026-01-08) - 캘린더 및 취소 상태 UI/UX 개선
   - **PENDING 연차/반차 캘린더 표시**:
     - 결재 대기 중인 연차/반차도 캘린더에 표시
     - 상태별 시각적 구분: PENDING/SUBMITTED (50% 투명도), IN_PROGRESS (노란색 테두리)
@@ -642,6 +793,41 @@ CREATE TABLE expense_items_intranet (
     - My Schedule View: 실시간 상태 반영
     - Detail View: DB 상태와 동기화
     - CANCELLED 상태는 영구 보존
+
+- **v0.9** (2026-01-08) - 연차/반차 취소 신청 워크플로우
+  - **취소 신청 기능 구현 (v0.9.1)**:
+    - requestCancellation() 메서드 구현
+    - 승인된 연차/반차에 대한 취소 신청 가능
+    - 취소 문서 자동 생성 (제목: "[취소] 원본 제목")
+    - metadata에 originalScheduleId 저장하여 원본 일정 추적
+    - 취소 결재선 생성 (원본 결재자와 동일)
+    - 일정 상태를 PENDING으로 변경
+    - ScheduleIntranetService.java lines 221-295
+    - ScheduleIntranetController.java POST /api/intranet/schedules/{id}/cancel
+
+  - **취소 승인 시 상태 동기화**:
+    - ApprovalService.syncCancellationStatus() 메서드 추가
+    - 취소 문서 승인 시 원본 일정을 CANCELLED로 변경
+    - 문서 제목이 "[취소]"로 시작하는지 확인
+    - metadata에서 originalScheduleId 추출하여 원본 일정 업데이트
+    - ApprovalService.java lines 222-253
+
+  - **회의/출장 중복 생성 버그 수정 (v0.9.2)**:
+    - 일정 수정 시 새 일정이 생성되는 버그 수정
+    - currentEditingSchedule 존재 시 PUT 요청으로 라우팅
+    - 폼 제출 로직에 수정/생성 구분 추가
+    - schedule-calendar.html 폼 제출 핸들러 수정
+
+- **v0.8** (2026-01-07) - 결재 시스템 개선
+  - **결재 대기 목록 조회 기능**:
+    - 결재자별 대기중인 결재 목록 API
+    - 완료된 결재 목록 조회 (제목/기간 검색 가능)
+    - ApprovalService 메서드 추가
+
+  - **결재 상태 표시 개선**:
+    - 일정 상세 화면에 결재 상태 섹션 추가
+    - 결재선 정보 표시 (결재자, 상태, 날짜)
+    - PENDING/APPROVED/REJECTED 상태별 시각적 구분
 
 - **v0.7** (2026-01-07) - 회의/출장 일정 실시간 상태 관리 시스템
   - **STATUS 값 확장**:
