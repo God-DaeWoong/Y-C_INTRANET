@@ -66,8 +66,9 @@ public class AuthController {
             return ResponseEntity.ok(response);
 
         } catch (RuntimeException e) {
+            String errorMessage = e.getMessage() + "\n\n네이버웍스 로그인을 통해 사용자 정보를 생성할 수 있습니다.";
             return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "message", e.getMessage()));
+                    .body(Map.of("success", false, "message", errorMessage));
         }
     }
 

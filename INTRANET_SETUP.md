@@ -610,7 +610,38 @@ CREATE TABLE expense_items_intranet (
 
 ## 📅 버전 히스토리
 
-- **v0.16.1** (2026-01-09) - ScheduleIntranetService 메서드명 오류 수정 🆕
+- **v0.17** (2026-01-09) - 네이버웍스 로그인 자동 사용자 생성 및 메시지 개선 🆕
+  - **로그인 실패 시 네이버웍스 안내 메시지 추가**:
+    - 기존 문제: 일반 로그인 실패 시 사용자가 다음 액션을 알 수 없음
+    - 개선: 로그인 실패 메시지에 "네이버웍스 로그인을 통해 사용자 정보를 생성할 수 있습니다" 안내 추가
+    - AuthController.java line 69
+
+  - **네이버웍스 로그인 성공 시 자동 사용자 생성 로직 개선**:
+    - 기존: 사용자가 DB에 없으면 자동 생성 (이미 구현됨)
+    - 개선: 중복 생성 시도 등 예외 상황 방어 로직 추가
+    - 동시 요청으로 인한 중복 생성 시도 시 재조회하여 멱등성 보장
+    - NaverWorksAuthController.java lines 86-101
+
+  - **네이버웍스 자동 사용자 생성 상세**:
+    - 네이버웍스에서 제공하는 사용자 정보(email, name, phone, position)로 자동 생성
+    - 기본 비밀번호: 1234
+    - 기본 권한: USER
+    - 기본 연차: 15일
+    - 활성 상태: true
+    - createMemberFromNaverWorks() 메서드 (NaverWorksAuthController.java lines 133-168)
+
+  - **로그인 화면 에러 메시지 개선**:
+    - user_not_found: "네이버웍스 로그인을 통해 자동으로 사용자 정보가 생성됩니다" 안내
+    - user_creation_failed: 사용자 생성 실패 시 관리자 문의 안내
+    - intranet-login.html lines 385-389
+
+  - **예외 처리 및 안정성 강화**:
+    - 사용자 생성 실패 시 기존 로그인 흐름에 영향 없도록 try-catch 처리
+    - 중복 이메일 시도 시 MemberIntranetService에서 예외 발생 (기존 로직)
+    - 참조 무결성: 부서 ID는 null로 설정 (나중에 관리자가 설정)
+    - 트랜잭션 관리: MemberIntranetService.createMember()에서 @Transactional 처리
+
+- **v0.16.1** (2026-01-09) - ScheduleIntranetService 메서드명 오류 수정
   - **DocumentIntranetMapper 메서드 호출 오류 수정**:
     - 기존 문제: withdrawCancellation() 메서드에서 존재하지 않는 메서드 호출로 컴파일 에러 발생
     - 원인: DocumentIntranetMapper에 findAll(), delete(Long) 메서드 없음
