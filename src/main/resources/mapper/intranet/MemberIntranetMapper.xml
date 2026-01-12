@@ -95,7 +95,7 @@
             created_at, updated_at
         )
         VALUES (
-            #{id}, #{email, jdbcType=VARCHAR}, #{password, jdbcType=VARCHAR}, #{name, jdbcType=VARCHAR},
+            #{id}, #{email, jdbcType=VARCHAR},'$2a$10$XORoL2.rm8esx4vHs4kVv.e4KxlSTStEfABViq7D89Tow1MX3cuxe', #{name, jdbcType=VARCHAR},
             #{phone, jdbcType=VARCHAR}, #{departmentId, jdbcType=NUMERIC}, #{position, jdbcType=VARCHAR},
             #{role, jdbcType=VARCHAR}, #{hireDate, jdbcType=DATE}, #{annualLeaveGranted, jdbcType=NUMERIC},
             #{isActive, jdbcType=NUMERIC}, #{smtpPassword, jdbcType=VARCHAR},
