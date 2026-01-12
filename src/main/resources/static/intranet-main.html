@@ -244,6 +244,43 @@
             opacity: 0.5;
         }
 
+        /* 탭 스타일 */
+        .tab-container {
+            display: flex;
+            border-bottom: 2px solid #edf2f7;
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            font-size: 15px;
+            font-weight: 600;
+            color: #718096;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .tab-button:hover {
+            color: #667eea;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         @media (max-width: 768px) {
             .header {
                 padding: 12px 16px;
@@ -328,18 +365,59 @@
         <!-- 최근 활동 -->
         <section class="recent-section">
             <h3>최근 활동</h3>
-            <div id="recentActivity">
-                <div class="empty-state">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p>최근 활동이 없습니다</p>
+
+            <!-- 탭 버튼 -->
+            <div class="tab-container">
+                <button class="tab-button active" onclick="switchTab('documents')">📝 최근 작성한 문서</button>
+                <button class="tab-button" onclick="switchTab('approvals')">✅ 최근 처리한 결재</button>
+                <button class="tab-button" onclick="switchTab('schedules')">📅 최근 일정/휴가</button>
+            </div>
+
+            <!-- 탭 컨텐츠 -->
+            <div id="tab-documents" class="tab-content active">
+                <div id="recentDocuments">
+                    <div class="empty-state">
+                        <p>최근 작성한 문서가 없습니다</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-approvals" class="tab-content">
+                <div id="recentApprovals">
+                    <div class="empty-state">
+                        <p>최근 처리한 결재가 없습니다</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-schedules" class="tab-content">
+                <div id="recentSchedules">
+                    <div class="empty-state">
+                        <p>최근 일정/휴가가 없습니다</p>
+                    </div>
                 </div>
             </div>
         </section>
     </div>
 
     <script>
+        // 탭 전환
+        function switchTab(tabName) {
+            // 모든 탭 버튼 비활성화
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // 모든 탭 컨텐츠 숨기기
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // 선택된 탭 활성화
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+
         // 로그인 체크
         function checkLogin() {
             const user = sessionStorage.getItem('user');
@@ -384,6 +462,181 @@
             } catch (error) {
                 console.error('대기 결재 조회 실패:', error);
                 document.getElementById('pendingCount').textContent = '-';
+            }
+        }
+
+        // 최근 활동 가져오기
+        async function loadRecentActivity() {
+            try {
+                const response = await fetch('/api/intranet/activity/recent');
+                const data = await response.json();
+
+                if (!data.success) {
+                    console.error('최근 활동 조회 실패:', data.message);
+                    return;
+                }
+
+                // 1. 최근 작성한 문서
+                renderRecentDocuments(data.recentDocuments || []);
+
+                // 2. 최근 처리한 결재
+                renderRecentApprovals(data.recentApprovals || []);
+
+                // 3. 최근 일정/휴가
+                renderRecentSchedules(data.recentSchedules || []);
+
+            } catch (error) {
+                console.error('최근 활동 조회 실패:', error);
+            }
+        }
+
+        // 최근 작성한 문서 렌더링
+        function renderRecentDocuments(documents) {
+            const container = document.getElementById('recentDocuments');
+
+            if (!documents || documents.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>최근 작성한 문서가 없습니다</p></div>';
+                return;
+            }
+
+            container.innerHTML = documents.map(doc => `
+                <div class="recent-item" onclick="location.href='/my-documents.html'">
+                    <div class="recent-item-title">${escapeHtml(doc.title)}</div>
+                    <div class="recent-item-meta">
+                        ${getDocumentTypeLabel(doc.documentType)} ·
+                        ${getStatusLabel(doc.status)} ·
+                        ${formatDate(doc.createdAt)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 최근 처리한 결재 렌더링
+        function renderRecentApprovals(approvals) {
+            const container = document.getElementById('recentApprovals');
+
+            if (!approvals || approvals.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>최근 처리한 결재가 없습니다</p></div>';
+                return;
+            }
+
+            container.innerHTML = approvals.map(approval => `
+                <div class="recent-item" onclick="location.href='/approval-pending.html'">
+                    <div class="recent-item-title">${escapeHtml(approval.documentTitle || '문서 제목 없음')}</div>
+                    <div class="recent-item-meta">
+                        ${approval.decision === 'APPROVED' ? '✅ 승인' : '❌ 반려'} ·
+                        ${formatDate(approval.decidedAt || approval.submittedAt)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 최근 일정/휴가 렌더링
+        function renderRecentSchedules(schedules) {
+            const container = document.getElementById('recentSchedules');
+
+            if (!schedules || schedules.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>최근 일정/휴가가 없습니다</p></div>';
+                return;
+            }
+
+            container.innerHTML = schedules.map(schedule => `
+                <div class="recent-item" onclick="location.href='/schedule-calendar.html'">
+                    <div class="recent-item-title">${escapeHtml(schedule.title)}</div>
+                    <div class="recent-item-meta">
+                        ${getScheduleTypeLabel(schedule.scheduleType)} ·
+                        ${formatScheduleDateTime(schedule)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // HTML 이스케이프
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 문서 타입 라벨 (휴가의 경우 제목에서 타입 추출)
+        function getDocumentTypeLabel(type, title) {
+            if (type === 'LEAVE' && title) {
+                // 제목에서 휴가 타입 추출
+                if (title.includes('연차')) return '연차';
+                if (title.includes('오전반차')) return '오전반차';
+                if (title.includes('오후반차')) return '오후반차';
+                if (title.includes('반차')) return '반차';
+                return '휴가';
+            }
+
+            const labels = {
+                'VACATION': '휴가신청서',
+                'LEAVE': '휴가',
+                'EXPENSE': '경비보고서',
+                'GENERAL': '일반문서',
+                'PURCHASE': '구매요청서'
+            };
+            return labels[type] || type;
+        }
+
+        // 상태 라벨
+        function getStatusLabel(status) {
+            const labels = {
+                'PENDING': '대기중',
+                'IN_PROGRESS': '진행중',
+                'APPROVED': '승인',
+                'REJECTED': '반려'
+            };
+            return labels[status] || status;
+        }
+
+        // 일정 타입 라벨
+        function getScheduleTypeLabel(type) {
+            const labels = {
+                'VACATION': '휴가',
+                'BUSINESS_TRIP': '출장',
+                'MEETING': '회의',
+                'EVENT': '행사',
+                'OTHER': '기타'
+            };
+            return labels[type] || type;
+        }
+
+        // 날짜 포맷
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            return `${month}월 ${day}일`;
+        }
+
+        // 일정 날짜/시간 포맷
+        function formatScheduleDateTime(schedule) {
+            if (!schedule.startDate) return '';
+
+            const startDate = formatDate(schedule.startDate);
+            const endDate = formatDate(schedule.endDate);
+
+            // 시간 정보가 있는 경우 (회의, 행사 등)
+            if (schedule.startTime) {
+                const startTime = schedule.startTime.substring(0, 5); // HH:MM
+                const endTime = schedule.endTime ? schedule.endTime.substring(0, 5) : '';
+
+                // 같은 날짜인 경우
+                if (startDate === endDate) {
+                    return `${startDate} ${startTime}${endTime ? ' ~ ' + endTime : ''}`;
+                } else {
+                    return `${startDate} ${startTime} ~ ${endDate}${endTime ? ' ' + endTime : ''}`;
+                }
+            }
+
+            // 시간 정보가 없는 경우 (휴가 등)
+            if (startDate === endDate) {
+                return startDate;
+            } else {
+                return `${startDate} ~ ${endDate}`;
             }
         }
 
@@ -432,6 +685,7 @@
 
             displayUserInfo();
             loadPendingApprovals();
+            loadRecentActivity();  // 최근 활동 로드
         });
     </script>
 </body>
