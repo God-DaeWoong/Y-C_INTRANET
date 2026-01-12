@@ -236,7 +236,7 @@ public class NaverWorksAuthController {
                 DepartmentIntranet department = departmentMapper.findByName(departmentName);
                 if (department != null) {
                     departmentId = department.getId();
-                    log.info("부서 매칭 성공: {} (ID={})", departmentName, departmentId);
+                    log.info("[{}] 부서 매칭 성공: {} (ID={})", email, departmentName, departmentId);
 
                     // 상위 본부 조회
                     if (department.getParentId() != null) {
@@ -310,6 +310,7 @@ public class NaverWorksAuthController {
                 log.info("기존 사용자 정보 업데이트 시작: ID={}", member.getId());
 
                 // 정보 업데이트
+                log.info("[{}] 업데이트할 departmentId: {}", email, departmentId);
                 member.setName(name);
                 member.setPosition(position);
                 member.setPhone(phone);
