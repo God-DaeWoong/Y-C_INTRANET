@@ -28,6 +28,11 @@ public interface MemberIntranetMapper {
     MemberIntranet findByEmail(@Param("email") String email);
 
     /**
+     * 네이버웍스 사용자 ID로 조회
+     */
+    MemberIntranet findByNaverworksUserId(@Param("naverworksUserId") String naverworksUserId);
+
+    /**
      * 활성화된 사원만 조회
      */
     List<MemberIntranet> findByIsActiveTrue();
@@ -56,6 +61,11 @@ public interface MemberIntranetMapper {
      * 비밀번호 변경
      */
     void updatePassword(@Param("id") Long id, @Param("password") String password);
+
+    /**
+     * 네이버웍스 로그인 정보 업데이트 (name, position, phone, last_login_at)
+     */
+    void updateNaverWorksLoginInfo(MemberIntranet member);
 
     /**
      * 사원 삭제 (물리 삭제)

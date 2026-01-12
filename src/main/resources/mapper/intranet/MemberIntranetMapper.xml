@@ -18,6 +18,8 @@
         <result property="annualLeaveGranted" column="annual_leave_granted"/>
         <result property="isActive" column="is_active"/>
         <result property="smtpPassword" column="smtp_password"/>
+        <result property="naverworksUserId" column="naverworks_user_id"/>
+        <result property="lastLoginAt" column="last_login_at"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
@@ -44,6 +46,14 @@
         FROM members_intranet m
         LEFT JOIN departments_intranet d ON m.department_id = d.id
         WHERE m.email = #{email}
+    </select>
+
+    <!-- 네이버웍스 사용자 ID로 조회 -->
+    <select id="findByNaverworksUserId" resultMap="MemberIntranetResultMap">
+        SELECT m.*, d.name as department_name
+        FROM members_intranet m
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE m.naverworks_user_id = #{naverworksUserId}
     </select>
 
     <!-- 활성화된 사원만 조회 -->
@@ -81,6 +91,7 @@
         INSERT INTO members_intranet (
             id, email, password, name, phone, department_id, position, role,
             hire_date, annual_leave_granted, is_active, smtp_password,
+            naverworks_user_id, last_login_at,
             created_at, updated_at
         )
         VALUES (
@@ -88,6 +99,7 @@
             #{phone, jdbcType=VARCHAR}, #{departmentId, jdbcType=NUMERIC}, #{position, jdbcType=VARCHAR},
             #{role, jdbcType=VARCHAR}, #{hireDate, jdbcType=DATE}, #{annualLeaveGranted, jdbcType=NUMERIC},
             #{isActive, jdbcType=NUMERIC}, #{smtpPassword, jdbcType=VARCHAR},
+            #{naverworksUserId, jdbcType=VARCHAR}, #{lastLoginAt, jdbcType=TIMESTAMP},
             CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         )
     </insert>
@@ -113,6 +125,19 @@
     <update id="updatePassword">
         UPDATE members_intranet
         SET password = #{password},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 네이버웍스 로그인 정보 업데이트 -->
+    <update id="updateNaverWorksLoginInfo" parameterType="com.ync.intranet.domain.MemberIntranet">
+        UPDATE members_intranet
+        SET name = #{name, jdbcType=VARCHAR},
+            position = #{position, jdbcType=VARCHAR},
+            phone = #{phone, jdbcType=VARCHAR},
+            department_id = #{departmentId, jdbcType=NUMERIC},
+            naverworks_user_id = #{naverworksUserId, jdbcType=VARCHAR},
+            last_login_at = CURRENT_TIMESTAMP,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>

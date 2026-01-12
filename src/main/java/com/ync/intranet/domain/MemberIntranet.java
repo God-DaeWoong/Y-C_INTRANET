@@ -22,6 +22,8 @@ public class MemberIntranet {
     private BigDecimal annualLeaveGranted;
     private Boolean isActive;
     private String smtpPassword;
+    private String naverworksUserId;  // 네이버웍스 고유 ID
+    private LocalDateTime lastLoginAt;  // 마지막 로그인 시간
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -31,7 +33,8 @@ public class MemberIntranet {
     public MemberIntranet(Long id, String email, String password, String name, String phone,
                           Long departmentId, String departmentName, String position, String role,
                           LocalDate hireDate, BigDecimal annualLeaveGranted, Boolean isActive,
-                          String smtpPassword, LocalDateTime createdAt, LocalDateTime updatedAt) {
+                          String smtpPassword, String naverworksUserId, LocalDateTime lastLoginAt,
+                          LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.email = email;
         this.password = password;
@@ -45,6 +48,8 @@ public class MemberIntranet {
         this.annualLeaveGranted = annualLeaveGranted;
         this.isActive = isActive;
         this.smtpPassword = smtpPassword;
+        this.naverworksUserId = naverworksUserId;
+        this.lastLoginAt = lastLoginAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -158,6 +163,22 @@ public class MemberIntranet {
         this.smtpPassword = smtpPassword;
     }
 
+    public String getNaverworksUserId() {
+        return naverworksUserId;
+    }
+
+    public void setNaverworksUserId(String naverworksUserId) {
+        this.naverworksUserId = naverworksUserId;
+    }
+
+    public LocalDateTime getLastLoginAt() {
+        return lastLoginAt;
+    }
+
+    public void setLastLoginAt(LocalDateTime lastLoginAt) {
+        this.lastLoginAt = lastLoginAt;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -194,6 +215,8 @@ public class MemberIntranet {
         private BigDecimal annualLeaveGranted;
         private Boolean isActive;
         private String smtpPassword;
+        private String naverworksUserId;
+        private LocalDateTime lastLoginAt;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
@@ -265,6 +288,16 @@ public class MemberIntranet {
             return this;
         }
 
+        public MemberIntranetBuilder naverworksUserId(String naverworksUserId) {
+            this.naverworksUserId = naverworksUserId;
+            return this;
+        }
+
+        public MemberIntranetBuilder lastLoginAt(LocalDateTime lastLoginAt) {
+            this.lastLoginAt = lastLoginAt;
+            return this;
+        }
+
         public MemberIntranetBuilder createdAt(LocalDateTime createdAt) {
             this.createdAt = createdAt;
             return this;
@@ -278,7 +311,7 @@ public class MemberIntranet {
         public MemberIntranet build() {
             return new MemberIntranet(id, email, password, name, phone, departmentId, departmentName,
                     position, role, hireDate, annualLeaveGranted, isActive, smtpPassword,
-                    createdAt, updatedAt);
+                    naverworksUserId, lastLoginAt, createdAt, updatedAt);
         }
     }
 }

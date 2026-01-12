@@ -59,6 +59,14 @@
         ORDER BY d.display_order, d.name
     </select>
 
+    <!-- 부서명으로 조회 -->
+    <select id="findByName" resultMap="DepartmentIntranetResultMap">
+        SELECT d.*, m.name as manager_name
+        FROM departments_intranet d
+        LEFT JOIN members_intranet m ON d.manager_id = m.id
+        WHERE d.name = #{name}
+    </select>
+
     <!-- 부서 등록 -->
     <insert id="insert" parameterType="com.ync.intranet.domain.DepartmentIntranet">
         <selectKey keyProperty="id" resultType="long" order="BEFORE">

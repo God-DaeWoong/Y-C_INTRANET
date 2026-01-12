@@ -38,6 +38,11 @@ public interface DepartmentIntranetMapper {
     List<DepartmentIntranet> findRootDepartments();
 
     /**
+     * 부서명으로 조회
+     */
+    DepartmentIntranet findByName(@Param("name") String name);
+
+    /**
      * 부서 등록
      */
     void insert(DepartmentIntranet department);
