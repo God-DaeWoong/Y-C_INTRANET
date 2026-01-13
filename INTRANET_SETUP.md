@@ -610,7 +610,66 @@ CREATE TABLE expense_items_intranet (
 
 ## 📅 버전 히스토리
 
-- **v0.19** (2026-01-13) - 실시간 알림 시스템 구현 🆕
+- **v0.20** (2026-01-13) - 문서작성, 결재 대기함, 일정/휴가 관리 개선 🆕
+  - **문서 작성 페이지 개선**:
+    - 연차/반차 신청 시 날짜 선택 기능 추가
+    - 일수 자동 계산 및 수동 지정 기능
+    - 휴가 유형별 상세 입력 폼 개선
+    - 날짜 범위 선택 UI 추가
+    - 반차 시 오전/오후 선택 옵션
+    - **날짜 기본값 자동 설정**: 연차/반차 선택 시 시작일/종료일 자동으로 내일 날짜로 설정
+    - **반차 일수 자동 입력**: 반차 선택 시 0.5일로 자동 설정
+
+  - **내 결재 대기함 UI 개선**:
+    - 첨부파일 목록 표시 기능 추가
+    - 첨부파일 다운로드 기능 구현
+    - 파일명, 파일 크기 표시
+    - 여러 파일 동시 첨부 지원
+    - 첨부파일 미리보기 (이미지/PDF)
+    - **휴가 정보 배지 표시**: 결재 대기함 목록에서 휴가 신청서의 유형, 날짜, 사용일수를 배지로 표시
+    - **JSON 텍스트 제거**: `[일정정보:...]` 형태의 JSON 텍스트를 내용 미리보기에서 제거하여 깔끔한 UI 제공
+
+  - **일정/휴가 관리 시스템 연동**:
+    - 문서 작성에서 휴가신청서 제출 시 일정 자동 생성
+    - ApprovalService.createScheduleFromVacationDocument() 메서드 추가
+    - 문서 content에서 일정 정보 JSON 파싱
+    - 일정 정보 형식: `[일정정보:{"scheduleType":"VACATION", "startDate":"2026-01-20", "endDate":"2026-01-22", "daysUsed":3}]`
+    - 정규식 기반 JSON 추출 및 파싱
+    - 휴가신청서(LEAVE/VACATION/VACATION_REQUEST) 타입 자동 감지
+    - 일정 생성 시 PENDING 상태로 자동 설정
+    - 결재 승인/반려 시 일정 상태 자동 동기화
+
+  - **일정 조회 필터 개선**:
+    - 부서별 일정 조회 기능 추가
+    - 본부별 일정 조회 기능 추가 (divisionId 기반)
+    - ScheduleIntranetService.getSchedulesByDepartmentAndDateRange() 메서드
+    - ScheduleIntranetService.getSchedulesByDivisionAndDateRange() 메서드
+    - ScheduleIntranetMapper에 findByDepartmentAndDateRange, findByDivisionAndDateRange 쿼리 추가
+    - 날짜 범위 필터링 지원
+
+  - **일정 상태 동기화 로직 개선**:
+    - ApprovalService.syncScheduleStatus() 메서드 최적화
+    - findAll() 대신 findByDocumentId() 사용으로 성능 개선
+    - 디버깅 로그 추가 (일정 동기화 시작/완료/실패)
+    - 연차/반차만 선택적으로 상태 동기화
+    - 일정 업데이트 건수 로깅
+
+  - **첨부파일 시스템 버그 수정**:
+    - **Excel 파일 업로드 오류 해결**: `ORA-12899` 에러 (FILE_TYPE 컬럼 길이 초과)
+    - DB 스키마 수정: `attachments_intranet.file_type` VARCHAR2(50) → VARCHAR2(100)
+    - Excel MIME 타입 길이: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` (73자)
+    - Content-Type null 처리: 확장자 기반 자동 설정 로직 추가
+    - AttachmentService.uploadFile() 개선: xlsx/xls 확장자별 Content-Type 자동 매핑
+
+  - **기술 스택**:
+    - 정규식 패턴 매칭: `\\[일정정보:(.+?)\\]`
+    - JSON 파싱: 간단한 정규식 기반 파싱 (Jackson 미사용)
+    - SimpleDateFormat: 날짜 문자열 파싱
+    - MyBatis 쿼리 최적화: findByDocumentId 인덱스 활용
+    - 로그 추가: 디버깅 및 모니터링 개선
+    - JavaScript Date API: 내일 날짜 자동 계산 및 설정
+
+- **v0.19** (2026-01-13) - 실시간 알림 시스템 구현
   - **알림 벨 기능 추가**:
     - intranet-main.html 헤더에 알림 벨 아이콘 추가
     - 읽지 않은 알림 개수 실시간 표시 (빨간색 배지)

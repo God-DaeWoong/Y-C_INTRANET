@@ -64,17 +64,31 @@ public class AttachmentService {
         String fileName = UUID.randomUUID().toString() + "_" + originalFilename;
         String filePath = UPLOAD_DIR + File.separator + fileName;
 
-        // 3. 파일 저장
+        // 3. Content-Type 처리 (null이면 기본값 설정)
+        String contentType = file.getContentType();
+        if (contentType == null || contentType.isEmpty()) {
+            // 확장자 기반으로 Content-Type 설정
+            String extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
+            if (extension.equals("xlsx")) {
+                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            } else if (extension.equals("xls")) {
+                contentType = "application/vnd.ms-excel";
+            } else {
+                contentType = "application/octet-stream";
+            }
+        }
+
+        // 4. 파일 저장
         File destFile = new File(filePath);
         file.transferTo(destFile);
 
-        // 4. DB에 메타데이터 저장
+        // 5. DB에 메타데이터 저장
         AttachmentIntranet attachment = AttachmentIntranet.builder()
                 .documentId(documentId)
                 .fileName(fileName)
                 .filePath(filePath)
                 .fileSize(file.getSize())
-                .fileType(file.getContentType())
+                .fileType(contentType)
                 .uploadedBy(userId)
                 .build();
 

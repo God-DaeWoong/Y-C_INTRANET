@@ -501,9 +501,28 @@
             });
 
             leaveType.addEventListener('change', () => {
+                // 내일 날짜 계산
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
                 if (leaveType.value === 'HALF_DAY') {
                     halfDayTypeGroup.style.display = 'block';
                     document.getElementById('halfDayType').required = true;
+
+                    // 반차: 시작일/종료일 모두 내일, 0.5일로 설정
+                    startDateInput.value = tomorrowStr;
+                    endDateInput.value = tomorrowStr;
+                    daysUsedInput.value = '0.5일';
+                } else if (leaveType.value === 'FULL_DAY') {
+                    halfDayTypeGroup.style.display = 'none';
+                    document.getElementById('halfDayType').required = false;
+                    document.getElementById('halfDayType').value = '';
+
+                    // 연차: 시작일/종료일 모두 내일로 설정
+                    startDateInput.value = tomorrowStr;
+                    endDateInput.value = tomorrowStr;
+                    calculateDays(); // 일수 자동 계산
                 } else {
                     halfDayTypeGroup.style.display = 'none';
                     document.getElementById('halfDayType').required = false;

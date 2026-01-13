@@ -727,6 +727,17 @@
                     const attachmentCount = doc.attachments ? doc.attachments.length : 0;
                     const attachmentBadge = attachmentCount > 0 ? `<span class="badge" style="background:#e0f2fe;color:#0369a1;">📎 ${attachmentCount}개</span>` : '';
 
+                    // 일정 정보 파싱 및 배지 생성
+                    const scheduleInfo = parseScheduleInfo(doc.content);
+                    let vacationBadge = '';
+                    if (scheduleInfo) {
+                        const typeText = scheduleInfo.scheduleType === 'VACATION' ? '연차' : '반차';
+                        vacationBadge = `<span class="badge" style="background:#fef3c7;color:#92400e;">📅 ${typeText} | ${scheduleInfo.startDate} ~ ${scheduleInfo.endDate} | ${scheduleInfo.daysUsed}일</span>`;
+                    }
+
+                    // JSON 텍스트 제거한 깨끗한 내용
+                    const cleanContent = removeScheduleInfo(doc.content);
+
                     return `
                     <div class="approval-item">
                         <div class="approval-header">
@@ -736,6 +747,7 @@
                                     <span>📋 유형: ${documentTypeText}</span>
                                     <span>📝 작성자: ${doc.authorName || '알 수 없음'}</span>
                                     <span>📅 ${formatDate(doc.createdAt || approval.submittedAt)}</span>
+                                    ${vacationBadge}
                                     ${attachmentBadge}
                                 </div>
                             </div>
@@ -745,7 +757,7 @@
                             </div>
                         </div>
                         <div class="approval-content">
-                            ${doc.content ? doc.content.substring(0, 150) + '...' : '내용 없음'}
+                            ${cleanContent ? cleanContent.substring(0, 150) + '...' : '내용 없음'}
                         </div>
                         <div class="approval-actions">
                             <button class="btn btn-detail" onclick="viewDetail(${approval.id})">
