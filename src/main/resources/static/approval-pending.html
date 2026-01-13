@@ -898,7 +898,7 @@
                             <div class="attachment-list">
                                 ${doc.attachments.map(att => `
                                     <a href="/api/intranet/attachments/download/${att.id}" class="attachment-item" download>
-                                        📎 ${att.fileName} (${formatFileSize(att.fileSize)})
+                                        📎 ${getOriginalFileName(att.fileName)} (${formatFileSize(att.fileSize)})
                                     </a>
                                 `).join('')}
                             </div>
@@ -1008,6 +1008,14 @@
                 'REJECTED': '<span class="badge" style="background:#f8d7da;color:#721c24;">반려</span>'
             };
             return badges[status] || status;
+        }
+
+        // UUID 제거하고 원본 파일명만 반환하는 함수
+        function getOriginalFileName(fileName) {
+            if (!fileName) return fileName;
+            // UUID 패턴 (8-4-4-4-12) + 언더스코어를 제거
+            const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_/i;
+            return fileName.replace(uuidPattern, '');
         }
 
         // 일정정보 JSON 파싱 함수
@@ -1302,7 +1310,7 @@
                             <div class="attachment-list">
                                 ${doc.attachments.map(att => `
                                     <a href="/api/intranet/attachments/download/${att.id}" class="attachment-item" download>
-                                        📎 ${att.fileName} (${formatFileSize(att.fileSize)})
+                                        📎 ${getOriginalFileName(att.fileName)} (${formatFileSize(att.fileSize)})
                                     </a>
                                 `).join('')}
                             </div>
