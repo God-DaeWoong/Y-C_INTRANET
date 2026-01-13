@@ -610,7 +610,72 @@ CREATE TABLE expense_items_intranet (
 
 ## 📅 버전 히스토리
 
-- **v0.18** (2026-01-12) - 메인 페이지 최근 활동 탭 기능 구현 🆕
+- **v0.19** (2026-01-13) - 실시간 알림 시스템 구현 🆕
+  - **알림 벨 기능 추가**:
+    - intranet-main.html 헤더에 알림 벨 아이콘 추가
+    - 읽지 않은 알림 개수 실시간 표시 (빨간색 배지)
+    - 30초마다 자동 갱신 (setInterval)
+    - 클릭 시 드롭다운 메뉴로 알림 목록 표시
+
+  - **알림 데이터베이스 구조**:
+    - notifications_intranet 테이블 생성
+    - 필드: id, member_id, notification_type, title, content, link_url, is_read, created_at, read_at
+    - 알림 타입: APPROVAL_REQUEST, APPROVAL_APPROVED, APPROVAL_REJECTED, LEAVE_APPROVED, LEAVE_REJECTED
+    - CASCADE DELETE: 회원 삭제 시 알림도 자동 삭제
+
+  - **알림 생성 로직 (NotificationService.java)**:
+    - createApprovalRequestNotification() - 결재 요청 시 (문서 상신, 휴가 신청)
+    - createApprovalApprovedNotification() - 결재 승인 시
+    - createApprovalRejectedNotification() - 결재 반려 시 (반려 사유 포함)
+    - createLeaveApprovedNotification() - 휴가 승인 시
+    - createLeaveRejectedNotification() - 휴가 반려 시
+    - Try-catch 처리로 알림 실패 시에도 핵심 로직 영향 없음
+
+  - **알림 연동 포인트**:
+    - DocumentIntranetService.submitDocument() - 문서 상신 시 결재자에게 알림
+    - ScheduleIntranetService.createSchedule() - 휴가 신청 시 결재자에게 알림
+    - ScheduleIntranetService.requestCancellation() - 취소 신청 시 결재자에게 알림
+    - ApprovalService.approve() - 승인 시 기안자에게 알림
+    - ApprovalService.reject() - 반려 시 기안자에게 알림 (반려 사유 포함)
+
+  - **알림 REST API (NotificationController.java)**:
+    - GET /api/intranet/notifications - 내 알림 목록 조회
+    - GET /api/intranet/notifications/unread-count - 읽지 않은 알림 개수
+    - POST /api/intranet/notifications/{id}/read - 알림 읽음 처리
+    - POST /api/intranet/notifications/read-all - 전체 읽음 처리
+    - DELETE /api/intranet/notifications/{id} - 알림 삭제
+    - POST /api/intranet/notifications - 알림 생성 (내부 API)
+
+  - **프론트엔드 기능**:
+    - 알림 클릭 시 해당 페이지로 자동 이동
+    - 링크 URL: /approval-pending.html, /my-documents.html, /schedule.html (절대 경로)
+    - 읽음 처리 후 배지 카운트 자동 감소
+    - "모두 읽음" 버튼으로 전체 읽음 처리
+    - 알림 삭제 버튼 (✕) 추가 - 개별 알림 삭제 가능
+    - 시간 표시: "방금 전", "5분 전", "2시간 전", "3일 전" 형식
+    - 읽지 않은 알림 시각적 강조 (배경색 변경)
+
+  - **알림 드롭다운 UI**:
+    - 최대 높이 400px, 스크롤 가능
+    - 알림 항목별 클릭 영역과 삭제 버튼 분리
+    - 삭제 버튼 호버 시 빨간색 강조
+    - 빈 알림 시 "알림이 없습니다" 메시지 표시
+    - 외부 클릭 시 자동 닫힘
+
+  - **버그 수정 이력**:
+    - Schedule ID null 문제: scheduleMapper.insert() 후 알림 생성하도록 순서 변경
+    - 취소 알림 링크 오류: scheduleId 대신 cancelDocument.getId() 사용
+    - 404 에러: 상대 경로를 절대 경로로 변경 (/approval-pending.html)
+
+  - **기술 스택**:
+    - MyBatis Mapper XML: NotificationIntranetMapper.xml
+    - Spring Boot @Service: NotificationService
+    - Spring Boot @RestController: NotificationController
+    - 세션 기반 인증: HttpSession의 "userId" 속성 사용
+    - JavaScript: Fetch API, setInterval (30초 폴링)
+    - CSS: 알림 배지, 드롭다운, 호버 효과
+
+- **v0.18** (2026-01-12) - 메인 페이지 최근 활동 탭 기능 구현
   - **최근 활동 API 컨트롤러 추가**:
     - ActivityController.java 신규 생성
     - `/api/intranet/activity/recent` 엔드포인트 구현
