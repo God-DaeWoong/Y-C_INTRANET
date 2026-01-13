@@ -245,20 +245,31 @@ public class ApprovalService {
      */
     private void syncScheduleStatus(Long documentId, String status) {
         try {
-            // 문서 ID로 연결된 일정 조회
-            List<ScheduleIntranet> schedules = scheduleMapper.findAll();
+            System.out.println("[일정 동기화] documentId=" + documentId + ", status=" + status);
+
+            // 문서 ID로 연결된 일정 조회 (효율적인 쿼리 사용)
+            List<ScheduleIntranet> schedules = scheduleMapper.findByDocumentId(documentId);
+
+            if (schedules.isEmpty()) {
+                System.out.println("[일정 동기화] 연결된 일정이 없음: documentId=" + documentId);
+                return;
+            }
+
             for (ScheduleIntranet schedule : schedules) {
-                if (schedule.getDocumentId() != null && schedule.getDocumentId().equals(documentId)) {
-                    // 연차/반차 일정인 경우에만 상태 동기화
-                    if ("VACATION".equals(schedule.getScheduleType()) || "HALF_DAY".equals(schedule.getScheduleType())) {
-                        schedule.setStatus(status);
-                        scheduleMapper.update(schedule);
-                    }
+                // 연차/반차 일정인 경우에만 상태 동기화
+                if ("VACATION".equals(schedule.getScheduleType()) || "HALF_DAY".equals(schedule.getScheduleType())) {
+                    System.out.println("[일정 동기화] scheduleId=" + schedule.getId() +
+                                     ", 상태 변경: " + schedule.getStatus() + " -> " + status);
+                    schedule.setStatus(status);
+                    scheduleMapper.update(schedule);
                 }
             }
+
+            System.out.println("[일정 동기화 완료] " + schedules.size() + "건 업데이트");
         } catch (Exception e) {
             // 일정 업데이트 실패는 로그만 남기고 결재 처리는 계속 진행
-            System.err.println("일정 상태 동기화 실패: " + e.getMessage());
+            System.err.println("[일정 동기화 실패] " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -326,5 +337,130 @@ public class ApprovalService {
             System.err.println("취소 반려 상태 복원 실패: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 휴가신청 문서에서 일정 생성
+     * 문서 제출 시 호출되어 PENDING 상태의 일정을 생성
+     */
+    @Transactional
+    public void createScheduleFromVacationDocument(DocumentIntranet document) {
+        try {
+            System.out.println("[일정 생성] 휴가신청 문서에서 일정 생성 시작: documentId=" + document.getId() + ", documentType=" + document.getDocumentType());
+
+            // 휴가신청서가 아니면 종료 (LEAVE, VACATION, VACATION_REQUEST 모두 허용)
+            String docType = String.valueOf(document.getDocumentType());
+            if (!"LEAVE".equals(docType) && !"VACATION".equals(docType) && !"VACATION_REQUEST".equals(docType)) {
+                System.out.println("[일정 생성] 휴가신청서가 아니므로 스킵: " + docType);
+                return;
+            }
+
+            // 문서 content에서 일정 정보 추출
+            // 형식: [일정정보:{"scheduleType":"VACATION", "startDate":"2026-01-20", "endDate":"2026-01-22", "daysUsed":3}]
+            String content = document.getContent();
+            if (content == null || content.isEmpty()) {
+                System.err.println("[일정 생성 실패] 문서 내용이 비어있음");
+                return;
+            }
+
+            // [일정정보:...] 패턴에서 JSON 추출
+            String jsonContent = extractScheduleJson(content);
+            if (jsonContent == null) {
+                System.err.println("[일정 생성 실패] 일정 정보를 찾을 수 없음");
+                return;
+            }
+
+            // JSON 파싱
+            String scheduleType = extractJsonValue(jsonContent, "scheduleType");
+            String startDateStr = extractJsonValue(jsonContent, "startDate");
+            String endDateStr = extractJsonValue(jsonContent, "endDate");
+            String daysUsedStr = extractJsonValue(jsonContent, "daysUsed");
+
+            if (scheduleType == null || startDateStr == null || endDateStr == null) {
+                System.err.println("[일정 생성 실패] 필수 일정 정보가 누락됨");
+                return;
+            }
+
+            // 일정 객체 생성
+            ScheduleIntranet schedule = new ScheduleIntranet();
+            schedule.setMemberId(document.getAuthorId());
+            schedule.setDocumentId(document.getId());
+            schedule.setScheduleType(scheduleType); // VACATION or HALF_DAY
+            schedule.setTitle(document.getTitle());
+            schedule.setDescription(document.getTitle());
+            schedule.setStatus("PENDING"); // 결재 대기 상태
+
+            // 날짜 파싱 (java.util.Date)
+            try {
+                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+                schedule.setStartDate(sdf.parse(startDateStr));
+                schedule.setEndDate(sdf.parse(endDateStr));
+            } catch (Exception e) {
+                System.err.println("[일정 생성 실패] 날짜 파싱 오류: " + e.getMessage());
+                return;
+            }
+
+            // 사용 일수
+            if (daysUsedStr != null) {
+                try {
+                    schedule.setDaysUsed(Double.parseDouble(daysUsedStr));
+                } catch (NumberFormatException e) {
+                    schedule.setDaysUsed(1.0);
+                }
+            }
+
+            // DB에 저장
+            scheduleMapper.insert(schedule);
+            System.out.println("[일정 생성 완료] scheduleId=" + schedule.getId() +
+                             ", documentId=" + document.getId() +
+                             ", status=PENDING");
+
+        } catch (Exception e) {
+            System.err.println("[일정 생성 실패] " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * [일정정보:...] 패턴에서 JSON 추출
+     */
+    private String extractScheduleJson(String content) {
+        try {
+            String pattern = "\\[일정정보:(.+?)\\]";
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile(pattern);
+            java.util.regex.Matcher m = p.matcher(content);
+            if (m.find()) {
+                return m.group(1);
+            }
+        } catch (Exception e) {
+            System.err.println("일정 정보 추출 오류: " + e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 간단한 JSON 값 추출 헬퍼 메서드
+     */
+    private String extractJsonValue(String json, String key) {
+        try {
+            // 문자열 값 추출: "key":"value"
+            String pattern1 = "\"" + key + "\"\\s*:\\s*\"([^\"]+)\"";
+            java.util.regex.Pattern p1 = java.util.regex.Pattern.compile(pattern1);
+            java.util.regex.Matcher m1 = p1.matcher(json);
+            if (m1.find()) {
+                return m1.group(1);
+            }
+
+            // 숫자 값 추출: "key":123 or "key":1.5
+            String pattern2 = "\"" + key + "\"\\s*:\\s*([0-9.]+)";
+            java.util.regex.Pattern p2 = java.util.regex.Pattern.compile(pattern2);
+            java.util.regex.Matcher m2 = p2.matcher(json);
+            if (m2.find()) {
+                return m2.group(1);
+            }
+        } catch (Exception e) {
+            System.err.println("JSON 파싱 오류: " + e.getMessage());
+        }
+        return null;
     }
 }

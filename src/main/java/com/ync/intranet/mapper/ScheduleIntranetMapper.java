@@ -56,4 +56,19 @@ public interface ScheduleIntranetMapper {
             @Param("startDate") Date startDate,
             @Param("endDate") Date endDate
     );
+
+    /**
+     * 본부별 일정 조회
+     * 본부(divisionId)에 속한 모든 부서의 일정을 조회
+     */
+    List<ScheduleIntranet> findByDivisionAndDateRange(
+            @Param("divisionId") Long divisionId,
+            @Param("startDate") Date startDate,
+            @Param("endDate") Date endDate
+    );
+
+    /**
+     * 문서 ID로 일정 조회
+     */
+    List<ScheduleIntranet> findByDocumentId(Long documentId);
 }

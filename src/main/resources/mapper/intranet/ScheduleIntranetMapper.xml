@@ -120,4 +120,28 @@
         ]]>
     </select>
 
+    <!-- 본부별 + 기간별 일정 조회 -->
+    <select id="findByDivisionAndDateRange" resultMap="ScheduleIntranetResultMap">
+        <![CDATA[
+        SELECT s.*, m.name as member_name, m.email as member_email, d.name as department_name
+        FROM schedules_intranet s
+        INNER JOIN members_intranet m ON s.member_id = m.id
+        INNER JOIN departments_intranet d ON m.department_id = d.id
+        WHERE d.parent_id = #{divisionId}
+          AND s.start_date <= #{endDate}
+          AND s.end_date >= #{startDate}
+        ORDER BY s.start_date
+        ]]>
+    </select>
+
+    <!-- 문서 ID로 일정 조회 -->
+    <select id="findByDocumentId" resultMap="ScheduleIntranetResultMap">
+        SELECT s.*, m.name as member_name, m.email as member_email, d.name as department_name
+        FROM schedules_intranet s
+        LEFT JOIN members_intranet m ON s.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE s.document_id = #{documentId}
+        ORDER BY s.start_date DESC
+    </select>
+
 </mapper>

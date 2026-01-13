@@ -1,7 +1,10 @@
 package com.ync.intranet.controller;
 
 import com.ync.intranet.domain.ApprovalLineIntranet;
+import com.ync.intranet.domain.AttachmentIntranet;
 import com.ync.intranet.domain.DocumentIntranet;
+import com.ync.intranet.service.ApprovalService;
+import com.ync.intranet.service.AttachmentService;
 import com.ync.intranet.service.DocumentIntranetService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.ResponseEntity;
@@ -19,9 +22,15 @@ import java.util.Map;
 public class DocumentIntranetController {
 
     private final DocumentIntranetService documentService;
+    private final ApprovalService approvalService;
+    private final AttachmentService attachmentService;
 
-    public DocumentIntranetController(DocumentIntranetService documentService) {
+    public DocumentIntranetController(DocumentIntranetService documentService,
+                                     ApprovalService approvalService,
+                                     AttachmentService attachmentService) {
         this.documentService = documentService;
+        this.approvalService = approvalService;
+        this.attachmentService = attachmentService;
     }
 
     /**
@@ -109,6 +118,12 @@ public class DocumentIntranetController {
             // 3. 결재 상신
             documentService.submitDocument(createdDocument.getId(), approvalLines);
 
+            // 4. 휴가신청서인 경우 일정도 생성 (VACATION 또는 LEAVE 타입 모두 허용)
+            if ("VACATION".equals(documentType) || "LEAVE".equals(documentType) || "VACATION_REQUEST".equals(documentType)) {
+                System.out.println("[문서 생성] 휴가신청서 일정 생성 시작: documentType=" + documentType);
+                approvalService.createScheduleFromVacationDocument(createdDocument);
+            }
+
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "문서가 성공적으로 상신되었습니다.",
@@ -144,9 +159,13 @@ public class DocumentIntranetController {
                         .body(Map.of("success", false, "message", "문서를 찾을 수 없습니다."));
             }
 
+            // 첨부파일 목록 조회
+            List<AttachmentIntranet> attachments = attachmentService.getAttachmentsByDocumentId(id);
+
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "document", document
+                    "document", document,
+                    "attachments", attachments
             ));
 
         } catch (Exception e) {

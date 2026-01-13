@@ -33,20 +33,32 @@ public class ScheduleIntranetController {
     public ResponseEntity<List<ScheduleIntranet>> getSchedules(
             @RequestParam(required = false) Long memberId,
             @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long divisionId,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate
     ) {
         try {
+            System.out.println("[일정 조회] memberId=" + memberId + ", departmentId=" + departmentId +
+                             ", divisionId=" + divisionId + ", startDate=" + startDate + ", endDate=" + endDate);
+
             List<ScheduleIntranet> schedules;
 
-            // 필터링 조건에 따라 조회
+            // 필터링 조건에 따라 조회 (우선순위: member > department > division)
             if (memberId != null) {
+                System.out.println("[일정 조회] 구성원별 조회: memberId=" + memberId);
                 schedules = scheduleService.getSchedulesByMemberId(memberId);
             } else if (departmentId != null && startDate != null && endDate != null) {
+                System.out.println("[일정 조회] 부서별 조회: departmentId=" + departmentId);
                 schedules = scheduleService.getSchedulesByDepartmentAndDateRange(departmentId, startDate, endDate);
+            } else if (divisionId != null && startDate != null && endDate != null) {
+                System.out.println("[일정 조회] 본부별 조회: divisionId=" + divisionId);
+                schedules = scheduleService.getSchedulesByDivisionAndDateRange(divisionId, startDate, endDate);
+                System.out.println("[일정 조회] 본부별 조회 결과 개수: " + schedules.size());
             } else if (startDate != null && endDate != null) {
+                System.out.println("[일정 조회] 기간별 조회");
                 schedules = scheduleService.getSchedulesByDateRange(startDate, endDate);
             } else {
+                System.out.println("[일정 조회] 전체 조회");
                 schedules = scheduleService.getAllSchedules();
             }
 

@@ -848,6 +848,16 @@
                 const approvalLineResponse = await fetch(`/api/intranet/approvals/document/${doc.id}`);
                 const approvalLines = await approvalLineResponse.json();
 
+                // 첨부파일 정보 가져오기
+                const attachmentResponse = await fetch(`/api/intranet/documents/${doc.id}`);
+                const documentData = await attachmentResponse.json();
+                doc.attachments = documentData.attachments || [];
+
+                // 일정정보 파싱 (content에서 추출)
+                const scheduleInfo = parseScheduleInfo(doc.content);
+                const cleanContent = removeScheduleInfo(doc.content);
+                const scheduleInfoHtml = formatScheduleInfoHtml(scheduleInfo);
+
                 let vacationInfo = '';
                 if (doc.documentType === 'VACATION' && doc.vacationRequest) {
                     const vr = doc.vacationRequest;
@@ -875,8 +885,8 @@
                             <div class="detail-label">첨부파일 (${doc.attachments.length}개)</div>
                             <div class="attachment-list">
                                 ${doc.attachments.map(att => `
-                                    <a href="/api/intranet/documents/attachments/${att.id}/download" class="attachment-item" download>
-                                        📎 ${att.originalFileName} (${formatFileSize(att.fileSize)})
+                                    <a href="/api/intranet/attachments/download/${att.id}" class="attachment-item" download>
+                                        📎 ${att.fileName} (${formatFileSize(att.fileSize)})
                                     </a>
                                 `).join('')}
                             </div>
@@ -944,11 +954,11 @@
                         <div class="detail-value">${formatDateTime(doc.createdAt)}</div>
                     </div>
 
-                    ${vacationInfo}
+                    ${scheduleInfoHtml || vacationInfo}
 
                     <div class="detail-section">
                         <div class="detail-label">문서 내용</div>
-                        <div class="detail-value" style="white-space: pre-wrap;">${doc.content || '내용 없음'}</div>
+                        <div class="detail-value" style="white-space: pre-wrap;">${cleanContent || '내용 없음'}</div>
                     </div>
 
                     ${attachmentsHtml}
@@ -986,6 +996,56 @@
                 'REJECTED': '<span class="badge" style="background:#f8d7da;color:#721c24;">반려</span>'
             };
             return badges[status] || status;
+        }
+
+        // 일정정보 JSON 파싱 함수
+        function parseScheduleInfo(content) {
+            if (!content) return null;
+
+            const regex = /\[일정정보:(\{[^\]]+\})\]/;
+            const match = content.match(regex);
+
+            if (match && match[1]) {
+                try {
+                    return JSON.parse(match[1]);
+                } catch (e) {
+                    console.error('일정정보 파싱 실패:', e);
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        // 일정정보 제거 함수
+        function removeScheduleInfo(content) {
+            if (!content) return content;
+            return content.replace(/\[일정정보:\{[^\]]+\}\]/g, '').trim();
+        }
+
+        // 일정정보 HTML 생성 함수
+        function formatScheduleInfoHtml(scheduleInfo) {
+            if (!scheduleInfo) return '';
+
+            const scheduleTypeMap = {
+                'VACATION': '연차',
+                'HALF_DAY': '반차'
+            };
+
+            const scheduleTypeText = scheduleTypeMap[scheduleInfo.scheduleType] || scheduleInfo.scheduleType;
+            const startDate = scheduleInfo.startDate || '-';
+            const endDate = scheduleInfo.endDate || '-';
+            const daysUsed = scheduleInfo.daysUsed || 0;
+
+            return `
+                <div class="detail-section">
+                    <div class="detail-label">휴가 정보</div>
+                    <div class="detail-value">
+                        <p><strong>휴가 유형:</strong> ${scheduleTypeText}</p>
+                        <p><strong>사용 기간:</strong> ${startDate} ~ ${endDate}</p>
+                        <p><strong>사용 일수:</strong> ${daysUsed}일</p>
+                    </div>
+                </div>
+            `;
         }
 
         function closeDetailModal() {
@@ -1192,6 +1252,16 @@
                 const approvalLineResponse = await fetch(`/api/intranet/approvals/document/${doc.id}`);
                 const approvalLines = await approvalLineResponse.json();
 
+                // 첨부파일 정보 가져오기
+                const attachmentResponse = await fetch(`/api/intranet/documents/${doc.id}`);
+                const documentData = await attachmentResponse.json();
+                doc.attachments = documentData.attachments || [];
+
+                // 일정정보 파싱 (content에서 추출)
+                const scheduleInfo = parseScheduleInfo(doc.content);
+                const cleanContent = removeScheduleInfo(doc.content);
+                const scheduleInfoHtml = formatScheduleInfoHtml(scheduleInfo);
+
                 let vacationInfo = '';
                 if (doc.documentType === 'VACATION' && doc.vacationRequest) {
                     const vr = doc.vacationRequest;
@@ -1207,6 +1277,22 @@
                                 <p><strong>시작일:</strong> ${vr.startDate || '-'}</p>
                                 <p><strong>종료일:</strong> ${vr.endDate || '-'}</p>
                                 <p><strong>사용 일수:</strong> ${vr.usedDays || 0}일</p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                let attachmentsHtml = '';
+                if (doc.attachments && doc.attachments.length > 0) {
+                    attachmentsHtml = `
+                        <div class="detail-section">
+                            <div class="detail-label">첨부파일 (${doc.attachments.length}개)</div>
+                            <div class="attachment-list">
+                                ${doc.attachments.map(att => `
+                                    <a href="/api/intranet/attachments/download/${att.id}" class="attachment-item" download>
+                                        📎 ${att.fileName} (${formatFileSize(att.fileSize)})
+                                    </a>
+                                `).join('')}
                             </div>
                         </div>
                     `;
@@ -1272,12 +1358,14 @@
                         <div class="detail-value">${formatDateTime(doc.createdAt)}</div>
                     </div>
 
-                    ${vacationInfo}
+                    ${scheduleInfoHtml || vacationInfo}
 
                     <div class="detail-section">
                         <div class="detail-label">문서 내용</div>
-                        <div class="detail-value" style="white-space: pre-wrap;">${doc.content || '내용 없음'}</div>
+                        <div class="detail-value" style="white-space: pre-wrap;">${cleanContent || '내용 없음'}</div>
                     </div>
+
+                    ${attachmentsHtml}
 
                     <div class="detail-section">
                         <div class="detail-label">최종 결재 결과</div>

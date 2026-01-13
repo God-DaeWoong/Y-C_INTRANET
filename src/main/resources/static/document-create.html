@@ -345,6 +345,22 @@
                             <option value="PM">오후 반차</option>
                         </select>
                     </div>
+
+                    <div class="form-group">
+                        <label for="startDate">시작일 <span class="required">*</span></label>
+                        <input type="date" id="startDate" placeholder="시작일을 선택하세요">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="endDate">종료일 <span class="required">*</span></label>
+                        <input type="date" id="endDate" placeholder="종료일을 선택하세요">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="daysUsed">사용 일수</label>
+                        <input type="text" id="daysUsed" readonly placeholder="자동 계산됩니다">
+                        <div class="help-text">주말 제외, 평일 기준으로 자동 계산됩니다</div>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -494,6 +510,38 @@
                     document.getElementById('halfDayType').value = '';
                 }
             });
+
+            // 날짜 변경 시 일수 자동 계산
+            const startDateInput = document.getElementById('startDate');
+            const endDateInput = document.getElementById('endDate');
+            const daysUsedInput = document.getElementById('daysUsed');
+
+            function calculateDays() {
+                const startDate = new Date(startDateInput.value);
+                const endDate = new Date(endDateInput.value);
+
+                if (!startDateInput.value || !endDateInput.value || startDate > endDate) {
+                    daysUsedInput.value = '';
+                    return;
+                }
+
+                let count = 0;
+                let current = new Date(startDate);
+
+                while (current <= endDate) {
+                    const dayOfWeek = current.getDay();
+                    // 주말(토요일=6, 일요일=0) 제외
+                    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                        count++;
+                    }
+                    current.setDate(current.getDate() + 1);
+                }
+
+                daysUsedInput.value = count + '일';
+            }
+
+            startDateInput.addEventListener('change', calculateDays);
+            endDateInput.addEventListener('change', calculateDays);
         });
 
         async function loadMembers() {
@@ -565,6 +613,13 @@
                         return;
                     }
                 }
+                // 날짜 확인
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                if (!startDate || !endDate) {
+                    alert('시작일과 종료일을 선택해주세요');
+                    return;
+                }
             }
 
             // 결재선 수집
@@ -583,15 +638,39 @@
             submitBtn.textContent = '상신 중...';
 
             try {
-                // 기본 데이터
+                // 1단계: 문서 생성
+                let finalContent = content;
+
+                // 휴가신청서인 경우 일정 정보를 JSON으로 content에 포함
+                if (documentType === 'VACATION') {
+                    const leaveType = document.getElementById('leaveType').value;
+                    const startDate = document.getElementById('startDate').value;
+                    const endDate = document.getElementById('endDate').value;
+                    const daysUsedText = document.getElementById('daysUsed').value;
+                    const daysUsed = parseFloat(daysUsedText.replace('일', '')) || 1;
+
+                    // scheduleType 결정 (VACATION or HALF_DAY)
+                    const scheduleType = leaveType === 'HALF_DAY' ? 'HALF_DAY' : 'VACATION';
+
+                    // 일정 정보를 JSON으로 content에 추가
+                    const scheduleInfo = {
+                        scheduleType: scheduleType,
+                        startDate: startDate,
+                        endDate: endDate,
+                        daysUsed: daysUsed
+                    };
+
+                    finalContent = content + '\n\n[일정정보:' + JSON.stringify(scheduleInfo) + ']';
+                }
+
                 const requestData = {
                     title,
                     documentType,
-                    content,
+                    content: finalContent,
                     approverIds: approvers
                 };
 
-                // 휴가신청서인 경우 추가 정보
+                // 휴가신청서인 경우 추가 정보 (메타데이터용)
                 if (documentType === 'VACATION') {
                     requestData.leaveType = document.getElementById('leaveType').value;
                     if (requestData.leaveType === 'HALF_DAY') {
@@ -609,14 +688,43 @@
 
                 const data = await response.json();
 
-                if (data.success) {
-                    alert('문서가 성공적으로 상신되었습니다');
-                    location.href = '/intranet-main.html';
-                } else {
+                if (!data.success) {
                     alert(data.message || '문서 상신에 실패했습니다');
                     submitBtn.disabled = false;
                     submitBtn.textContent = '결재 상신';
+                    return;
                 }
+
+                // 2단계: 첨부파일 업로드 (문서 생성 성공 시)
+                const documentId = data.documentId;
+                if (attachmentFiles.length > 0) {
+                    submitBtn.textContent = '첨부파일 업로드 중...';
+
+                    let uploadedCount = 0;
+                    for (const file of attachmentFiles) {
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        formData.append('documentId', documentId);
+
+                        const uploadResponse = await fetch('/api/intranet/attachments/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (uploadResponse.ok) {
+                            uploadedCount++;
+                        } else {
+                            console.error('파일 업로드 실패:', file.name);
+                        }
+                    }
+
+                    console.log(`${uploadedCount}/${attachmentFiles.length} 파일 업로드 완료`);
+                }
+
+                // 3단계: 완료
+                alert('문서가 성공적으로 상신되었습니다');
+                location.href = '/intranet-main.html';
+
             } catch (error) {
                 console.error('문서 작성 오류:', error);
                 alert('서버 오류가 발생했습니다');

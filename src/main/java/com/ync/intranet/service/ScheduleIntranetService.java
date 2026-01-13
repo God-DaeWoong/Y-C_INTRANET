@@ -241,6 +241,15 @@ public class ScheduleIntranetService {
     }
 
     /**
+     * 본부별 일정 조회
+     * 본부(divisionId)에 속한 모든 부서의 일정을 조회
+     */
+    public List<ScheduleIntranet> getSchedulesByDivisionAndDateRange(
+            Long divisionId, Date startDate, Date endDate) {
+        return scheduleMapper.findByDivisionAndDateRange(divisionId, startDate, endDate);
+    }
+
+    /**
      * 일정 취소 신청 (승인된 연차/반차)
      * 기존 문서를 복사하여 취소 문서를 생성하고 결재 요청
      */

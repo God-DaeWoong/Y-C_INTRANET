@@ -1104,10 +1104,13 @@
                 console.log('[달력] 필터 값:', filters);
                 if (filters.member && filters.member !== '') {
                     params.append('memberId', filters.member);
-                } else if (filters.department && filters.department !== '') {
+                }
+                if (filters.department && filters.department !== '') {
                     params.append('departmentId', filters.department);
                 }
-                // division 필터는 백엔드에서 직접 지원하지 않으므로 무시
+                if (filters.division && filters.division !== '') {
+                    params.append('divisionId', filters.division);
+                }
 
                 url += params.toString();
 
