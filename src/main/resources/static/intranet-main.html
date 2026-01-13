@@ -90,6 +90,154 @@
             background: #e53e3e;
         }
 
+        /* 알림 영역 */
+        .notification-wrapper {
+            position: relative;
+            margin-right: 20px;
+        }
+
+        .notification-btn {
+            position: relative;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            transition: transform 0.2s ease;
+        }
+
+        .notification-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: #f56565;
+            color: white;
+            border-radius: 10px;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-weight: bold;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        .notification-dropdown {
+            position: absolute;
+            top: 45px;
+            right: 0;
+            width: 380px;
+            max-height: 500px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 700;
+            font-size: 16px;
+            color: #2d3748;
+        }
+
+        .notification-header button {
+            background: none;
+            border: none;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .notification-header button:hover {
+            background: #ebf4ff;
+        }
+
+        .notification-list {
+            max-height: 420px;
+            overflow-y: auto;
+        }
+
+        .notification-item {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f7fafc;
+            transition: background 0.2s;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .notification-item:hover {
+            background: #f7fafc;
+        }
+
+        .notification-item.unread {
+            background: #ebf4ff;
+        }
+
+        .notification-item.unread::before {
+            content: '●';
+            color: #667eea;
+            margin-right: 8px;
+            font-size: 10px;
+            vertical-align: middle;
+        }
+
+        .notification-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 6px;
+        }
+
+        .notification-content {
+            font-size: 13px;
+            color: #718096;
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+
+        .notification-time {
+            font-size: 11px;
+            color: #a0aec0;
+        }
+
+        .empty-notification {
+            padding: 60px 20px;
+            text-align: center;
+            color: #a0aec0;
+            font-size: 14px;
+        }
+
+        .notification-delete-btn {
+            background: transparent;
+            border: none;
+            color: #cbd5e0;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .notification-delete-btn:hover {
+            background: #e2e8f0;
+            color: #e53e3e;
+        }
+
         /* 컨테이너 */
         .container {
             max-width: 1200px;
@@ -303,6 +451,25 @@
             <h1>Y&C Intranet</h1>
         </div>
         <div class="header-right">
+            <!-- 알림 벨 -->
+            <div class="notification-wrapper">
+                <button class="notification-btn" onclick="toggleNotificationDropdown()">
+                    🔔
+                    <span id="notificationBadge" class="notification-badge" style="display: none;">0</span>
+                </button>
+
+                <!-- 알림 드롭다운 -->
+                <div id="notificationDropdown" class="notification-dropdown" style="display: none;">
+                    <div class="notification-header">
+                        <span>알림</span>
+                        <button onclick="markAllAsRead()">모두 읽음</button>
+                    </div>
+                    <div id="notificationList" class="notification-list">
+                        <div class="empty-notification">알림이 없습니다</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="user-info">
                 <div class="user-avatar" id="userAvatar">U</div>
                 <div class="user-details">
@@ -678,6 +845,163 @@
             }
         }
 
+        // ========== 알림 기능 ==========
+
+        // 알림 드롭다운 토글
+        function toggleNotificationDropdown() {
+            const dropdown = document.getElementById('notificationDropdown');
+            const isVisible = dropdown.style.display === 'block';
+
+            if (isVisible) {
+                dropdown.style.display = 'none';
+            } else {
+                dropdown.style.display = 'block';
+                loadNotifications();
+            }
+        }
+
+        // 외부 클릭 시 드롭다운 닫기
+        document.addEventListener('click', (e) => {
+            const wrapper = document.querySelector('.notification-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                document.getElementById('notificationDropdown').style.display = 'none';
+            }
+        });
+
+        // 읽지 않은 알림 개수 가져오기
+        async function loadUnreadCount() {
+            try {
+                const response = await fetch('/api/intranet/notifications/unread-count');
+                const data = await response.json();
+
+                const badge = document.getElementById('notificationBadge');
+                if (data.count > 0) {
+                    badge.textContent = data.count > 99 ? '99+' : data.count;
+                    badge.style.display = 'block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('알림 개수 조회 실패:', error);
+            }
+        }
+
+        // 알림 목록 가져오기
+        async function loadNotifications() {
+            try {
+                const response = await fetch('/api/intranet/notifications');
+                const notifications = await response.json();
+
+                const listContainer = document.getElementById('notificationList');
+
+                if (!notifications || notifications.length === 0) {
+                    listContainer.innerHTML = '<div class="empty-notification">알림이 없습니다</div>';
+                    return;
+                }
+
+                listContainer.innerHTML = notifications.map(notif => `
+                    <div class="notification-item ${notif.isRead ? '' : 'unread'}">
+                        <div onclick="handleNotificationClick(${notif.id}, '${notif.linkUrl || ''}')" style="flex: 1; cursor: pointer;">
+                            <div class="notification-title">${escapeHtml(notif.title)}</div>
+                            <div class="notification-content">${escapeHtml(notif.content)}</div>
+                            <div class="notification-time">${formatTimeAgo(notif.createdAt)}</div>
+                        </div>
+                        <button class="notification-delete-btn" onclick="event.stopPropagation(); deleteNotification(${notif.id})" title="삭제">✕</button>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error('알림 목록 조회 실패:', error);
+            }
+        }
+
+        // 알림 클릭 처리
+        async function handleNotificationClick(notifId, linkUrl) {
+            try {
+                // 읽음 처리
+                await fetch(`/api/intranet/notifications/${notifId}/read`, {
+                    method: 'POST'
+                });
+
+                // 페이지 이동
+                if (linkUrl) {
+                    window.location.href = linkUrl;
+                } else {
+                    // URL이 없으면 드롭다운만 닫고 새로고침
+                    document.getElementById('notificationDropdown').style.display = 'none';
+                    loadNotifications();
+                    loadUnreadCount();
+                }
+
+            } catch (error) {
+                console.error('알림 읽음 처리 실패:', error);
+            }
+        }
+
+        // 모두 읽음 처리
+        async function markAllAsRead() {
+            try {
+                await fetch('/api/intranet/notifications/read-all', {
+                    method: 'POST'
+                });
+
+                // 목록 새로고침
+                loadNotifications();
+                loadUnreadCount();
+
+            } catch (error) {
+                console.error('전체 읽음 처리 실패:', error);
+            }
+        }
+
+        // 알림 삭제
+        async function deleteNotification(notifId) {
+            if (!confirm('이 알림을 삭제하시겠습니까?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/intranet/notifications/${notifId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    // 목록 새로고침
+                    loadNotifications();
+                    loadUnreadCount();
+                } else {
+                    alert('알림 삭제에 실패했습니다.');
+                }
+
+            } catch (error) {
+                console.error('알림 삭제 실패:', error);
+                alert('알림 삭제 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 시간 표시 (예: "방금 전", "5분 전")
+        function formatTimeAgo(dateStr) {
+            if (!dateStr) return '';
+
+            const now = new Date();
+            const past = new Date(dateStr);
+            const diffMs = now - past;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            if (diffMins < 1) return '방금 전';
+            if (diffMins < 60) return `${diffMins}분 전`;
+            if (diffHours < 24) return `${diffHours}시간 전`;
+            if (diffDays < 7) return `${diffDays}일 전`;
+
+            const month = past.getMonth() + 1;
+            const day = past.getDate();
+            return `${month}월 ${day}일`;
+        }
+
+        // ========== 알림 기능 끝 ==========
+
         window.addEventListener('load', async () => {
             // 서버 세션 체크
             const isLoggedIn = await checkServerSession();
@@ -686,6 +1010,10 @@
             displayUserInfo();
             loadPendingApprovals();
             loadRecentActivity();  // 최근 활동 로드
+            loadUnreadCount();     // 알림 개수 로드
+
+            // 30초마다 알림 개수 갱신 (폴링)
+            setInterval(loadUnreadCount, 30000);
         });
     </script>
 </body>

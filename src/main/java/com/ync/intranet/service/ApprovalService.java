@@ -2,9 +2,11 @@ package com.ync.intranet.service;
 
 import com.ync.intranet.domain.ApprovalLineIntranet;
 import com.ync.intranet.domain.DocumentIntranet;
+import com.ync.intranet.domain.MemberIntranet;
 import com.ync.intranet.domain.ScheduleIntranet;
 import com.ync.intranet.mapper.ApprovalLineIntranetMapper;
 import com.ync.intranet.mapper.DocumentIntranetMapper;
+import com.ync.intranet.mapper.MemberIntranetMapper;
 import com.ync.intranet.mapper.ScheduleIntranetMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,13 +24,19 @@ public class ApprovalService {
     private final ApprovalLineIntranetMapper approvalLineMapper;
     private final DocumentIntranetMapper documentMapper;
     private final ScheduleIntranetMapper scheduleMapper;
+    private final MemberIntranetMapper memberMapper;
+    private final NotificationService notificationService;
 
     public ApprovalService(ApprovalLineIntranetMapper approvalLineMapper,
                           DocumentIntranetMapper documentMapper,
-                          ScheduleIntranetMapper scheduleMapper) {
+                          ScheduleIntranetMapper scheduleMapper,
+                          MemberIntranetMapper memberMapper,
+                          NotificationService notificationService) {
         this.approvalLineMapper = approvalLineMapper;
         this.documentMapper = documentMapper;
         this.scheduleMapper = scheduleMapper;
+        this.memberMapper = memberMapper;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -107,6 +115,19 @@ public class ApprovalService {
                 // 일반 승인: 일정 상태를 APPROVED로 변경
                 syncScheduleStatus(approvalLine.getDocumentId(), "APPROVED");
             }
+
+            // 8. 기안자에게 결재 승인 알림 전송
+            if (document != null) {
+                MemberIntranet approver = memberMapper.findById(approverId);
+                String approverName = (approver != null) ? approver.getName() : "관리자";
+
+                notificationService.createApprovalApprovedNotification(
+                    document.getAuthorId(),
+                    approverName,
+                    document.getTitle(),
+                    document.getId()
+                );
+            }
         }
     }
 
@@ -161,6 +182,20 @@ public class ApprovalService {
         } else {
             // 일반 반려: 일정 상태를 REJECTED로 변경
             syncScheduleStatus(approvalLine.getDocumentId(), "REJECTED");
+        }
+
+        // 8. 기안자에게 결재 반려 알림 전송
+        if (document != null) {
+            MemberIntranet approver = memberMapper.findById(approverId);
+            String approverName = (approver != null) ? approver.getName() : "관리자";
+
+            notificationService.createApprovalRejectedNotification(
+                document.getAuthorId(),
+                approverName,
+                document.getTitle(),
+                document.getId(),
+                comment
+            );
         }
     }
 

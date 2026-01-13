@@ -22,13 +22,16 @@ public class DocumentIntranetService {
     private final DocumentIntranetMapper documentMapper;
     private final ApprovalLineIntranetMapper approvalLineMapper;
     private final MemberIntranetMapper memberMapper;
+    private final NotificationService notificationService;
 
     public DocumentIntranetService(DocumentIntranetMapper documentMapper,
                                    ApprovalLineIntranetMapper approvalLineMapper,
-                                   MemberIntranetMapper memberMapper) {
+                                   MemberIntranetMapper memberMapper,
+                                   NotificationService notificationService) {
         this.documentMapper = documentMapper;
         this.approvalLineMapper = approvalLineMapper;
         this.memberMapper = memberMapper;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -131,7 +134,11 @@ public class DocumentIntranetService {
         // 1. 문서 상태를 PENDING으로 변경
         documentMapper.submit(documentId);
 
-        // 2. 결재선 생성 (결재자 정보 스냅샷)
+        // 2. 기안자 정보 조회
+        MemberIntranet requester = memberMapper.findById(document.getAuthorId());
+        String requesterName = (requester != null) ? requester.getName() : "사용자";
+
+        // 3. 결재선 생성 (결재자 정보 스냅샷)
         for (int i = 0; i < approvalLines.size(); i++) {
             ApprovalLineIntranet line = approvalLines.get(i);
             line.setDocumentId(documentId);
@@ -147,6 +154,14 @@ public class DocumentIntranetService {
             }
 
             approvalLineMapper.insert(line);
+
+            // 4. 각 결재자에게 알림 전송
+            notificationService.createApprovalRequestNotification(
+                line.getApproverId(),
+                requesterName,
+                document.getTitle(),
+                documentId
+            );
         }
     }
 

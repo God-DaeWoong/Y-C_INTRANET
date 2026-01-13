@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.intranet.mapper.NotificationIntranetMapper">
+
+    <resultMap id="NotificationIntranetResultMap" type="com.ync.intranet.domain.NotificationIntranet">
+        <id property="id" column="id"/>
+        <result property="memberId" column="member_id"/>
+        <result property="notificationType" column="notification_type"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="linkUrl" column="link_url"/>
+        <result property="isRead" column="is_read"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="readAt" column="read_at"/>
+    </resultMap>
+
+    <!-- 알림 생성 -->
+    <insert id="insert" parameterType="com.ync.intranet.domain.NotificationIntranet">
+        <selectKey keyProperty="id" resultType="long" order="BEFORE">
+            SELECT notifications_intranet_seq.NEXTVAL FROM dual
+        </selectKey>
+        INSERT INTO notifications_intranet (
+            id, member_id, notification_type, title, content, link_url, is_read, created_at
+        )
+        VALUES (
+            #{id}, #{memberId}, #{notificationType}, #{title, jdbcType=VARCHAR},
+            #{content, jdbcType=VARCHAR}, #{linkUrl, jdbcType=VARCHAR},
+            #{isRead, jdbcType=NUMERIC}, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <!-- 사용자별 알림 조회 (최근 20개) -->
+    <select id="findByMemberId" resultMap="NotificationIntranetResultMap">
+        SELECT *
+        FROM notifications_intranet
+        WHERE member_id = #{memberId}
+        ORDER BY created_at DESC
+        FETCH FIRST 20 ROWS ONLY
+    </select>
+
+    <!-- 읽지 않은 알림 개수 -->
+    <select id="countUnreadByMemberId" resultType="int">
+        SELECT COUNT(*)
+        FROM notifications_intranet
+        WHERE member_id = #{memberId}
+          AND is_read = 0
+    </select>
+
+    <!-- 알림 읽음 처리 -->
+    <update id="markAsRead">
+        UPDATE notifications_intranet
+        SET is_read = 1,
+            read_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 전체 읽음 처리 -->
+    <update id="markAllAsRead">
+        UPDATE notifications_intranet
+        SET is_read = 1,
+            read_at = CURRENT_TIMESTAMP
+        WHERE member_id = #{memberId}
+          AND is_read = 0
+    </update>
+
+    <!-- 알림 삭제 -->
+    <delete id="deleteById">
+        DELETE FROM notifications_intranet WHERE id = #{id}
+    </delete>
+
+    <!-- 오래된 읽은 알림 삭제 (7일 이상) -->
+    <delete id="deleteOldReadNotifications">
+        DELETE FROM notifications_intranet
+        WHERE is_read = 1
+          AND read_at <![CDATA[ < ]]> CURRENT_TIMESTAMP - INTERVAL '7' DAY
+    </delete>
+
+</mapper>

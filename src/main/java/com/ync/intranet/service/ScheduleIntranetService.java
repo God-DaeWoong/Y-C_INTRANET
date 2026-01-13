@@ -30,15 +30,18 @@ public class ScheduleIntranetService {
     private final DocumentIntranetMapper documentMapper;
     private final ApprovalLineIntranetMapper approvalLineMapper;
     private final MemberIntranetMapper memberMapper;
+    private final NotificationService notificationService;
 
     public ScheduleIntranetService(ScheduleIntranetMapper scheduleMapper,
                                    DocumentIntranetMapper documentMapper,
                                    ApprovalLineIntranetMapper approvalLineMapper,
-                                   MemberIntranetMapper memberMapper) {
+                                   MemberIntranetMapper memberMapper,
+                                   NotificationService notificationService) {
         this.scheduleMapper = scheduleMapper;
         this.documentMapper = documentMapper;
         this.approvalLineMapper = approvalLineMapper;
         this.memberMapper = memberMapper;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -96,8 +99,28 @@ public class ScheduleIntranetService {
             }
         }
 
-        // 일정 저장
+        // 일정 저장 (ID 생성됨)
         scheduleMapper.insert(schedule);
+
+        // 휴가 신청 알림 전송 (schedule.getId()가 이제 사용 가능)
+        if (("VACATION".equals(schedule.getScheduleType()) || "HALF_DAY".equals(schedule.getScheduleType()))
+                && schedule.getApproverId() != null) {
+
+            // 신청자 정보 조회
+            MemberIntranet requester = memberMapper.findById(schedule.getMemberId());
+            String requesterName = (requester != null) ? requester.getName() : "사용자";
+
+            // 휴가 유형 추출
+            String leaveType = extractLeaveType(schedule.getTitle());
+
+            // 결재자에게 휴가 신청 알림 전송
+            notificationService.createLeaveRequestNotification(
+                schedule.getApproverId(),
+                requesterName,
+                leaveType,
+                schedule.getId()
+            );
+        }
     }
 
     /**
@@ -272,7 +295,14 @@ public class ScheduleIntranetService {
 
         documentMapper.insert(cancelDocument);
 
-        // 2. 취소 결재선 생성 (동일한 결재자)
+        // 2. 신청자 정보 조회
+        MemberIntranet requester = memberMapper.findById(schedule.getMemberId());
+        String requesterName = (requester != null) ? requester.getName() : "사용자";
+
+        // 3. 휴가 유형 추출
+        String leaveType = extractLeaveType(schedule.getTitle());
+
+        // 4. 취소 결재선 생성 (동일한 결재자)
         for (ApprovalLineIntranet originalApproval : originalApprovals) {
             ApprovalLineIntranet cancelApprovalLine = new ApprovalLineIntranet();
             cancelApprovalLine.setDocumentId(cancelDocument.getId());
@@ -286,12 +316,22 @@ public class ScheduleIntranetService {
             approvalLineMapper.insert(cancelApprovalLine);
         }
 
-        // 3. 일정 상태를 PENDING으로 변경하고 취소 문서 ID 저장
+        // 5. 일정 상태를 PENDING으로 변경하고 취소 문서 ID 저장
         // 참고: 취소 승인 시 일정을 CANCELLED로 변경하고 삭제하는 로직은 ApprovalIntranetService에서 처리
         schedule.setStatus("PENDING");
         // 취소 문서 ID를 별도로 저장할 필요가 있다면 metadata나 별도 필드 활용
         // 여기서는 간단히 상태만 변경
         scheduleMapper.update(schedule);
+
+        // 6. 결재자에게 휴가 취소 신청 알림 전송 (문서 ID로 링크)
+        for (ApprovalLineIntranet originalApproval : originalApprovals) {
+            notificationService.createApprovalRequestNotification(
+                originalApproval.getApproverId(),
+                requesterName,
+                "[취소] " + leaveType,
+                cancelDocument.getId()
+            );
+        }
     }
 
     /**
@@ -448,5 +488,31 @@ public class ScheduleIntranetService {
         }
 
         return updateCount;
+    }
+
+    /**
+     * 제목에서 휴가 유형 추출
+     * 예: "연차 신청" -> "연차", "오전반차" -> "오전반차"
+     */
+    private String extractLeaveType(String title) {
+        if (title == null) {
+            return "휴가";
+        }
+
+        if (title.contains("연차")) {
+            return "연차";
+        } else if (title.contains("오전반차")) {
+            return "오전반차";
+        } else if (title.contains("오후반차")) {
+            return "오후반차";
+        } else if (title.contains("반차")) {
+            return "반차";
+        } else if (title.contains("병가")) {
+            return "병가";
+        } else if (title.contains("경조사")) {
+            return "경조사";
+        } else {
+            return "휴가";
+        }
     }
 }
