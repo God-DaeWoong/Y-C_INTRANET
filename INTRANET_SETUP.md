@@ -610,7 +610,64 @@ CREATE TABLE expense_items_intranet (
 
 ## 📅 버전 히스토리
 
-- **v0.20** (2026-01-13) - 문서작성, 결재 대기함, 일정/휴가 관리 개선 🆕
+- **v0.21** (2026-01-14) - UI 개선, 알림 시스템 확장, 첨부파일 개선 🆕
+  - **첨부파일 UUID 제거**:
+    - 파일명에서 UUID 부분 제거하여 원본 파일명만 표시
+    - `getOriginalFileName()` 함수 추가 (approval-pending.html)
+    - 정규식 패턴: `/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_/i`
+    - 변경 전: `b69fc53c8-211c-4b5c-98e2-186a4a22d06d_파일명.xlsx`
+    - 변경 후: `파일명.xlsx`
+
+  - **일정 모달 버튼 표시 버그 수정** (schedule-calendar.html):
+    - 이전 일정 상세보기 후 새 일정 추가 시 "저장 및 결재요청" 버튼 안보이는 문제 해결
+    - `closeEventModal()` 함수에서 `submitBtn.style.display = 'inline-block'` 추가
+    - 모달 닫을 때 버튼 display 속성 초기화
+
+  - **반려 사유 선택사항으로 변경**:
+    - 승인/반려 모두 사유 입력 없이 처리 가능하도록 변경
+    - ApprovalService.reject() 메서드에서 사유 필수 검증 제거
+    - 사유 없을 경우 빈 문자열로 저장
+
+  - **내 일정 목록 성능 최적화** (schedule-calendar.html):
+    - 전체 일정 조회 → 이번 달 + 다음 달 일정만 조회
+    - `loadMySchedules()` 함수 수정: startDate/endDate 파라미터 추가
+    - 성능 개선: 불필요한 과거 데이터 조회 방지
+
+  - **전체 페이지 알림 시스템 확장**:
+    - 공통 모듈화: `/css/notification-bell.css`, `/js/notification-bell.js` 생성
+    - 알림 벨 추가된 페이지:
+      - approval-pending.html (내 결재 대기함)
+      - schedule-calendar.html (일정/휴가관리)
+      - document-create.html (문서작성)
+      - my-documents.html (내문서함)
+      - expense-report_intranet.html (경비보고서)
+    - 경비보고서 페이지 헤더 신규 추가:
+      - Y&C Intranet 로고
+      - 알림 벨 (🔔)
+      - 사용자 아바타
+      - 로그아웃 버튼
+    - 알림 기능:
+      - 읽지 않은 알림 개수 배지 표시
+      - 알림 드롭다운 (클릭 시 목록 표시)
+      - 모두 읽음 처리
+      - 알림 삭제
+      - 30초마다 자동 갱신
+      - 알림 클릭 시 해당 페이지로 이동
+
+  - **헤더 UI 통일화**:
+    - 메인 페이지 헤더 간소화: 사용자 이름/직급 제거, 아바타만 표시
+    - 모든 페이지 헤더 구조 통일:
+      - 좌측: Y&C Intranet 로고 (클릭 시 메인으로 이동)
+      - 우측: 알림 벨 → 사용자 아바타 → 로그아웃 버튼
+    - 사용자 아바타: 이름 첫 글자만 표시
+
+  - **기술 스택**:
+    - JavaScript 모듈화: 알림 기능 공통 JS 파일로 분리
+    - CSS 재사용: 알림 스타일 공통 CSS 파일로 분리
+    - 정규식 활용: UUID 패턴 제거
+    - sessionStorage 활용: 사용자 정보 관리
+
+- **v0.20** (2026-01-13) - 문서작성, 결재 대기함, 일정/휴가 관리 개선
   - **문서 작성 페이지 개선**:
     - 연차/반차 신청 시 날짜 선택 기능 추가
     - 일수 자동 계산 및 수동 지정 기능

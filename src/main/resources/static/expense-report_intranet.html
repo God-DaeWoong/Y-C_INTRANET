@@ -10,6 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="/css/notification-bell.css">
+  <script src="/js/notification-bell.js"></script>
   <style>
     :root{
       --bg:#f7fafc;
@@ -35,7 +37,54 @@
       background:#f7fafc;
       color:#2d3748;
       min-height:100vh;
-      padding:22px;
+      padding:0;
+    }
+    .header {
+      background: white;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 22px;
+    }
+    .header-left h1 {
+      color: #667eea;
+      font-size: 24px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+    .btn-logout {
+      padding: 8px 16px;
+      background: #f56565;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-logout:hover {
+      background: #e53e3e;
+    }
+    .content-wrapper {
+      padding: 0 22px 22px 22px;
     }
     .wrap{max-width:1600px;margin:0 auto;display:grid;grid-template-columns:350px 1fr;gap:18px;align-items:start;}
     .card{
@@ -177,6 +226,33 @@
 </head>
 <body>
 
+<header class="header">
+  <div class="header-left">
+    <h1 onclick="location.href='/intranet-main.html'">Y&C Intranet</h1>
+  </div>
+  <div class="header-right">
+    <!-- 알림 벨 -->
+    <div class="notification-wrapper">
+      <button class="notification-btn" onclick="toggleNotificationDropdown()">
+        🔔
+        <span id="notificationBadge" class="notification-badge" style="display: none;">0</span>
+      </button>
+      <div id="notificationDropdown" class="notification-dropdown" style="display: none;">
+        <div class="notification-header">
+          <span>알림</span>
+          <button onclick="markAllAsRead()">모두 읽음</button>
+        </div>
+        <div id="notificationList" class="notification-list">
+          <div class="empty-notification">알림이 없습니다</div>
+        </div>
+      </div>
+    </div>
+    <div class="user-avatar" id="userAvatar">U</div>
+    <button class="btn-logout" onclick="logout()">로그아웃</button>
+  </div>
+</header>
+
+<div class="content-wrapper">
 <div class="wrap">
   <!-- Sidebar -->
   <section class="card">
@@ -397,6 +473,7 @@
       </div>
     </div>
   </div>
+</div>
 </div>
 
 <script>
@@ -1599,6 +1676,37 @@
   }
 
   init();
+
+  // 로그아웃 함수
+  async function logout() {
+    if (!confirm('로그아웃 하시겠습니까?')) return;
+    try {
+      const response = await fetch('/api/intranet/auth/logout', { method: 'POST' });
+      if (response.ok) {
+        window.location.href = '/intranet-login.html';
+      }
+    } catch (error) {
+      console.error('로그아웃 오류:', error);
+    }
+  }
+
+  // 사용자 정보 표시
+  function displayUserInfo() {
+    const userStr = sessionStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        const avatar = document.getElementById('userAvatar');
+        if (avatar && user.name) {
+          avatar.textContent = user.name.charAt(0).toUpperCase();
+        }
+      } catch (e) {
+        console.error('사용자 정보 파싱 실패:', e);
+      }
+    }
+  }
+
+  displayUserInfo();
 </script>
 
 </body>

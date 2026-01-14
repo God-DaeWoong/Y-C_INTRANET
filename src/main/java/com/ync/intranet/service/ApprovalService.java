@@ -159,14 +159,9 @@ public class ApprovalService {
             throw new RuntimeException("이미 처리된 결재입니다.");
         }
 
-        // 4. 반려 사유 확인
-        if (comment == null || comment.trim().isEmpty()) {
-            throw new RuntimeException("반려 사유를 입력해야 합니다.");
-        }
-
-        // 5. 결재 반려 처리
+        // 4. 결재 반려 처리
         approvalLine.setDecision(ApprovalLineIntranet.ApprovalDecision.REJECTED);
-        approvalLine.setApprovalComment(comment);
+        approvalLine.setApprovalComment(comment != null ? comment : "");
         approvalLine.setDecidedAt(LocalDateTime.now());
         approvalLineMapper.update(approvalLine);
 

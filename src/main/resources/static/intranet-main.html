@@ -472,10 +472,6 @@
 
             <div class="user-info">
                 <div class="user-avatar" id="userAvatar">U</div>
-                <div class="user-details">
-                    <div class="user-name" id="userName">사용자</div>
-                    <div class="user-role" id="userRole">일반</div>
-                </div>
             </div>
             <button class="btn-logout" onclick="logout()">로그아웃</button>
         </div>
@@ -600,8 +596,6 @@
             const user = checkLogin();
             if (!user) return;
 
-            document.getElementById('userName').textContent = user.name;
-            document.getElementById('userRole').textContent = `${user.position || ''} ${user.departmentName || ''}`.trim();
             document.getElementById('welcomeMessage').textContent = `${user.name}님, 환영합니다!`;
 
             // 아바타 이니셜

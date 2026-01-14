@@ -11,6 +11,10 @@
     <!-- FullCalendar -->
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet"/>
 
+    <!-- 알림 벨 CSS -->
+    <link rel="stylesheet" href="/css/notification-bell.css">
+    <script src="/js/notification-bell.js"></script>
+
     <style>
         * {
             margin: 0;
@@ -563,6 +567,22 @@
             <h1 onclick="location.href='/intranet-main.html'">Y&C Intranet</h1>
         </div>
         <div class="header-right">
+            <!-- 알림 벨 -->
+            <div class="notification-wrapper">
+                <button class="notification-btn" onclick="toggleNotificationDropdown()">
+                    🔔
+                    <span id="notificationBadge" class="notification-badge" style="display: none;">0</span>
+                </button>
+                <div id="notificationDropdown" class="notification-dropdown" style="display: none;">
+                    <div class="notification-header">
+                        <span>알림</span>
+                        <button onclick="markAllAsRead()">모두 읽음</button>
+                    </div>
+                    <div id="notificationList" class="notification-list">
+                        <div class="empty-notification">알림이 없습니다</div>
+                    </div>
+                </div>
+            </div>
             <div class="user-avatar" id="userAvatar">U</div>
             <button class="btn-logout" onclick="logout()">로그아웃</button>
         </div>
@@ -1385,6 +1405,7 @@
             submitBtn.disabled = false;
             submitBtn.style.background = '';
             submitBtn.style.cursor = '';
+            submitBtn.style.display = 'inline-block'; // ✅ display 속성도 초기화
 
             // 숨겨진 필드들 초기화
             document.getElementById('timeGroup').style.display = 'none';
@@ -2310,8 +2331,16 @@
                     return;
                 }
 
-                // 로그인한 사용자의 일정만 조회
-                const response = await fetch(`/api/intranet/schedules?memberId=${currentUser.id}`, {
+                // 이번 달 1일부터 다음 달 마지막일까지 계산
+                const now = new Date();
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+
+                const startDate = startOfMonth.toISOString().split('T')[0];
+                const endDate = endOfNextMonth.toISOString().split('T')[0];
+
+                // 로그인한 사용자의 이번 달 + 다음 달 일정 조회
+                const response = await fetch(`/api/intranet/schedules?memberId=${currentUser.id}&startDate=${startDate}&endDate=${endDate}`, {
                     credentials: 'include'
                 });
 
@@ -2321,7 +2350,7 @@
                 }
 
                 let schedules = await response.json();
-                console.log('[내 일정] 조회된 일정:', schedules);
+                console.log('[내 일정] 조회된 일정 (이번 달 + 다음 달):', schedules);
 
                 // 날짜순 정렬 (최신순)
                 schedules.sort((a, b) => {
@@ -2789,5 +2818,6 @@
             </div>
         </div>
     </div>
+
 </body>
 </html>
