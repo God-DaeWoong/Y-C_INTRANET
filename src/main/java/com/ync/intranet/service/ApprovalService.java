@@ -385,9 +385,10 @@ public class ApprovalService {
             schedule.setDescription(document.getTitle());
             schedule.setStatus("PENDING"); // 결재 대기 상태
 
-            // 날짜 파싱 (java.util.Date)
+            // 날짜 파싱 (java.util.Date) - 타임존 문제 해결
             try {
                 java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+                sdf.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
                 schedule.setStartDate(sdf.parse(startDateStr));
                 schedule.setEndDate(sdf.parse(endDateStr));
             } catch (Exception e) {

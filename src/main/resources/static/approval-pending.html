@@ -1223,6 +1223,17 @@
                         ? '<span class="badge" style="background:#d4edda;color:#155724;">✓ 승인</span>'
                         : '<span class="badge" style="background:#f8d7da;color:#721c24;">✗ 반려</span>';
 
+                    // 일정 정보 파싱 및 제거
+                    const scheduleInfo = parseScheduleInfo(doc.content);
+                    const cleanContent = removeScheduleInfo(doc.content);
+
+                    // 휴가 배지 생성 (결재 대기 탭과 동일)
+                    let vacationBadge = '';
+                    if (scheduleInfo) {
+                        const typeText = scheduleInfo.scheduleType === 'VACATION' ? '연차' : '반차';
+                        vacationBadge = `<span class="badge" style="background:#fef3c7;color:#92400e;">📅 ${typeText} | ${scheduleInfo.startDate} ~ ${scheduleInfo.endDate} | ${scheduleInfo.daysUsed}일</span>`;
+                    }
+
                     return `
                     <div class="approval-item">
                         <div class="approval-header">
@@ -1232,6 +1243,7 @@
                                     <span>📋 유형: ${documentTypeText}</span>
                                     <span>📝 작성자: ${doc.authorName || '알 수 없음'}</span>
                                     <span>📅 결재일: ${formatDate(approval.decidedAt)}</span>
+                                    ${vacationBadge}
                                 </div>
                             </div>
                             <div>
@@ -1239,7 +1251,7 @@
                             </div>
                         </div>
                         <div class="approval-content">
-                            ${doc.content ? doc.content.substring(0, 150) + '...' : '내용 없음'}
+                            ${cleanContent ? cleanContent.substring(0, 150) + '...' : '내용 없음'}
                         </div>
                         ${approval.approvalComment ? `<div style="margin-top:12px;padding:12px;background:#f7fafc;border-radius:8px;font-size:14px;color:#4a5568;"><strong>의견:</strong> ${approval.approvalComment}</div>` : ''}
                         <div class="approval-actions">

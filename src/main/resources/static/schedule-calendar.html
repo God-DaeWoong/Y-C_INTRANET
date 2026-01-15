@@ -863,6 +863,28 @@
             return koreanHolidays[dateStr];
         }
 
+        // 일정정보 JSON 파싱 함수
+        function parseScheduleInfo(content) {
+            if (!content) return null;
+            const regex = /\[일정정보:(\{[^\]]+\})\]/;
+            const match = content.match(regex);
+            if (match && match[1]) {
+                try {
+                    return JSON.parse(match[1]);
+                } catch (e) {
+                    console.error('일정정보 파싱 실패:', e);
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        // 일정정보 제거 함수
+        function removeScheduleInfo(content) {
+            if (!content) return content;
+            return content.replace(/\[일정정보:\{[^\]]+\}\]/g, '').trim();
+        }
+
         function initCalendar() {
             const calendarEl = document.getElementById('calendar');
             calendar = new FullCalendar.Calendar(calendarEl, {
@@ -1207,9 +1229,12 @@
                         if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
                             return dateValue.split('T')[0];
                         }
-                        // Date 객체나 타임스탬프인 경우
+                        // Date 객체나 타임스탬프인 경우 - 로컬 날짜 기준
                         const d = new Date(dateValue);
-                        return d.toISOString().split('T')[0];
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        return `${year}-${month}-${day}`;
                     };
 
                     const startDateStr = formatDate(schedule.startDate);
@@ -1482,7 +1507,8 @@
                 const formatDate = (dateValue) => {
                     if (!dateValue) return '';
                     if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
-                        return dateValue.split('T')[0];
+                        // 'T' 또는 공백으로 분리하여 날짜 부분만 추출 (yyyy-MM-dd HH:mm:ss 형식 지원)
+                        return dateValue.split(/[T ]/)[0];
                     }
                     const d = new Date(dateValue);
                     return d.toISOString().split('T')[0];
@@ -2461,6 +2487,29 @@
                         ? `<button onclick="event.stopPropagation(); withdrawCancellation(${schedule.id});" style="margin-top: 6px; padding: 4px 10px; font-size: 11px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">철회</button>`
                         : '';
 
+                    // 휴가 배지 생성 (연차/반차인 경우만)
+                    let vacationBadge = '';
+                    if (schedule.scheduleType === 'VACATION' || schedule.scheduleType === 'HALF_DAY') {
+                        const typeText = schedule.scheduleType === 'VACATION' ? '연차' : '반차';
+                        // 날짜 포맷 함수 (로컬 기준)
+                        const formatDateOnly = (dateValue) => {
+                            if (!dateValue) return '';
+                            if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
+                                // 'T' 또는 공백으로 분리하여 날짜 부분만 추출 (yyyy-MM-dd HH:mm:ss 형식 지원)
+                                return dateValue.split(/[T ]/)[0];
+                            }
+                            const d = new Date(dateValue);
+                            const year = d.getFullYear();
+                            const month = String(d.getMonth() + 1).padStart(2, '0');
+                            const day = String(d.getDate()).padStart(2, '0');
+                            return `${year}-${month}-${day}`;
+                        };
+                        const startDate = formatDateOnly(schedule.startDate);
+                        const endDate = formatDateOnly(schedule.endDate) || startDate;
+                        const daysUsed = schedule.daysUsed || 1;
+                        vacationBadge = `<div style="margin-top: 6px;"><span style="display: inline-block; font-size: 10px; font-weight: 600; padding: 4px 8px; background: #fef3c7; color: #92400e; border-radius: 6px;">📅 ${typeText} | ${startDate} ~ ${endDate} | ${daysUsed}일</span></div>`;
+                    }
+
                     return `
                         <div onclick="showEventDetail(${schedule.id})" style="padding: 12px 14px; margin-bottom: 10px; background: #f7fafc; border-radius: 10px; border-left: 4px solid ${color}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#edf2f7'" onmouseout="this.style.background='#f7fafc'">
                             <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; gap: 8px;">
@@ -2469,6 +2518,7 @@
                             </div>
                             <div style="font-size: 11px; color: #64748b; margin-top: 4px;">📅 ${dateText}</div>
                             ${schedule.description ? `<div style="font-size: 10px; color: #94a3b8; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${schedule.description}</div>` : ''}
+                            ${vacationBadge}
                             ${withdrawBtn}
                         </div>
                     `;
@@ -2533,11 +2583,39 @@
                 }
 
                 // 문서 정보 표시
-                document.getElementById('approvalDocTitle').textContent = approval.document?.title || '제목 없음';
-                document.getElementById('approvalDocAuthor').textContent = approval.document?.authorName || '알 수 없음';
-                document.getElementById('approvalDocDate').textContent = formatDateTime(approval.document?.createdAt || approval.submittedAt);
+                const doc = approval.document || {};
+                document.getElementById('approvalDocTitle').textContent = doc.title || '제목 없음';
+                document.getElementById('approvalDocAuthor').textContent = doc.authorName || '알 수 없음';
+                document.getElementById('approvalDocDate').textContent = formatDateTime(doc.createdAt || approval.submittedAt);
                 document.getElementById('approvalStep').textContent = `${approval.stepOrder}단계`;
-                document.getElementById('approvalDocContent').textContent = approval.document?.content || '내용 없음';
+
+                // 일정 정보 파싱
+                const scheduleInfo = parseScheduleInfo(doc.content);
+                const cleanContent = removeScheduleInfo(doc.content);
+
+                // 휴가 정보 표시
+                const vacationInfoDiv = document.getElementById('approvalVacationInfo');
+                const vacationDetailDiv = document.getElementById('approvalVacationDetail');
+
+                if (scheduleInfo) {
+                    const scheduleTypeMap = {
+                        'VACATION': '연차',
+                        'HALF_DAY': '반차'
+                    };
+                    const scheduleTypeText = scheduleTypeMap[scheduleInfo.scheduleType] || scheduleInfo.scheduleType;
+
+                    vacationDetailDiv.innerHTML = `
+                        <p style="margin: 4px 0;"><strong>휴가 유형:</strong> ${scheduleTypeText}</p>
+                        <p style="margin: 4px 0;"><strong>사용 기간:</strong> ${scheduleInfo.startDate} ~ ${scheduleInfo.endDate}</p>
+                        <p style="margin: 4px 0;"><strong>사용 일수:</strong> ${scheduleInfo.daysUsed}일</p>
+                    `;
+                    vacationInfoDiv.style.display = 'block';
+                } else {
+                    vacationInfoDiv.style.display = 'none';
+                }
+
+                // 깨끗한 문서 내용 표시
+                document.getElementById('approvalDocContent').textContent = cleanContent || '내용 없음';
                 document.getElementById('approvalComment').value = '';
 
                 // 모달 표시
@@ -2800,6 +2878,12 @@
                 <div class="approval-info-row">
                     <div class="approval-info-label">결재 단계</div>
                     <div class="approval-info-value" id="approvalStep">-</div>
+                </div>
+
+                <!-- 휴가 정보 섹션 -->
+                <div id="approvalVacationInfo" style="display: none; margin-top: 16px; padding: 12px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;">
+                    <div style="font-weight: 600; color: #92400e; margin-bottom: 8px; font-size: 14px;">📅 휴가 정보</div>
+                    <div id="approvalVacationDetail" style="color: #78350f; font-size: 13px;"></div>
                 </div>
 
                 <div style="margin-top: 20px;">

@@ -10,6 +10,11 @@ spring:
     hikari:
       maximum-pool-size: 10
 
+  # Jackson 전역 타임존 설정 (대한민국 기준)
+  jackson:
+    time-zone: Asia/Seoul
+    date-format: yyyy-MM-dd HH:mm:ss
+
   mail:
     host: smtp.worksmobile.com
     port: 465

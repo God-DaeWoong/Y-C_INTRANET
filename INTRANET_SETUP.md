@@ -610,7 +610,70 @@ CREATE TABLE expense_items_intranet (
 
 ## 📅 버전 히스토리
 
-- **v0.22** (2026-01-15) - 관리자 페이지 일정/휴가 관리 대규모 개선 🆕
+- **v0.25** (2026-01-15) - 날짜 형식 호환성 개선 🆕
+  - **HTML5 date input 호환성 문제 해결**:
+    - application.yml의 Jackson 설정으로 API가 `yyyy-MM-dd HH:mm:ss` 형식 반환
+    - HTML5 date input은 `yyyy-MM-dd` 형식만 허용
+    - 문제: 일정 상세 페이지에서 시작일/종료일이 표시되지 않음
+    - 콘솔 에러: "The specified value '2026-01-19 00:00:00' does not conform to the required format, 'yyyy-MM-dd'"
+
+  - **해결 방법**:
+    - schedule-calendar.html의 날짜 포맷 함수 수정
+    - `split('T')[0]` → `split(/[T ]/)[0]` (정규식 사용)
+    - 'T' 또는 공백 문자 모두 처리하여 날짜 부분만 추출
+    - ISO 8601 형식(`2026-01-19T00:00:00`)과 새 형식(`2026-01-19 00:00:00`) 모두 지원
+
+  - **수정된 위치**:
+    - schedule-calendar.html Line 1510: showEventDetail() 함수 내 formatDate()
+    - schedule-calendar.html Line 2497: loadMySchedules() 함수 내 휴가 배지 formatDateOnly()
+
+  - **효과**:
+    - 일정 상세 페이지: 시작일/종료일 정상 표시
+    - 휴가 배지: `2026-01-19 00:00:00` → `2026-01-19` (시간 제거)
+
+- **v0.24** (2026-01-15) - Jackson 전역 타임존 설정
+  - **타임존 UTC → Asia/Seoul 전환**:
+    - Spring Boot의 Jackson 라이브러리가 기본적으로 java.util.Date를 UTC로 직렬화하는 문제 해결
+    - 문제 현상: DB에 `2026-01-19 00:00:00` 저장 → API 응답 `"2026-01-18T15:00:00.000+00:00"` (9시간 차이)
+    - application.yml에 전역 타임존 설정 추가
+    - `spring.jackson.time-zone=Asia/Seoul`
+    - `spring.jackson.date-format=yyyy-MM-dd HH:mm:ss` (24시간 형식)
+
+  - **영향받는 API**:
+    - `/api/intranet/schedules` - 일정 조회 (startDate, endDate)
+    - `/api/intranet/approvals` - 결재 조회 (createdAt, updatedAt)
+    - `/api/intranet/documents` - 문서 조회 (모든 timestamp 필드)
+    - `/api/intranet/recent-activities` - 최근 활동 (timestamp)
+    - 기타 모든 Date/Timestamp 필드 반환 API
+
+  - **장점**:
+    - 단일 설정으로 전체 애플리케이션 타임존 통일
+    - 도메인 클래스마다 @JsonFormat 어노테이션 추가 불필요
+    - 일관된 날짜/시간 처리로 유지보수성 향상
+
+  - **파일 수정 내역**:
+    - application.yml: spring.jackson 설정 추가
+
+- **v0.23** (2026-01-15) - 휴가 배지 표시 개선
+  - **휴가 배지 날짜 형식 정리**:
+    - 일정/휴가관리 페이지 "내 일정" 목록의 휴가 배지 날짜 포맷 수정
+    - ISO DateTime 형식(2026-01-16T15:00:00)에서 날짜만 추출(2026-01-16)
+    - split('T')[0]로 시간 부분 제거
+    - 변경 전: `📅 연차 | 2026-01-16T15:00:00 ~ 2026-01-16T15:00:00 | 1일`
+    - 변경 후: `📅 연차 | 2026-01-16 ~ 2026-01-16 | 1일`
+    - 완료 문서함 배지와 동일한 형식으로 통일
+
+  - **휴가 배지 표시 위치 추가**:
+    - approval-pending.html > 완료 문서함 탭: 휴가 배지 생성 로직 추가
+    - schedule-calendar.html > 내 일정 목록: 휴가 배지 생성 로직 추가
+    - 기존 결재 대기 탭과 동일한 스타일 및 로직 적용
+    - 배지 스타일: 노란색 배경(#fef3c7), 갈색 텍스트(#92400e)
+
+  - **파일 수정 내역**:
+    - schedule-calendar.html (Lines 2486-2494): loadMySchedules() 함수 내 배지 날짜 형식 수정
+    - approval-pending.html (Lines 1230-1235): displayCompletedApprovals() 함수 내 배지 생성 추가
+
+- **v0.22** (2026-01-15) - 관리자 페이지 일정/휴가 관리 대규모 개선
   - **관리자 페이지 전체 구조 (admin.html)**:
     - 3개 탭 시스템: 일정/휴가 관리, 경비보고서 관리, 사원 관리
     - 탭별 알림 배지 표시 (notification-badge)

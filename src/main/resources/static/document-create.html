@@ -577,8 +577,16 @@
                 daysUsedInput.value = count + '일';
             }
 
-            startDateInput.addEventListener('change', calculateDays);
-            endDateInput.addEventListener('change', calculateDays);
+            startDateInput.addEventListener('change', () => {
+                const vacationType = document.querySelector('input[name="vacationType"]:checked');
+                if (vacationType && vacationType.value === 'HALF_DAY') return;
+                calculateDays();
+            });
+            endDateInput.addEventListener('change', () => {
+                const vacationType = document.querySelector('input[name="vacationType"]:checked');
+                if (vacationType && vacationType.value === 'HALF_DAY') return;
+                calculateDays();
+            });
         });
 
         async function loadMembers() {
