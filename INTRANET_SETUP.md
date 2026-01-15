@@ -610,7 +610,176 @@ CREATE TABLE expense_items_intranet (
 
 ## 📅 버전 히스토리
 
-- **v0.21** (2026-01-14) - UI 개선, 알림 시스템 확장, 첨부파일 개선 🆕
+- **v0.22** (2026-01-15) - 관리자 페이지 일정/휴가 관리 대규모 개선 🆕
+  - **관리자 페이지 전체 구조 (admin.html)**:
+    - 3개 탭 시스템: 일정/휴가 관리, 경비보고서 관리, 사원 관리
+    - 탭별 알림 배지 표시 (notification-badge)
+    - switchTab(tabIndex) 함수로 탭 전환
+    - 각 탭마다 독립적인 통계 카드 및 필터
+    - 반응형 레이아웃 (모바일 최적화)
+    - 헤더: Y&C Intranet 로고, 사용자 아바타, 로그아웃 버튼
+
+  - **일정/휴가 관리 탭 구조**:
+    - 3개 카드 시스템:
+      - 전사 일정 카드: 금일 일정 건수 (클릭 시 캘린더 표시)
+      - 임직원 연차 현황 카드: 활성 구성원 수 (클릭 시 테이블 표시)
+      - 결재 대기 카드: 승인 대기 중인 일정 건수
+    - selectScheduleCard(cardType) 함수로 카드별 뷰 전환
+    - 카드 선택 시 시각적 강조 (selected 클래스)
+    - 동적 필터 및 테이블/캘린더 토글
+
+  - **일정 색상 및 데이터 규칙 통일**:
+    - schedule-calendar.html과 동일한 색상 체계 적용
+    - 연차(VACATION): #ec4899 (핑크)
+    - 반차(HALF_DAY): #8b5cf6 (보라)
+    - 출장(BUSINESS_TRIP): #3b82f6 (파랑)
+    - 그라데이션 제거, 순색으로 통일
+    - eventDidMount 콜백으로 강제 색상 적용 (CSS 우선순위 문제 해결)
+    - !important 규칙 추가로 FullCalendar 기본 스타일 오버라이드
+
+  - **RESERVED 상태 지원**:
+    - 출장 일정의 RESERVED 상태를 APPROVED와 동일하게 처리
+    - 필터링 로직에 RESERVED 조건 추가
+    - 전사 일정 카운트에 RESERVED 포함
+
+  - **캘린더 UI 개선**:
+    - month 버튼 제거 (headerToolbar right: '')
+    - today 버튼 텍스트 "오늘"로 변경 (buttonText)
+    - 달력 하단 border 잘림 현상 수정 (.fc-scrollgrid 테두리 추가)
+
+  - **한국 공휴일 표시 기능**:
+    - 2025-2026년 공휴일 데이터 추가 (신정, 설날, 삼일절, 어린이날, 부처님오신날, 현충일, 광복절, 추석, 개천절, 한글날, 성탄절)
+    - getKoreanHolidays(year) 함수 구현
+    - isHoliday(date) 함수로 공휴일 여부 판단
+    - UTC 타임존 문제 해결: toISOString() 대신 로컬 날짜 기준 문자열 생성
+    - dayCellDidMount 콜백에서 공휴일 스타일 적용
+    - 공휴일 텍스트 빨간색 (#e53e3e), 굵은 글씨 (font-weight: 700)
+    - 공휴일 이름 표시: "신정 1일" 형식 (날짜 좌측에 공휴일 이름)
+    - insertBefore로 요소 순서 조정
+    - inline style 적용으로 달력 네비게이션 시에도 색상 유지
+
+  - **주말 날짜 색상 적용**:
+    - 토요일 날짜: 파란색 (#3b82f6)
+    - 일요일 날짜: 빨간색 (#ef4444)
+    - .fc-day-sat, .fc-day-sun 클래스 활용
+    - font-weight: 700 적용
+
+  - **전사 일정 카드 표기 개선**:
+    - 기존: "전사 일정 0건"
+    - 변경: "금일 일정 0 건" (숫자만 span 태그로 분리)
+    - 금일 기준 APPROVED 또는 RESERVED 상태만 집계
+    - 날짜 범위 비교 로직 추가 (시작일 <= 오늘 <= 종료일)
+
+  - **임직원 연차 현황 개선**:
+    - 보유 연차 컬럼: members_intranet.annual_leave_granted 연동
+    - "이력 확인" 컬럼 및 버튼 추가
+    - 연차 이력 팝업 구현:
+      - 사원별 연차/반차 사용 이력 조회
+      - APPROVED 상태만 필터링
+      - 반차: 0.5일, 연차: 날짜 차이 계산
+      - 테이블: 이름, 시작일, 종료일, 사용일수
+      - 하단 총 사용일수 요약
+      - 이력 없을 시 "사용된 이력이 없습니다" 메시지
+    - showLeaveHistory(memberId, memberName) 함수 구현
+    - 팝업 중앙 정렬 (modal-content margin: 50px auto)
+    - 닫기 버튼(×) 스타일 통일 (사원 등록 팝업과 동일)
+
+  - **테이블 스타일 개선**:
+    - 연차 이력 테이블에 border 추가
+    - th, td에 border: 1px solid #e2e8f0
+    - padding: 12px
+    - 요약 영역 배경색 및 우측 정렬
+
+  - **버튼 스타일 추가**:
+    - .btn-history 클래스 추가 (초록색 그라데이션)
+    - padding: 6px 16px
+    - border-radius: 6px
+    - 호버 효과: transform scale(1.05), 그림자 증가
+
+  - **모달 자동 닫기 방지**:
+    - 사원 등록/수정 팝업의 window.onclick 이벤트 핸들러 비활성화
+    - 팝업 영역 외부 클릭 시 자동으로 닫히지 않도록 변경
+    - 연차 이력 팝업과 동일한 UX 제공
+    - 닫기 버튼(×) 또는 취소 버튼으로만 닫을 수 있음
+
+  - **기술 스택**:
+    - FullCalendar 6.1.10: eventDidMount, dayCellDidMount 콜백 활용
+    - CSS 우선순위: !important, inline style
+    - JavaScript Date API: 로컬 시간 기준 날짜 처리
+    - 정규식: 날짜 범위 비교, 공휴일 매칭
+    - Array.filter(): 일정 필터링, 이력 조회
+    - Array.reduce(): 총 사용일수 계산
+    - insertBefore(): DOM 요소 순서 조정
+
+  - **버그 수정 이력**:
+    - 반차 색상 불일치: eventDidMount에서 scheduleType 기준 색상 직접 설정
+    - 공휴일 날짜 오차: UTC 변환 제거, 로컬 날짜 기준 문자열 생성
+    - 공휴일 색상 사라짐: inline style 적용으로 해결
+    - 공휴일 위치: appendChild → insertBefore로 변경
+
+  - **경비보고서 관리 탭 추가**:
+    - 통계 카드:
+      - 승인 대기 중인 경비보고서 건수
+      - 이번 달 총 경비 금액
+      - 이번 달 보고서 건수
+    - 기능:
+      - 승인 대기 중인 경비보고서 관리
+      - 전체 경비 내역 조회
+      - Empty state 표시 (💰 아이콘)
+
+  - **사원 관리 탭 개선**:
+    - 통계 카드 추가:
+      - 전체 사원 수
+      - 활성 사원 수 (재직)
+      - 비활성 사원 수 (퇴사)
+      - 카드 클릭 시 필터링 (all/active/inactive)
+
+    - 필터링 기능:
+      - 본부별 필터 (2단계 계층 구조)
+      - 부서별 필터 (본부 선택 시 동적 로딩)
+      - 통합 검색 (이름, 이메일, 부서명)
+      - onParentDeptChange() 함수로 계층적 필터링
+
+    - 사원 등록 모달:
+      - 4개 섹션 구조: 기본 정보, 조직/직무 정보, 계정/권한, 근무/연차 정보
+      - 필수 입력 필드 표시 (빨간색 *)
+      - 본부-부서 연동 선택 (loadDepartmentsByDivision)
+      - 직급 선택: 본부장, 연구소장, 전문위원, Unit장, 매니저
+      - 권한 선택: USER, APPROVER, ADMIN
+      - 연차 부여일수: 기본 15일 (0~30일, 0.5일 단위)
+      - 입사일 선택 (max: 9999-12-31)
+
+    - 사원 수정 모달:
+      - 이름, 이메일 수정 불가 (disabled, 회색 배경)
+      - 입사일 수정 불가
+      - 상태 변경 가능 (활성/비활성)
+      - 전화번호, 본부, 부서, 직급, 권한, 연차 수정 가능
+      - loadDepartmentsByDivisionForEdit() 함수로 수정 시 부서 로딩
+
+    - 폼 검증:
+      - HTML5 required 속성 활용
+      - placeholder로 입력 가이드 제공
+      - small 태그로 추가 설명 제공
+      - 비밀번호는 등록 시에만 입력 (수정 시 불필요)
+
+    - 테이블 표시:
+      - 사원 목록 테이블
+      - 로딩 스피너 표시
+      - memberTableContent에 동적 렌더링
+      - 수정/삭제 버튼 제공
+
+  - **파일 수정 내역**:
+    - admin.html (전체 파일 신규 작성)
+      - Lines 352-777: 사원 관리 스타일
+      - Lines 1130-1179: 사원 관리 탭 구조
+      - Lines 1183-1278: 사원 등록 모달
+      - Lines 1280-1379: 사원 수정 모달
+      - Lines 659-714, 797-807, 856-903: 일정/휴가 관리 스타일
+      - Lines 1031-1093: 일정/휴가 관리 카드 및 테이블
+      - Lines 2139-2328: 일정/휴가 관리 JavaScript 로직
+      - Lines 2929-3028: 연차 이력 조회 기능
+
+- **v0.21** (2026-01-14) - UI 개선, 알림 시스템 확장, 첨부파일 개선
   - **첨부파일 UUID 제거**:
     - 파일명에서 UUID 부분 제거하여 원본 파일명만 표시
     - `getOriginalFileName()` 함수 추가 (approval-pending.html)

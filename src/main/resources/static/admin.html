@@ -1,0 +1,3252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 페이지 - Y&C Intranet</title>
+
+    <!-- FullCalendar -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f7fafc;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left h1 {
+            color: #667eea;
+            font-size: 24px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .btn-logout {
+            padding: 8px 16px;
+            background: #f56565;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-logout:hover {
+            background: #e53e3e;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px 16px;
+        }
+
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-header h2 {
+            color: #2d3748;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: #718096;
+            font-size: 15px;
+        }
+
+        /* 탭 스타일 */
+        .tabs-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e2e8f0;
+            background: #f7fafc;
+            overflow-x: auto;
+        }
+
+        .tab {
+            flex: 1;
+            min-width: 180px;
+            padding: 16px 24px;
+            background: transparent;
+            border: none;
+            font-size: 15px;
+            font-weight: 600;
+            color: #718096;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab:hover {
+            color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .tab.active {
+            color: #667eea;
+            background: white;
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        /* 알림 배지 */
+        .notification-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 22px;
+            height: 22px;
+            padding: 0 6px;
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+            color: white;
+            border-radius: 11px;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .notification-badge.zero {
+            display: none;
+        }
+
+        /* 탭 컨텐츠 */
+        .tab-content {
+            display: none;
+            padding: 32px;
+            min-height: 600px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 로딩 상태 */
+        .loading {
+            text-align: center;
+            padding: 48px;
+            color: #718096;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 빈 상태 */
+        .empty-state {
+            text-align: center;
+            padding: 64px 24px;
+            color: #a0aec0;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            color: #4a5568;
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            color: #a0aec0;
+        }
+
+        /* 탭 컨텐츠 스타일 */
+        .tab-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .tab-header h3 {
+            font-size: 20px;
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        .tab-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 12px;
+            color: white;
+        }
+
+        .stat-card.secondary {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .stat-card.warning {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .stat-card {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card.selected {
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.5);
+        }
+
+        /* 일정/휴가 관리 카드 색상 */
+        .stat-schedule-company {
+            background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
+            color: white;
+        }
+
+        .stat-schedule-annual {
+            background: linear-gradient(135deg, #5C6BC0 0%, #3F51B5 100%);
+            color: white;
+        }
+
+        .stat-schedule-approval {
+            background: linear-gradient(135deg, #7986CB 0%, #5C6BC0 100%);
+            color: white;
+        }
+
+        .stat-schedule-company.selected {
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.5);
+        }
+
+        .stat-schedule-annual.selected {
+            box-shadow: 0 0 0 3px rgba(92, 107, 192, 0.5);
+        }
+
+        .stat-schedule-approval.selected {
+            box-shadow: 0 0 0 3px rgba(121, 134, 203, 0.5);
+        }
+
+        /* 연차 수치 색상 스타일 */
+        .leave-number {
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .leave-total {
+            color: #2d3748;
+        }
+
+        .leave-remaining {
+            color: #38a169;
+        }
+
+        .leave-used {
+            color: #e53e3e;
+        }
+
+        .leave-scheduled {
+            color: #ed8936;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .stat-value small {
+            font-size: 16px;
+            font-weight: 600;
+            opacity: 0.9;
+        }
+
+        /* 사원 관리 스타일 */
+        .member-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 24px;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            flex: 1;
+            flex-wrap: wrap;
+        }
+
+        .filter-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-item label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #2d3748;
+            margin: 0;
+        }
+
+        .filter-item select,
+        .filter-item input {
+            padding: 10px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+            background: white;
+            min-width: 150px;
+        }
+
+        .filter-item select:focus,
+        .filter-item input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .filter-item.search-item {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .filter-item.search-item input {
+            width: 100%;
+        }
+
+        .btn-primary {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        }
+
+        .member-table {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f7fafc;
+        }
+
+        th {
+            padding: 16px;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 600;
+            color: #2d3748;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid #edf2f7;
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tbody tr:hover {
+            background: #f7fafc;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-active {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .badge-inactive {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .badge-admin {
+            background: #fef5e7;
+            color: #744210;
+        }
+
+        .badge-approver {
+            background: #e6f7ff;
+            color: #003a8c;
+        }
+
+        .badge-user {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 4px;
+            transition: all 0.2s;
+        }
+
+        .btn-edit {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-edit:hover {
+            background: #5568d3;
+        }
+
+        .btn-deactivate {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-deactivate:hover {
+            background: #e53e3e;
+        }
+
+        /* 모달 스타일 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 50px auto;
+            max-width: 900px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 2열 레이아웃을 위한 form-grid */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-grid .form-group {
+            margin-bottom: 0;
+        }
+
+        /* 섹션 헤더 */
+        .form-section-header {
+            grid-column: 1 / -1;
+            font-size: 16px;
+            font-weight: 700;
+            color: #2d3748;
+            padding: 12px 0 8px 0;
+            border-bottom: 2px solid #e2e8f0;
+            margin-top: 20px;
+        }
+
+        .form-section-header:first-child {
+            margin-top: 0;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px;
+            border-bottom: 1px solid #edf2f7;
+        }
+
+        .modal-header h3 {
+            color: #2d3748;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .close {
+            color: #a0aec0;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .close:hover {
+            color: #2d3748;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #2d3748;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #edf2f7;
+        }
+
+        .btn-secondary {
+            padding: 10px 20px;
+            background: #e2e8f0;
+            color: #2d3748;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .btn-history {
+            padding: 6px 16px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-history:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        /* 연차 이력 팝업 스타일 */
+        #leaveHistoryContent table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+        }
+
+        #leaveHistoryContent table th,
+        #leaveHistoryContent table td {
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            text-align: left;
+        }
+
+        #leaveHistoryContent table th {
+            background: #f7fafc;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        #leaveHistoryContent table tbody tr:hover {
+            background: #f7fafc;
+        }
+
+        .history-summary {
+            padding: 16px;
+            background: #f7fafc;
+            border-radius: 8px;
+            text-align: right;
+            font-size: 16px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .history-empty {
+            padding: 64px 24px;
+            text-align: center;
+            color: #a0aec0;
+        }
+
+        .form-group small {
+            color: #718096;
+            font-size: 12px;
+            margin-top: 4px;
+            display: block;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px 8px;
+            }
+
+            .page-header h2 {
+                font-size: 22px;
+            }
+
+            .tabs {
+                overflow-x: scroll;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .tab {
+                min-width: 140px;
+                padding: 14px 16px;
+                font-size: 14px;
+            }
+
+            .tab-content {
+                padding: 20px 16px;
+            }
+
+            .notification-badge {
+                min-width: 20px;
+                height: 20px;
+                font-size: 11px;
+            }
+
+            .member-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-group {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .filter-item {
+                width: 100%;
+            }
+
+            .filter-item select,
+            .filter-item input {
+                width: 100%;
+                min-width: unset;
+            }
+
+            .member-table {
+                overflow-x: auto;
+            }
+
+            table {
+                min-width: 800px;
+            }
+
+            .modal-content {
+                margin: 20px;
+                max-width: calc(100% - 40px);
+            }
+        }
+
+        /* 범례 (Legend) */
+        .legend {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+            padding: 16px;
+            background: #f7fafc;
+            border-radius: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .legend-item span {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        /* FullCalendar 스타일 (schedule-calendar.html과 동일) */
+        .fc .fc-toolbar-title {
+            font-size: 24px !important;
+            font-weight: 700;
+        }
+
+        .fc .fc-daygrid-day-number {
+            font-size: 14px;
+            padding: 6px;
+        }
+
+        .fc .fc-col-header-cell-cushion {
+            font-size: 14px;
+            font-weight: 700;
+            padding: 10px 4px;
+        }
+
+        .fc .fc-daygrid-day {
+            min-height: 100px;
+            border: 1px solid #e2e8f0 !important;
+        }
+
+        /* 달력 하단 border 표시 */
+        .fc .fc-scrollgrid {
+            border-bottom-width: 1px !important;
+        }
+
+        .fc-theme-standard td:last-child {
+            border-right-width: 1px !important;
+        }
+
+        .fc-theme-standard .fc-scrollgrid {
+            border: 1px solid #e2e8f0 !important;
+        }
+
+        /* 토요일 날짜 스타일 (파란색) */
+        .fc .fc-day-sat .fc-daygrid-day-number {
+            color: #3b82f6 !important;
+            font-weight: 700;
+        }
+
+        /* 일요일 날짜 스타일 (빨간색) */
+        .fc .fc-day-sun .fc-daygrid-day-number {
+            color: #ef4444 !important;
+            font-weight: 700;
+        }
+
+        /* 공휴일 스타일 - schedule-calendar.html과 동일하게 배경색 제거 */
+
+        .fc .fc-button {
+            border-radius: 8px;
+            font-weight: 700;
+            text-transform: none;
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            color: #2d3748;
+        }
+
+        .fc .fc-button-primary:not(:disabled).fc-button-active {
+            background-color: #667eea !important;
+            border-color: #667eea !important;
+            color: white !important;
+            font-weight: 600 !important;
+        }
+
+        .fc .fc-button-primary:hover {
+            background-color: #f0f0f0 !important;
+            border-color: #e2e8f0 !important;
+            color: #2d3748 !important;
+        }
+
+        .fc .fc-button-primary:focus {
+            box-shadow: none !important;
+        }
+
+        .fc .fc-button:focus {
+            box-shadow: none !important;
+            outline: none !important;
+        }
+
+        .fc .fc-button-primary:not(:disabled):active {
+            background-color: white !important;
+            border-color: #e2e8f0 !important;
+            color: #2d3748 !important;
+        }
+
+        .fc-event {
+            border: none;
+            border-radius: 6px;
+            padding: 5px 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .fc-event-title {
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            display: block !important;
+            max-width: 100% !important;
+        }
+
+        .fc-daygrid-event-harness .fc-event,
+        .fc-daygrid-event {
+            overflow: hidden !important;
+        }
+
+        .fc-event-main {
+            overflow: hidden !important;
+        }
+
+        .fc-event:hover .fc-event-title {
+            overflow: visible;
+            white-space: normal;
+            word-break: break-word;
+        }
+
+        /* 일정 타입별 색상 */
+        .fc-event.event-vacation,
+        .fc-event.event-vacation .fc-event-main,
+        .fc-event.event-vacation .fc-event-title {
+            background: #ec4899 !important;
+            background-color: #ec4899 !important;
+            border-color: #ec4899 !important;
+            color: white !important;
+        }
+
+        .fc-event.event-half-day,
+        .fc-event.event-half-day .fc-event-main,
+        .fc-event.event-half-day .fc-event-title {
+            background: #8b5cf6 !important;
+            background-color: #8b5cf6 !important;
+            border-color: #8b5cf6 !important;
+            color: white !important;
+        }
+
+        .fc-event.event-business-trip,
+        .fc-event.event-business-trip .fc-event-main,
+        .fc-event.event-business-trip .fc-event-title {
+            background: #3b82f6 !important;
+            background-color: #3b82f6 !important;
+            border-color: #3b82f6 !important;
+            color: white !important;
+        }
+
+        /* 시간대 이벤트(timegrid)에서도 동일한 색상 적용 */
+        .fc-timegrid-event.event-vacation,
+        .fc-timegrid-event.event-half-day,
+        .fc-timegrid-event.event-business-trip {
+            opacity: 1 !important;
+        }
+
+        .fc-timegrid-event.event-vacation .fc-event-main {
+            background: #ec4899 !important;
+            color: white !important;
+        }
+
+        .fc-timegrid-event.event-half-day .fc-event-main {
+            background: #8b5cf6 !important;
+            color: white !important;
+        }
+
+        .fc-timegrid-event.event-business-trip .fc-event-main {
+            background: #3b82f6 !important;
+            color: white !important;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <h1 onclick="location.href='/intranet-main.html'">Y&C Intranet</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-avatar" id="userAvatar">A</div>
+            <button class="btn-logout" onclick="logout()">로그아웃</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>관리자 페이지</h2>
+            <p>시스템 전반의 관리 기능을 제공합니다</p>
+        </div>
+
+        <div class="tabs-container">
+            <!-- 탭 메뉴 -->
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab(0)">
+                    <span>일정/휴가</span>
+                    <span class="notification-badge" id="scheduleNotification">0</span>
+                </button>
+                <button class="tab" onclick="switchTab(1)">
+                    <span>경비보고서</span>
+                    <span class="notification-badge" id="expenseNotification">0</span>
+                </button>
+                <button class="tab" onclick="switchTab(2)">
+                    <span>사원 관리</span>
+                    <span class="notification-badge" id="memberNotification">0</span>
+                </button>
+            </div>
+
+            <!-- 탭 1: 일정/휴가 -->
+            <div class="tab-content active" id="scheduleTab">
+                <div class="tab-header">
+                    <h3>일정 및 휴가 관리</h3>
+                </div>
+
+                <div class="tab-stats">
+                    <div class="stat-card stat-schedule-company" onclick="selectScheduleCard('company')" id="scheduleCardCompany">
+                        <div class="stat-label">전사 일정</div>
+						<div class="stat-value"><span id="companyScheduleCount">0</span> <small>건 (현재)</small></div>
+                    </div>
+                    <div class="stat-card stat-schedule-annual" onclick="selectScheduleCard('annual')" id="scheduleCardAnnual">
+                        <div class="stat-label">임직원 연차 현황</div>
+                        <div class="stat-value"><span id="annualLeaveCount">0</span> <small>명</small></div>
+                    </div>
+                    <div class="stat-card stat-schedule-approval" onclick="selectScheduleCard('approval')" id="scheduleCardApproval">
+                        <div class="stat-label">휴가 승인 목록</div>
+                        <div class="stat-value"><span id="approvalLeaveCount">0</span> <small>건</small></div>
+                    </div>
+                </div>
+
+                <!-- 필터 (임직원 연차 현황 카드 선택 시에만 표시) -->
+                <div class="member-actions" id="scheduleFilters" style="display: none;">
+                    <div class="filter-group">
+                        <div class="filter-item">
+                            <label>본부</label>
+                            <select id="scheduleFilterParentDept" onchange="onScheduleParentDeptChange()">
+                                <option value="">전체 본부</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label>부서</label>
+                            <select id="scheduleFilterChildDept" onchange="onScheduleChildDeptChange()">
+                                <option value="">전체 부서</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label>구성원</label>
+                            <select id="scheduleFilterMember" onchange="filterScheduleData()">
+                                <option value="">전체 구성원</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 달력 (전사 일정 카드 선택 시에만 표시) -->
+                <div id="scheduleCalendarContainer" style="display: none; margin-top: 24px;">
+                    <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
+                        <div id="companyScheduleCalendar"></div>
+                    </div>
+
+                    <!-- 범례 -->
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ec4899;"></div>
+                            <span>연차</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #8b5cf6;"></div>
+                            <span>반차</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #3b82f6;"></div>
+                            <span>출장</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 테이블 (임직원 연차 현황 카드 선택 시에만 표시) -->
+                <div class="member-table" id="scheduleTableContainer" style="display: none;">
+                    <div id="scheduleTableContent" class="loading">
+                        <div class="loading-spinner"></div>
+                        <p style="margin-top: 16px;">로딩 중...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 탭 2: 경비보고서 -->
+            <div class="tab-content" id="expenseTab">
+                <div class="tab-header">
+                    <h3>경비보고서 관리</h3>
+                </div>
+
+                <div class="tab-stats">
+                    <div class="stat-card">
+                        <div class="stat-label">승인 대기 중</div>
+                        <div class="stat-value"><span id="pendingExpenseCount">0</span> <small>건</small></div>
+                    </div>
+                    <div class="stat-card secondary">
+                        <div class="stat-label">이번 달 총 경비</div>
+                        <div class="stat-value"><span id="monthlyExpenseAmount">0</span> <small>원</small></div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-label">이번 달 보고서</div>
+                        <div class="stat-value"><span id="monthlyExpenseCount">0</span> <small>건</small></div>
+                    </div>
+                </div>
+
+                <div class="empty-state">
+                    <div class="empty-state-icon">💰</div>
+                    <h3>경비보고서 관리 기능</h3>
+                    <p>승인 대기 중인 경비보고서를 관리하고, 전체 경비 내역을 조회할 수 있습니다.</p>
+                </div>
+            </div>
+
+            <!-- 탭 3: 사원 관리 -->
+            <div class="tab-content" id="memberTab">
+                <div class="tab-header">
+                    <h3>사원 관리</h3>
+                </div>
+
+                <div class="tab-stats">
+                    <div class="stat-card" onclick="filterByStatus('all')" id="statAll">
+                        <div class="stat-label">전체 사원</div>
+                        <div class="stat-value"><span id="totalMemberCount">0</span> <small>명</small></div>
+                    </div>
+                    <div class="stat-card secondary" onclick="filterByStatus('active')" id="statActive">
+                        <div class="stat-label">활성 사원</div>
+                        <div class="stat-value"><span id="activeMemberCount">0</span> <small>명</small></div>
+                    </div>
+                    <div class="stat-card warning" onclick="filterByStatus('inactive')" id="statInactive">
+                        <div class="stat-label">비활성 사원</div>
+                        <div class="stat-value"><span id="inactiveMemberCount">0</span> <small>명</small></div>
+                    </div>
+                </div>
+
+                <!-- 사원 관리 컨텐츠 -->
+                <div class="member-actions">
+                    <div class="filter-group">
+                        <div class="filter-item">
+                            <label>본부</label>
+                            <select id="filterParentDept" onchange="onParentDeptChange()">
+                                <option value="">전체 본부</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label>부서</label>
+                            <select id="filterChildDept" onchange="filterMembers()">
+                                <option value="">전체 팀</option>
+                            </select>
+                        </div>
+                        <div class="filter-item search-item">
+                            <label>검색</label>
+                            <input type="text" id="searchInput" placeholder="이름, 이메일, 부서로 검색..." onkeyup="filterMembers()">
+                        </div>
+                    </div>
+                    <button class="btn-primary" onclick="showAddMemberModal()">+ 사원 등록</button>
+                </div>
+
+                <div class="member-table">
+                    <div id="memberTableContent" class="loading">
+                        <div class="loading-spinner"></div>
+                        <p style="margin-top: 16px;">로딩 중...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 사원 등록 모달 -->
+    <div id="addMemberModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>사원 등록</h3>
+                <span class="close" onclick="closeAddMemberModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="addMemberForm" onsubmit="submitAddMember(event)">
+
+                    <!-- 기본 정보 -->
+                    <div class="form-section-header">기본 정보</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>이름 <span style="color: #f56565;">*</span></label>
+                            <input type="text" id="newName" required placeholder="홍길동">
+                        </div>
+                        <div class="form-group">
+                            <label>이메일 <span style="color: #f56565;">*</span></label>
+                            <input type="email" id="newEmail" required placeholder="example@yncsmart.com">
+                        </div>
+                        <div class="form-group">
+                            <label>전화번호</label>
+                            <input type="tel" id="newPhone" placeholder="010-1234-5678">
+                        </div>
+                    </div>
+
+                    <!-- 조직/직무 정보 -->
+                    <div class="form-section-header">조직 및 직무 정보</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>본부 <span style="color: #f56565;">*</span></label>
+                            <select id="newDivisionId" required onchange="loadDepartmentsByDivision()">
+                                <option value="">본부 선택</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>부서 <span style="color: #f56565;">*</span></label>
+                            <select id="newDepartmentId" required disabled>
+                                <option value="">먼저 본부를 선택하세요</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>직급 <span style="color: #f56565;">*</span></label>
+                            <select id="newPosition" required>
+                                <option value="">직급 선택</option>
+                                <option value="본부장">본부장</option>
+                                <option value="연구소장">연구소장</option>
+                                <option value="전문위원">전문위원</option>
+                                <option value="Unit장">Unit장</option>
+                                <option value="매니저">매니저</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 계정/권한 정보 -->
+                    <div class="form-section-header">계정 및 권한</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>비밀번호 <span style="color: #f56565;">*</span></label>
+                            <input type="password" id="newPassword" required placeholder="초기 비밀번호 입력">
+                            <small style="color: #718096;">초기 비밀번호를 설정해주세요</small>
+                        </div>
+                        <div class="form-group">
+                            <label>권한 <span style="color: #f56565;">*</span></label>
+                            <select id="newRole" required>
+                                <option value="USER" selected>일반 사용자</option>
+                                <option value="APPROVER">결재권자</option>
+                                <option value="ADMIN">관리자</option>
+                            </select>
+                            <small style="color: #718096;">USER: 기본 사용자 / APPROVER: 결재 가능 / ADMIN: 관리자</small>
+                        </div>
+                    </div>
+
+                    <!-- 근무/연차 정보 -->
+                    <div class="form-section-header">근무 및 연차 정보</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>입사일 <span style="color: #f56565;">*</span></label>
+                            <input type="date" id="newHireDate" required max="9999-12-31">
+                        </div>
+                        <div class="form-group">
+                            <label>연차 부여일수 <span style="color: #f56565;">*</span></label>
+                            <input type="number" id="newAnnualLeave" value="15" min="0" max="30" step="0.5" required>
+                            <small style="color: #718096;">기본 15일, 필요시 직접 수정 가능 (0~30일)</small>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" onclick="closeAddMemberModal()">취소</button>
+                        <button type="submit" class="btn-primary">등록</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 사원 수정 모달 -->
+    <div id="editMemberModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>사원 정보 수정</h3>
+                <span class="close" onclick="closeEditMemberModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="editMemberForm" onsubmit="submitEditMember(event)">
+                    <input type="hidden" id="editMemberId">
+
+                    <!-- 기본 정보 -->
+                    <div class="form-section-header">기본 정보</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>이름 <span style="color: #f56565;">*</span></label>
+                            <input type="text" id="editName" required placeholder="홍길동" disabled style="background: #f7fafc; cursor: not-allowed;">
+                            <small style="color: #718096;">이름은 수정할 수 없습니다</small>
+                        </div>
+                        <div class="form-group">
+                            <label>이메일</label>
+                            <input type="email" id="editEmail" disabled style="background: #f7fafc; cursor: not-allowed;">
+                            <small style="color: #718096;">이메일은 수정할 수 없습니다</small>
+                        </div>
+                        <div class="form-group">
+                            <label>전화번호</label>
+                            <input type="tel" id="editPhone" placeholder="010-1234-5678">
+                        </div>
+                        <div class="form-group">
+                            <label>상태 <span style="color: #f56565;">*</span></label>
+                            <select id="editIsActive" required>
+                                <option value="true">활성 (재직)</option>
+                                <option value="false">비활성 (퇴사)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 조직/직무 정보 -->
+                    <div class="form-section-header">조직 및 직무 정보</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>본부 <span style="color: #f56565;">*</span></label>
+                            <select id="editDivisionId" required onchange="loadDepartmentsByDivisionForEdit()">
+                                <option value="">본부 선택</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>부서 <span style="color: #f56565;">*</span></label>
+                            <select id="editDepartmentId" required>
+                                <option value="">먼저 본부를 선택하세요</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>직급 <span style="color: #f56565;">*</span></label>
+                            <select id="editPosition" required>
+                                <option value="">직급 선택</option>
+                                <option value="본부장">본부장</option>
+                                <option value="연구소장">연구소장</option>
+                                <option value="전문위원">전문위원</option>
+                                <option value="Unit장">Unit장</option>
+                                <option value="매니저">매니저</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 계정/권한 정보 -->
+                    <div class="form-section-header">계정 및 권한</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>권한 <span style="color: #f56565;">*</span></label>
+                            <select id="editRole" required>
+                                <option value="USER">일반 사용자</option>
+                                <option value="APPROVER">결재권자</option>
+                                <option value="ADMIN">관리자</option>
+                            </select>
+                            <small style="color: #718096;">USER: 기본 사용자 / APPROVER: 결재 가능 / ADMIN: 관리자</small>
+                        </div>
+                    </div>
+
+                    <!-- 근무/연차 정보 -->
+                    <div class="form-section-header">근무 및 연차 정보</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>입사일 <span style="color: #f56565;">*</span></label>
+                            <input type="date" id="editHireDate" required disabled max="9999-12-31" style="background: #f7fafc; cursor: not-allowed;">
+                            <small style="color: #718096;">입사일은 수정할 수 없습니다</small>
+                        </div>
+                        <div class="form-group">
+                            <label>연차 부여일수 <span style="color: #f56565;">*</span></label>
+                            <input type="number" id="editAnnualLeave" value="15" min="0" max="30" step="0.5" required>
+                            <small style="color: #718096;">관리자가 직접 수정 가능 (0~30일)</small>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" onclick="closeEditMemberModal()">취소</button>
+                        <button type="submit" class="btn-primary">저장</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 연차 이력 팝업 -->
+    <div id="leaveHistoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>연차 이력</h3>
+                <span class="close" onclick="closeLeaveHistoryModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="leaveHistoryContent">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p style="margin-top: 16px;">로딩 중...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allMembers = [];
+        let departments = [];
+        let currentStatusFilter = 'all'; // 'all', 'active', 'inactive'
+
+        // 탭 전환 함수
+        function switchTab(tabIndex) {
+            // 모든 탭 비활성화
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => tab.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+
+            // 선택한 탭 활성화
+            tabs[tabIndex].classList.add('active');
+            tabContents[tabIndex].classList.add('active');
+
+            // 탭별 데이터 로드
+            if (tabIndex === 0) {
+                // 일정/휴가 탭 - 최초 1회만 초기화
+                if (!scheduleTabInitialized) {
+                    loadScheduleStats();
+                    initScheduleTab();
+                } else {
+                    console.log('일정 탭 이미 초기화됨 - 스킵');
+                }
+            } else if (tabIndex === 1) {
+                loadExpenseStats();
+                // 경비보고서 탭의 캘린더 초기화 (한 번만 초기화)
+                if (!calendar) {
+                    initCalendar();
+                }
+            } else if (tabIndex === 2) {
+                loadMemberStats();
+                loadMembers();
+                loadDepartmentsForFilter();
+                // 전체 사원 선택 상태로 초기화
+                filterByStatus('all');
+            }
+        }
+
+        // 로그인 체크
+        function checkLogin() {
+            const user = sessionStorage.getItem('user');
+            if (!user) {
+                window.location.href = '/intranet-login.html';
+                return null;
+            }
+            const userData = JSON.parse(user);
+            // ADMIN 권한 체크
+            if (userData.role !== 'ADMIN') {
+                alert('관리자 권한이 필요합니다');
+                window.location.href = '/intranet-main.html';
+                return null;
+            }
+            return userData;
+        }
+
+        // 사용자 정보 표시
+        function displayUserInfo() {
+            const user = checkLogin();
+            if (!user) return;
+            document.getElementById('userAvatar').textContent = user.name.charAt(0);
+        }
+
+        // 로그아웃
+        async function logout() {
+            if (!confirm('로그아웃 하시겠습니까?')) return;
+            try {
+                await fetch('/api/intranet/auth/logout', { method: 'POST' });
+            } finally {
+                sessionStorage.removeItem('user');
+                window.location.href = '/intranet-login.html';
+            }
+        }
+
+        // 알림 배지 업데이트
+        function updateNotificationBadge(elementId, count) {
+            const badge = document.getElementById(elementId);
+            if (badge) {
+                badge.textContent = count;
+                if (count === 0) {
+                    badge.classList.add('zero');
+                } else {
+                    badge.classList.remove('zero');
+                }
+            }
+        }
+
+        // 일정/휴가 통계 로드
+        async function loadScheduleStats() {
+            try {
+                // TODO: API 연동
+                // 임시 데이터
+                const pendingCount = 3;
+                const monthlyCount = 45;
+                const todayLeaveCount = 5;
+
+                document.getElementById('pendingScheduleCount').textContent = pendingCount;
+                document.getElementById('monthlyScheduleCount').textContent = monthlyCount;
+                document.getElementById('todayLeaveCount').textContent = todayLeaveCount;
+                updateNotificationBadge('scheduleNotification', pendingCount);
+            } catch (error) {
+                console.error('일정/휴가 통계 로드 실패:', error);
+            }
+        }
+
+        // 경비보고서 통계 로드
+        async function loadExpenseStats() {
+            try {
+                // TODO: API 연동
+                // 임시 데이터
+                const pendingCount = 7;
+                const monthlyAmount = 2450000;
+                const monthlyCount = 12;
+
+                document.getElementById('pendingExpenseCount').textContent = pendingCount;
+                document.getElementById('monthlyExpenseAmount').textContent = monthlyAmount.toLocaleString('ko-KR');
+                document.getElementById('monthlyExpenseCount').textContent = monthlyCount;
+                updateNotificationBadge('expenseNotification', pendingCount);
+            } catch (error) {
+                console.error('경비보고서 통계 로드 실패:', error);
+            }
+        }
+
+        // 사원 통계 로드
+        async function loadMemberStats() {
+            try {
+                const response = await fetch('/api/intranet/members');
+                const members = await response.json();
+
+                if (members && Array.isArray(members)) {
+                    const totalCount = members.length;
+                    const activeCount = members.filter(m => m.isActive).length;
+                    const inactiveCount = members.filter(m => !m.isActive).length;
+
+                    document.getElementById('totalMemberCount').textContent = totalCount;
+                    document.getElementById('activeMemberCount').textContent = activeCount;
+                    document.getElementById('inactiveMemberCount').textContent = inactiveCount;
+                    updateNotificationBadge('memberNotification', 0);
+                }
+            } catch (error) {
+                console.error('사원 통계 로드 실패:', error);
+            }
+        }
+
+        // 사원 목록 로드
+        async function loadMembers() {
+            try {
+                const response = await fetch('/api/intranet/members');
+                const data = await response.json();
+
+                allMembers = data || [];
+                displayMembers(allMembers);
+
+            } catch (error) {
+                console.error('사원 목록 조회 실패:', error);
+                document.getElementById('memberTableContent').innerHTML = `
+                    <div class="empty-state">
+                        <p>데이터를 불러올 수 없습니다</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 사원 목록 표시
+        function displayMembers(members) {
+            const container = document.getElementById('memberTableContent');
+
+            if (!members || members.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>등록된 사원이 없습니다</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const roleText = (role) => {
+                if (role === 'ADMIN') return '관리자';
+                if (role === 'APPROVER') return '결재권자';
+                return '일반';
+            };
+
+            const roleBadge = (role) => {
+                if (role === 'ADMIN') return 'badge-admin';
+                if (role === 'APPROVER') return 'badge-approver';
+                return 'badge-user';
+            };
+
+            container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>이름</th>
+                            <th>이메일</th>
+                            <th>부서</th>
+                            <th>직급</th>
+                            <th>권한</th>
+                            <th>상태</th>
+                            <th>입사일</th>
+                            <th>관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${members.map(member => `
+                            <tr>
+                                <td><strong>${member.name}</strong></td>
+                                <td>${member.email}</td>
+                                <td>${member.departmentName || '-'}</td>
+                                <td>${member.position || '-'}</td>
+                                <td>
+                                    <span class="badge ${roleBadge(member.role)}">
+                                        ${roleText(member.role)}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge ${member.isActive ? 'badge-active' : 'badge-inactive'}">
+                                        ${member.isActive ? '활성' : '비활성'}
+                                    </span>
+                                </td>
+                                <td>${formatDate(member.hireDate)}</td>
+                                <td>
+                                    <button class="btn-sm btn-edit" onclick="editMember(${member.id})">수정</button>
+                                    ${member.isActive ?
+                                        `<button class="btn-sm btn-deactivate" onclick="deactivateMember(${member.id}, '${member.name}')">비활성화</button>`
+                                        : ''
+                                    }
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // 날짜 포맷
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ko-KR');
+        }
+
+        // 연차 자동 계산
+        function calculateAnnualLeave(mode) {
+            const hireDateInput = mode === 'new' ? document.getElementById('newHireDate') : document.getElementById('editHireDate');
+            const annualLeaveInput = mode === 'new' ? document.getElementById('newAnnualLeave') : document.getElementById('editAnnualLeave');
+            const infoText = mode === 'new' ? document.getElementById('newAnnualLeaveInfo') : document.getElementById('editAnnualLeaveInfo');
+
+            const hireDate = hireDateInput.value;
+            if (!hireDate) {
+                annualLeaveInput.value = 15;
+                if (infoText) {
+                    infoText.textContent = '입사일 기준으로 자동 계산됩니다';
+                }
+                return;
+            }
+
+            // 입사일과 현재 날짜(1월 기준) 계산
+            const hire = new Date(hireDate);
+            const current = new Date();
+
+            // 년도 차이 계산
+            let years = current.getFullYear() - hire.getFullYear();
+
+            // 월 비교 (입사월이 현재월보다 늦으면 1년 차감)
+            if (current.getMonth() < hire.getMonth()) {
+                years--;
+            } else if (current.getMonth() === hire.getMonth()) {
+                // 같은 월이면 일 비교
+                if (current.getDate() < hire.getDate()) {
+                    years--;
+                }
+            }
+
+            // 연차 계산 로직
+            let annualDays = 15; // 기본 15일
+            let reason = '기본';
+
+            if (years >= 3) {
+                // 3년 이상: +1일 (16일)
+                annualDays = 16;
+                reason = '3년 근속';
+
+                // 3년 이후 매 2년마다 1일 추가
+                const additionalYears = years - 3;
+                const additionalDays = Math.floor(additionalYears / 2);
+                annualDays += additionalDays;
+
+                if (additionalDays > 0) {
+                    reason = `${years}년 근속`;
+                }
+            }
+
+            // 최대 25일 제한
+            if (annualDays > 25) {
+                annualDays = 25;
+                reason = '최대 한도';
+            }
+
+            // 값 설정
+            annualLeaveInput.value = annualDays;
+
+            // 안내 텍스트 업데이트
+            if (infoText) {
+                infoText.textContent = `${annualDays}일 (${reason} 기준)`;
+            }
+        }
+
+        // 상태별 필터
+        function filterByStatus(status) {
+            currentStatusFilter = status;
+
+            // 모든 stat-card에서 selected 클래스 제거
+            document.querySelectorAll('.stat-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+
+            // 선택된 카드에 selected 클래스 추가
+            if (status === 'all') {
+                document.getElementById('statAll').classList.add('selected');
+            } else if (status === 'active') {
+                document.getElementById('statActive').classList.add('selected');
+            } else if (status === 'inactive') {
+                document.getElementById('statInactive').classList.add('selected');
+            }
+
+            filterMembers();
+        }
+
+        // 사원 검색 및 필터
+        function filterMembers() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const parentDept = document.getElementById('filterParentDept').value;
+            const childDept = document.getElementById('filterChildDept').value;
+
+            let filtered = allMembers;
+
+            // 상태 필터
+            if (currentStatusFilter === 'active') {
+                filtered = filtered.filter(m => m.isActive);
+            } else if (currentStatusFilter === 'inactive') {
+                filtered = filtered.filter(m => !m.isActive);
+            }
+
+            // 본부 필터
+            if (parentDept) {
+                const childDepts = departments.filter(d => d.parentId == parentDept);
+                const childDeptIds = childDepts.map(d => d.id);
+                filtered = filtered.filter(m => childDeptIds.includes(m.departmentId));
+            }
+
+            // 팀 필터
+            if (childDept) {
+                filtered = filtered.filter(m => m.departmentId == childDept);
+            }
+
+            // 검색어 필터
+            if (searchTerm) {
+                filtered = filtered.filter(member =>
+                    member.name.toLowerCase().includes(searchTerm) ||
+                    member.email.toLowerCase().includes(searchTerm) ||
+                    (member.departmentName && member.departmentName.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            displayMembers(filtered);
+        }
+
+        // 본부 선택 변경 시
+        function onParentDeptChange() {
+            const parentId = document.getElementById('filterParentDept').value;
+            const childSelect = document.getElementById('filterChildDept');
+
+            // 팀 드롭다운 초기화
+            childSelect.innerHTML = '<option value="">전체 팀</option>';
+
+            if (parentId) {
+                const childDepts = departments.filter(d => d.parentId == parentId);
+                childDepts.forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept.id;
+                    option.textContent = dept.name;
+                    childSelect.appendChild(option);
+                });
+            }
+
+            filterMembers();
+        }
+
+        // 부서 목록 로드
+        async function loadDepartmentsForFilter() {
+            try {
+                const rootResponse = await fetch('/api/intranet/departments/root');
+                const rootData = await rootResponse.json();
+
+                if (rootData.success && rootData.departments && rootData.departments.length > 0) {
+                    const companyId = rootData.departments[0].id;
+
+                    const allDeptsResponse = await fetch('/api/intranet/departments');
+                    const allDeptsData = await allDeptsResponse.json();
+                    departments = allDeptsData.departments || allDeptsData || [];
+
+                    const divisionResponse = await fetch(`/api/intranet/departments/children/${companyId}`);
+                    const divisionData = await divisionResponse.json();
+
+                    const select = document.getElementById('filterParentDept');
+                    if (divisionData.success && divisionData.departments) {
+                        divisionData.departments.forEach(dept => {
+                            const option = document.createElement('option');
+                            option.value = dept.id;
+                            option.textContent = dept.name;
+                            select.appendChild(option);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('부서 목록 로드 실패:', error);
+            }
+        }
+
+        // 사원 등록 모달 열기
+        function showAddMemberModal() {
+            document.getElementById('addMemberModal').style.display = 'block';
+            document.getElementById('addMemberForm').reset();
+
+            // 부서 선택 초기화
+            document.getElementById('newDepartmentId').innerHTML = '<option value="">먼저 본부를 선택하세요</option>';
+            document.getElementById('newDepartmentId').disabled = true;
+
+            // 본부 목록 로드
+            loadDivisions();
+        }
+
+        // 사원 등록 모달 닫기
+        function closeAddMemberModal() {
+            document.getElementById('addMemberModal').style.display = 'none';
+        }
+
+        // 본부 목록 로드
+        async function loadDivisions() {
+            try {
+                const rootResponse = await fetch('/api/intranet/departments/root');
+                const rootData = await rootResponse.json();
+
+                const select = document.getElementById('newDivisionId');
+                select.innerHTML = '<option value="">본부 선택</option>';
+
+                if (rootData.success && rootData.departments && rootData.departments.length > 0) {
+                    const companyId = rootData.departments[0].id;
+
+                    const divisionResponse = await fetch(`/api/intranet/departments/children/${companyId}`);
+                    const divisionData = await divisionResponse.json();
+
+                    if (divisionData.success && divisionData.departments) {
+                        divisionData.departments.forEach(dept => {
+                            const option = document.createElement('option');
+                            option.value = dept.id;
+                            option.textContent = dept.name;
+                            select.appendChild(option);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('본부 목록 로드 실패:', error);
+            }
+        }
+
+        // 선택한 본부의 하위 부서 로드
+        async function loadDepartmentsByDivision() {
+            const divisionId = document.getElementById('newDivisionId').value;
+            const deptSelect = document.getElementById('newDepartmentId');
+
+            if (!divisionId) {
+                deptSelect.innerHTML = '<option value="">먼저 본부를 선택하세요</option>';
+                deptSelect.disabled = true;
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/intranet/departments/children/${divisionId}`);
+                const data = await response.json();
+
+                deptSelect.innerHTML = '<option value="">부서 선택</option>';
+                deptSelect.disabled = false;
+
+                if (data.success && data.departments && data.departments.length > 0) {
+                    data.departments.forEach(dept => {
+                        const option = document.createElement('option');
+                        option.value = dept.id;
+                        option.textContent = dept.name;
+                        deptSelect.appendChild(option);
+                    });
+                } else {
+                    deptSelect.innerHTML = '<option value="">하위 부서가 없습니다</option>';
+                }
+            } catch (error) {
+                console.error('부서 목록 로드 실패:', error);
+                deptSelect.innerHTML = '<option value="">부서 로드 실패</option>';
+            }
+        }
+
+        // 사원 등록 제출
+        async function submitAddMember(event) {
+            event.preventDefault();
+
+            const departmentId = document.getElementById('newDepartmentId').value;
+            if (!departmentId || departmentId === '') {
+                alert('부서를 선택해주세요');
+                return;
+            }
+
+            const memberData = {
+                email: document.getElementById('newEmail').value,
+                password: document.getElementById('newPassword').value,
+                name: document.getElementById('newName').value,
+                phone: document.getElementById('newPhone').value || null,
+                departmentId: parseInt(departmentId),
+                position: document.getElementById('newPosition').value,
+                role: document.getElementById('newRole').value,
+                hireDate: document.getElementById('newHireDate').value,
+                annualLeaveGranted: parseFloat(document.getElementById('newAnnualLeave').value) || 15,
+                isActive: true  // 신규 등록은 항상 활성 상태
+            };
+
+            try {
+                const response = await fetch('/api/intranet/members', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(memberData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('사원이 등록되었습니다');
+                    closeAddMemberModal();
+                    loadMembers();
+                    loadMemberStats();
+                } else {
+                    alert(data.message || '사원 등록에 실패했습니다');
+                }
+            } catch (error) {
+                console.error('사원 등록 오류:', error);
+                alert('서버 오류가 발생했습니다: ' + error.message);
+            }
+        }
+
+        // 사원 수정
+        async function editMember(memberId) {
+            const member = allMembers.find(m => m.id === memberId);
+            if (!member) {
+                alert('사원 정보를 찾을 수 없습니다');
+                return;
+            }
+
+            // 모달 필드에 데이터 설정
+            document.getElementById('editMemberId').value = member.id;
+            document.getElementById('editEmail').value = member.email;
+            document.getElementById('editName').value = member.name;
+            document.getElementById('editPhone').value = member.phone || '';
+            document.getElementById('editPosition').value = member.position || '';
+            document.getElementById('editRole').value = member.role;
+            document.getElementById('editHireDate').value = member.hireDate;
+            document.getElementById('editAnnualLeave').value = member.annualLeaveGranted || 15;
+            document.getElementById('editIsActive').value = member.isActive ? 'true' : 'false';
+
+            // 연차 계산 (입사일 기준)
+            calculateAnnualLeave('edit');
+
+            // 본부/부서 로드
+            await loadDivisionsForEdit();
+
+            if (member.departmentId) {
+                const deptResponse = await fetch(`/api/intranet/departments/${member.departmentId}`);
+                const deptData = await deptResponse.json();
+
+                if (deptData.success && deptData.department) {
+                    const dept = deptData.department;
+
+                    if (dept.parentId) {
+                        document.getElementById('editDivisionId').value = dept.parentId;
+                        await loadDepartmentsByDivisionForEdit();
+                        document.getElementById('editDepartmentId').value = member.departmentId;
+                    } else {
+                        document.getElementById('editDivisionId').value = member.departmentId;
+                        await loadDepartmentsByDivisionForEdit();
+                    }
+                }
+            }
+
+            // 모달 열기
+            document.getElementById('editMemberModal').style.display = 'block';
+        }
+
+        // 사원 수정 모달 닫기
+        function closeEditMemberModal() {
+            document.getElementById('editMemberModal').style.display = 'none';
+            document.getElementById('editMemberForm').reset();
+        }
+
+        // 본부 목록 로드 (수정용)
+        async function loadDivisionsForEdit() {
+            try {
+                const rootResponse = await fetch('/api/intranet/departments/root');
+                const rootData = await rootResponse.json();
+
+                const select = document.getElementById('editDivisionId');
+                select.innerHTML = '<option value="">본부 선택</option>';
+
+                if (rootData.success && rootData.departments && rootData.departments.length > 0) {
+                    const companyId = rootData.departments[0].id;
+
+                    const divResponse = await fetch(`/api/intranet/departments/children/${companyId}`);
+                    const divData = await divResponse.json();
+
+                    if (divData.success && divData.departments) {
+                        divData.departments.forEach(div => {
+                            const option = document.createElement('option');
+                            option.value = div.id;
+                            option.textContent = div.name;
+                            select.appendChild(option);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('본부 목록 조회 실패:', error);
+            }
+        }
+
+        // 부서 목록 로드 (수정용)
+        async function loadDepartmentsByDivisionForEdit() {
+            const divisionId = document.getElementById('editDivisionId').value;
+            const deptSelect = document.getElementById('editDepartmentId');
+
+            if (!divisionId) {
+                deptSelect.innerHTML = '<option value="">먼저 본부를 선택하세요</option>';
+                deptSelect.disabled = true;
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/intranet/departments/children/${divisionId}`);
+                const data = await response.json();
+
+                deptSelect.innerHTML = '<option value="">부서 선택</option>';
+
+                if (data.success && data.departments) {
+                    data.departments.forEach(dept => {
+                        const option = document.createElement('option');
+                        option.value = dept.id;
+                        option.textContent = dept.name;
+                        deptSelect.appendChild(option);
+                    });
+                }
+
+                deptSelect.disabled = false;
+            } catch (error) {
+                console.error('부서 목록 조회 실패:', error);
+                deptSelect.innerHTML = '<option value="">부서 조회 실패</option>';
+                deptSelect.disabled = true;
+            }
+        }
+
+        // 사원 수정 제출
+        async function submitEditMember(event) {
+            event.preventDefault();
+
+            const memberId = document.getElementById('editMemberId').value;
+            const memberData = {
+                email: document.getElementById('editEmail').value,
+                name: document.getElementById('editName').value,
+                phone: document.getElementById('editPhone').value,
+                departmentId: parseInt(document.getElementById('editDepartmentId').value),
+                position: document.getElementById('editPosition').value,
+                role: document.getElementById('editRole').value,
+                hireDate: document.getElementById('editHireDate').value,
+                annualLeaveGranted: parseFloat(document.getElementById('editAnnualLeave').value),
+                isActive: document.getElementById('editIsActive').value === 'true'
+            };
+
+            try {
+                const response = await fetch(`/api/intranet/members/${memberId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(memberData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('사원 정보가 수정되었습니다');
+                    closeEditMemberModal();
+                    loadMembers();
+                    loadMemberStats();
+                } else {
+                    alert(data.message || '수정에 실패했습니다');
+                }
+            } catch (error) {
+                console.error('사원 수정 실패:', error);
+                alert('서버 연결에 실패했습니다');
+            }
+        }
+
+        // 사원 비활성화
+        async function deactivateMember(memberId, memberName) {
+            if (!confirm(`${memberName} 사원을 비활성화하시겠습니까?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/intranet/members/${memberId}/deactivate`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(data.message);
+                    loadMembers();
+                    loadMemberStats();
+                } else {
+                    alert(data.message || '비활성화에 실패했습니다');
+                }
+            } catch (error) {
+                console.error('비활성화 오류:', error);
+                alert('서버 오류가 발생했습니다');
+            }
+        }
+
+        // 전체 알림 로드
+        async function loadAllNotifications() {
+            await loadScheduleStats();
+            await loadExpenseStats();
+            await loadMemberStats();
+        }
+
+        // 모달 외부 클릭 시 닫기
+        window.onclick = function(event) {
+            const addModal = document.getElementById('addMemberModal');
+            const editModal = document.getElementById('editMemberModal');
+
+            if (event.target === addModal) {
+                closeAddMemberModal();
+            }
+            if (event.target === editModal) {
+                closeEditMemberModal();
+            }
+        };
+
+        // 페이지 로드 시 초기화
+        // ======================================
+        // 일정/휴가 탭 관련 함수
+        // ======================================
+        let allSchedules = [];
+        let scheduleDepartments = [];
+        let scheduleTabInitialized = false;
+
+        // 일정/휴가 탭 초기화
+        // 일정/휴가 카드 선택 상태 관리
+        let selectedScheduleCard = 'company'; // 기본값: 전사 일정
+
+        // 카드 선택 함수
+        // 전사 일정 달력 인스턴스
+        let companyCalendar = null;
+
+        function selectScheduleCard(cardType) {
+            selectedScheduleCard = cardType;
+
+            // 모든 카드의 selected 클래스 제거
+            document.getElementById('scheduleCardCompany').classList.remove('selected');
+            document.getElementById('scheduleCardAnnual').classList.remove('selected');
+            document.getElementById('scheduleCardApproval').classList.remove('selected');
+
+            // 선택된 카드에 selected 클래스 추가
+            if (cardType === 'company') {
+                document.getElementById('scheduleCardCompany').classList.add('selected');
+            } else if (cardType === 'annual') {
+                document.getElementById('scheduleCardAnnual').classList.add('selected');
+            } else if (cardType === 'approval') {
+                document.getElementById('scheduleCardApproval').classList.add('selected');
+            }
+
+            // 필터, 테이블, 달력 표시/숨김 처리
+            const scheduleFilters = document.getElementById('scheduleFilters');
+            const scheduleTableContainer = document.getElementById('scheduleTableContainer');
+            const scheduleCalendarContainer = document.getElementById('scheduleCalendarContainer');
+
+            if (cardType === 'annual') {
+                // 임직원 연차 현황 카드 선택 시 - 필터와 테이블 모두 표시
+                scheduleFilters.style.display = 'block';
+                scheduleTableContainer.style.display = 'block';
+                scheduleCalendarContainer.style.display = 'none';
+                // 연차 현황 테이블 로드
+                loadAnnualLeaveTable();
+            } else if (cardType === 'company') {
+                // 전사 일정 카드 선택 시 - 필터와 달력 표시
+                scheduleFilters.style.display = 'block';
+                scheduleTableContainer.style.display = 'none';
+                scheduleCalendarContainer.style.display = 'block';
+                // 전사 일정 달력 초기화 및 로드
+                initCompanyScheduleCalendar();
+            } else {
+                // 휴가 승인 목록 카드 선택 시 - 모두 숨김
+                scheduleFilters.style.display = 'none';
+                scheduleTableContainer.style.display = 'none';
+                scheduleCalendarContainer.style.display = 'none';
+            }
+        }
+
+        async function initScheduleTab() {
+            try {
+                console.log('일정 탭 초기화 시작');
+                // 순차적으로 데이터 로드
+                await loadScheduleDepartmentsForFilter();
+                await loadSchedules();
+                await updateScheduleStats();
+
+                // 초기 카드 선택 (전사 일정)
+                selectScheduleCard('company');
+
+                scheduleTabInitialized = true;
+                console.log('일정 탭 초기화 완료');
+            } catch (error) {
+                console.error('일정/휴가 탭 초기화 실패:', error);
+            }
+        }
+
+        // 부서 목록 로드 (일정 탭용)
+        async function loadScheduleDepartmentsForFilter() {
+            try {
+                const rootResponse = await fetch('/api/intranet/departments/root');
+                const rootData = await rootResponse.json();
+
+                if (rootData.success && rootData.departments && rootData.departments.length > 0) {
+                    const companyId = rootData.departments[0].id;
+
+                    const allDeptsResponse = await fetch('/api/intranet/departments');
+                    const allDeptsData = await allDeptsResponse.json();
+                    scheduleDepartments = allDeptsData.departments || allDeptsData || [];
+
+                    const divisionResponse = await fetch(`/api/intranet/departments/children/${companyId}`);
+                    const divisionData = await divisionResponse.json();
+
+                    const select = document.getElementById('scheduleFilterParentDept');
+                    if (divisionData.success && divisionData.departments) {
+                        divisionData.departments.forEach(dept => {
+                            const option = document.createElement('option');
+                            option.value = dept.id;
+                            option.textContent = dept.name;
+                            select.appendChild(option);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('부서 목록 로드 실패:', error);
+            }
+        }
+
+        // 한국 공휴일 데이터 (2026년 기준)
+        function getKoreanHolidays(year) {
+            const holidays = {
+                2026: [
+                    { date: '2026-01-01', name: '신정' },
+                    { date: '2026-02-16', name: '설날 전날' },
+                    { date: '2026-02-17', name: '설날' },
+                    { date: '2026-02-18', name: '설날 다음날' },
+                    { date: '2026-03-01', name: '삼일절' },
+                    { date: '2026-05-05', name: '어린이날' },
+                    { date: '2026-05-24', name: '부처님오신날' },
+                    { date: '2026-06-06', name: '현충일' },
+                    { date: '2026-08-15', name: '광복절' },
+                    { date: '2026-09-24', name: '추석 전날' },
+                    { date: '2026-09-25', name: '추석' },
+                    { date: '2026-09-26', name: '추석 다음날' },
+                    { date: '2026-10-03', name: '개천절' },
+                    { date: '2026-10-09', name: '한글날' },
+                    { date: '2026-12-25', name: '크리스마스' }
+                ],
+                2025: [
+                    { date: '2025-01-01', name: '신정' },
+                    { date: '2025-01-28', name: '설날 전날' },
+                    { date: '2025-01-29', name: '설날' },
+                    { date: '2025-01-30', name: '설날 다음날' },
+                    { date: '2025-03-01', name: '삼일절' },
+                    { date: '2025-05-05', name: '어린이날' },
+                    { date: '2025-05-06', name: '대체공휴일' },
+                    { date: '2025-06-06', name: '현충일' },
+                    { date: '2025-08-15', name: '광복절' },
+                    { date: '2025-10-05', name: '추석 전날' },
+                    { date: '2025-10-06', name: '추석' },
+                    { date: '2025-10-07', name: '추석 다음날' },
+                    { date: '2025-10-08', name: '대체공휴일' },
+                    { date: '2025-10-03', name: '개천절' },
+                    { date: '2025-10-09', name: '한글날' },
+                    { date: '2025-12-25', name: '크리스마스' }
+                ]
+            };
+            return holidays[year] || [];
+        }
+
+        // 날짜가 공휴일인지 확인
+        function isHoliday(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            const holidays = getKoreanHolidays(year);
+            return holidays.find(h => h.date === dateStr);
+        }
+
+        // 전사 일정 달력 초기화
+        async function initCompanyScheduleCalendar() {
+            if (companyCalendar) {
+                companyCalendar.destroy();
+            }
+
+            const calendarEl = document.getElementById('companyScheduleCalendar');
+
+            companyCalendar = new FullCalendar.Calendar(calendarEl, {
+                locale: 'ko',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: ''
+                },
+                buttonText: {
+                    today: '오늘'
+                },
+                initialView: 'dayGridMonth',
+                height: 'auto',
+                events: async function(info, successCallback, failureCallback) {
+                    try {
+                        const filteredEvents = await loadCompanyScheduleEvents();
+                        successCallback(filteredEvents);
+                    } catch (error) {
+                        console.error('일정 로드 실패:', error);
+                        failureCallback(error);
+                    }
+                },
+                eventContent: function(arg) {
+                    return { html: `<div style="padding: 2px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: white !important;">${arg.event.title}</div>` };
+                },
+                eventDidMount: function(info) {
+                    // 이벤트 엘리먼트에 직접 스타일 적용하여 확실하게 색상 통일
+                    const scheduleType = info.event.extendedProps.scheduleType;
+                    let bgColor = '';
+
+                    if (scheduleType === 'VACATION') {
+                        bgColor = '#ec4899';
+                    } else if (scheduleType === 'HALF_DAY') {
+                        bgColor = '#8b5cf6';
+                    } else if (scheduleType === 'BUSINESS_TRIP') {
+                        bgColor = '#3b82f6';
+                    }
+
+                    if (bgColor) {
+                        info.el.style.backgroundColor = bgColor;
+                        info.el.style.borderColor = bgColor;
+                        info.el.style.color = 'white';
+
+                        // 내부 텍스트 요소도 흰색으로
+                        const titleEl = info.el.querySelector('.fc-event-title');
+                        if (titleEl) {
+                            titleEl.style.color = 'white';
+                        }
+                    }
+                },
+                dayCellDidMount: function(info) {
+                    const date = info.date;
+                    const holiday = isHoliday(date);
+                    const dayNumber = info.el.querySelector('.fc-daygrid-day-number');
+                    const dayTop = info.el.querySelector('.fc-daygrid-day-top');
+
+                    if (dayNumber) {
+                        // 공휴일 (빨간색)
+                        if (holiday) {
+                            dayNumber.style.color = '#e53e3e';
+                            dayNumber.style.fontWeight = '700';
+
+                            // 공휴일 이름 표시 (날짜 번호 왼쪽에)
+                            if (dayTop) {
+                                const holidayLabel = document.createElement('span');
+                                holidayLabel.textContent = holiday.name;
+                                holidayLabel.style.cssText = 'color: #e53e3e; font-size: 11px; font-weight: 600; margin-right: 6px;';
+                                dayTop.insertBefore(holidayLabel, dayNumber);
+                            }
+                        }
+                    }
+                },
+                displayEventTime: false,
+                displayEventEnd: false
+            });
+
+            companyCalendar.render();
+        }
+
+        // 전사 일정 이벤트 로드 (필터 적용)
+        async function loadCompanyScheduleEvents() {
+            try {
+                // 일정 및 구성원 데이터 로드
+                const [schedulesResponse, membersResponse] = await Promise.all([
+                    fetch('/api/intranet/schedules'),
+                    fetch('/api/intranet/members')
+                ]);
+
+                const schedulesData = await schedulesResponse.json();
+                const membersData = await membersResponse.json();
+
+                const schedules = Array.isArray(schedulesData) ? schedulesData : (schedulesData.schedules || []);
+                const members = membersData.members || membersData || [];
+
+                // 활성화된 구성원 ID 목록
+                const activeMemberIds = members.filter(m => m.isActive).map(m => String(m.id));
+
+                // 필터 값 가져오기
+                const parentDept = document.getElementById('scheduleFilterParentDept')?.value || '';
+                const childDept = document.getElementById('scheduleFilterChildDept')?.value || '';
+                const memberId = document.getElementById('scheduleFilterMember')?.value || '';
+
+                // 일정 필터링
+                let filteredSchedules = schedules.filter(s => {
+                    // 회의(MEETING) 제외
+                    if (s.scheduleType === 'MEETING') return false;
+
+                    // 비활성 사원 제외
+                    if (!activeMemberIds.includes(String(s.memberId))) return false;
+
+                    // 승인된 일정 및 예약된 일정 표시 (APPROVED, RESERVED)
+                    return s.status === 'APPROVED' || s.status === 'RESERVED';
+                });
+
+                // 부서 필터 적용
+                if (memberId) {
+                    filteredSchedules = filteredSchedules.filter(s => String(s.memberId) === String(memberId));
+                } else if (childDept) {
+                    const deptMembers = members.filter(m => String(m.departmentId) === String(childDept));
+                    const deptMemberIds = deptMembers.map(m => String(m.id));
+                    filteredSchedules = filteredSchedules.filter(s => deptMemberIds.includes(String(s.memberId)));
+                } else if (parentDept) {
+                    const childDepts = scheduleDepartments.filter(d => String(d.parentId) === String(parentDept));
+                    const childDeptIds = childDepts.map(d => String(d.id));
+                    const divisionMembers = members.filter(m => childDeptIds.includes(String(m.departmentId)));
+                    const divisionMemberIds = divisionMembers.map(m => String(m.id));
+                    filteredSchedules = filteredSchedules.filter(s => divisionMemberIds.includes(String(s.memberId)));
+                }
+
+                // FullCalendar 이벤트 형식으로 변환
+                const events = filteredSchedules.map(schedule => {
+                    const member = members.find(m => String(m.id) === String(schedule.memberId));
+                    const memberName = member ? member.name : '';
+
+                    let typeLabel = '';
+                    let color = '';
+                    let className = '';
+
+                    switch (schedule.scheduleType) {
+                        case 'VACATION':
+                            typeLabel = '연차';
+                            color = '#ec4899';
+                            className = 'event-vacation';
+                            break;
+                        case 'HALF_DAY':
+                            typeLabel = '반차';
+                            color = '#8b5cf6';
+                            className = 'event-half-day';
+                            break;
+                        case 'BUSINESS_TRIP':
+                            typeLabel = '출장';
+                            color = '#3b82f6';
+                            className = 'event-business-trip';
+                            break;
+                        default:
+                            typeLabel = schedule.scheduleType;
+                            color = '#6b7280';
+                            className = 'event-default';
+                    }
+
+                    // 날짜를 YYYY-MM-DD 형식으로 변환하는 헬퍼 함수
+                    const formatDate = (dateValue) => {
+                        if (!dateValue) return null;
+                        // 이미 문자열 형식인 경우 (YYYY-MM-DD)
+                        if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
+                            return dateValue.split('T')[0];
+                        }
+                        // Date 객체나 타임스탬프인 경우
+                        const d = new Date(dateValue);
+                        return d.toISOString().split('T')[0];
+                    };
+
+                    const startDateStr = formatDate(schedule.startDate);
+                    const endDateStr = formatDate(schedule.endDate);
+
+                    const event = {
+                        id: schedule.id,
+                        title: `${typeLabel} ${memberName}`,
+                        allDay: !schedule.startTime, // 시간 정보가 없으면 종일 이벤트
+                        backgroundColor: color,
+                        borderColor: color,
+                        className: className,
+                        extendedProps: {
+                            scheduleType: schedule.scheduleType,
+                            memberName: memberName,
+                            status: schedule.status,
+                            startTime: schedule.startTime,
+                            endTime: schedule.endTime
+                        }
+                    };
+
+                    // 시작일/종료일 설정
+                    if (schedule.startTime && schedule.endTime) {
+                        // 시간 정보가 있으면 날짜+시간 형식으로
+                        event.start = `${startDateStr}T${schedule.startTime}:00`;
+                        event.end = `${endDateStr}T${schedule.endTime}:00`;
+                    } else {
+                        // 시간 정보가 없으면 날짜만 (종일 이벤트)
+                        event.start = startDateStr;
+                        // FullCalendar는 종일 이벤트의 종료일을 exclusive로 처리하므로 +1일
+                        const endDate = new Date(endDateStr);
+                        endDate.setDate(endDate.getDate() + 1);
+                        event.end = endDate.toISOString().split('T')[0];
+                    }
+
+                    return event;
+                });
+
+                return events;
+            } catch (error) {
+                console.error('전사 일정 로드 실패:', error);
+                return [];
+            }
+        }
+
+        // 필터 변경 시 달력 새로고침
+        function refreshCompanyCalendar() {
+            if (companyCalendar && selectedScheduleCard === 'company') {
+                companyCalendar.refetchEvents();
+            }
+        }
+
+        // 일정 목록 로드
+        async function loadSchedules() {
+            try {
+                const response = await fetch('/api/intranet/schedules');
+
+                if (!response.ok) {
+                    console.error('API 호출 실패:', response.status);
+                    allSchedules = [];
+                    displayScheduleTable([]);
+                    return;
+                }
+
+                const data = await response.json();
+
+                // API 응답이 배열인 경우와 객체인 경우 모두 처리
+                if (Array.isArray(data)) {
+                    allSchedules = data;
+                } else if (data.success && data.schedules) {
+                    allSchedules = data.schedules;
+                } else if (data.schedules) {
+                    allSchedules = data.schedules;
+                } else {
+                    allSchedules = [];
+                }
+
+                console.log('전체 일정 개수:', allSchedules.length);
+
+                // 휴가/반차/출장 타입만 필터링
+                allSchedules = allSchedules.filter(s => {
+                    const type = s.scheduleType;
+                    return type === 'VACATION' || type === 'HALF_DAY' || type === 'BUSINESS_TRIP';
+                });
+
+                displayScheduleTable(allSchedules);
+            } catch (error) {
+                console.error('일정 목록 조회 실패:', error);
+                allSchedules = [];
+                document.getElementById('scheduleTableContent').innerHTML = `
+                    <div class="empty-state">
+                        <p>데이터를 불러올 수 없습니다</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 통계 업데이트
+        async function updateScheduleStats() {
+            try {
+                // 전사 일정 카드 - 금일 일정 개수 (APPROVED 또는 RESERVED만)
+                const today = new Date();
+                const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+                const todayScheduleCount = allSchedules.filter(s => {
+                    // APPROVED 또는 RESERVED 상태만
+                    if (s.status !== 'APPROVED' && s.status !== 'RESERVED') return false;
+
+                    // 날짜 형식 정규화
+                    const startDateStr = s.startDate ? s.startDate.split('T')[0] : '';
+                    const endDateStr = s.endDate ? s.endDate.split('T')[0] : '';
+
+                    // 금일이 일정 기간에 포함되는지 확인
+                    return todayStr >= startDateStr && todayStr <= endDateStr;
+                }).length;
+
+                document.getElementById('companyScheduleCount').textContent = `${todayScheduleCount}`;
+
+                // 임직원 연차 현황 카드 - 활성 구성원 수
+                const membersResponse = await fetch('/api/intranet/members');
+                if (membersResponse.ok) {
+                    const membersData = await membersResponse.json();
+                    const members = membersData.members || membersData || [];
+                    const activeMemberCount = members.filter(m => m.isActive).length;
+                    document.getElementById('annualLeaveCount').textContent = activeMemberCount;
+                }
+
+                // 휴가 승인 목록 카드 - 승인된 휴가 개수
+                const approvedCount = allSchedules.filter(s =>
+                    (s.status === 'APPROVED' || s.approvalStatus === 'APPROVED')
+                ).length;
+                document.getElementById('approvalLeaveCount').textContent = approvedCount;
+            } catch (error) {
+                console.error('통계 업데이트 실패:', error);
+            }
+        }
+
+        // 일정 테이블 표시
+        function displayScheduleTable(schedules) {
+            const container = document.getElementById('scheduleTableContent');
+
+            if (!schedules || schedules.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>표시할 일정이 없습니다</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // 날짜 포맷 함수
+            const formatDate = (dateStr) => {
+                const date = new Date(dateStr);
+                return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            };
+
+            // 유형 한글명 매핑
+            const typeLabels = {
+                'VACATION': '연차',
+                'HALF_DAY': '반차',
+                'BUSINESS_TRIP': '출장'
+            };
+
+            // 상태 한글명 및 스타일 매핑
+            const statusLabels = {
+                'PENDING': '승인 대기',
+                'APPROVED': '승인됨',
+                'REJECTED': '반려됨'
+            };
+
+            const statusStyles = {
+                'PENDING': 'color: #f59e0b; font-weight: 600;',
+                'APPROVED': 'color: #10b981; font-weight: 600;',
+                'REJECTED': 'color: #ef4444; font-weight: 600;'
+            };
+
+            container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>신청자</th>
+                            <th>부서</th>
+                            <th>유형</th>
+                            <th>시작일</th>
+                            <th>종료일</th>
+                            <th>상태</th>
+                            <th>설명</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${schedules.map(schedule => {
+                            const typeName = typeLabels[schedule.scheduleType] || schedule.scheduleType;
+                            const status = schedule.status || schedule.approvalStatus || 'UNKNOWN';
+                            const statusLabel = statusLabels[status] || status;
+                            const statusStyle = statusStyles[status] || '';
+
+                            return `
+                                <tr>
+                                    <td>${schedule.id}</td>
+                                    <td><strong>${schedule.memberName || schedule.userName || '-'}</strong></td>
+                                    <td>${schedule.departmentName || '-'}</td>
+                                    <td><span style="padding: 4px 8px; background: #f3f4f6; border-radius: 4px; font-size: 12px;">${typeName}</span></td>
+                                    <td>${formatDate(schedule.startDate)}</td>
+                                    <td>${formatDate(schedule.endDate)}</td>
+                                    <td><span style="${statusStyle}">${statusLabel}</span></td>
+                                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${schedule.description || '-'}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // 구성원 목록 로드 (일정 탭용)
+        async function loadScheduleMembersByDept(parentDeptId, childDeptId) {
+            try {
+                const response = await fetch('/api/intranet/members');
+                if (!response.ok) return;
+
+                const data = await response.json();
+                const members = data.members || data || [];
+
+                const memberSelect = document.getElementById('scheduleFilterMember');
+                memberSelect.innerHTML = '<option value="">전체 구성원</option>';
+
+                // 부서별로 구성원 필터링
+                let filteredMembers = members.filter(m => m.isActive);
+
+                if (childDeptId) {
+                    // 부서가 선택된 경우
+                    filteredMembers = filteredMembers.filter(m => String(m.departmentId) === String(childDeptId));
+                } else if (parentDeptId) {
+                    // 본부만 선택된 경우 - 본부에 속한 모든 부서의 구성원
+                    const childDepts = scheduleDepartments.filter(d => String(d.parentId) === String(parentDeptId));
+                    const childDeptIds = childDepts.map(d => String(d.id));
+                    filteredMembers = filteredMembers.filter(m => childDeptIds.includes(String(m.departmentId)));
+                }
+
+                filteredMembers.forEach(member => {
+                    const option = document.createElement('option');
+                    option.value = member.id;
+                    option.textContent = `${member.name} (${member.position || ''})`;
+                    memberSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('구성원 목록 로드 실패:', error);
+            }
+        }
+
+        // 연차 현황 테이블 로드
+        async function loadAnnualLeaveTable() {
+            const tableContent = document.getElementById('scheduleTableContent');
+            tableContent.innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p style="margin-top: 16px;">로딩 중...</p>
+                </div>
+            `;
+
+            try {
+                // 구성원 및 일정 데이터 병렬 로드
+                const [membersResponse, schedulesResponse] = await Promise.all([
+                    fetch('/api/intranet/members'),
+                    fetch('/api/intranet/schedules')
+                ]);
+
+                if (!membersResponse.ok || !schedulesResponse.ok) {
+                    throw new Error('API 호출 실패');
+                }
+
+                const membersData = await membersResponse.json();
+                const schedulesData = await schedulesResponse.json();
+
+                const members = membersData.members || membersData || [];
+                const schedules = Array.isArray(schedulesData) ? schedulesData : (schedulesData.schedules || []);
+
+                // 활성 구성원만 필터링
+                let activeMembers = members.filter(m => m.isActive);
+
+                // 필터 적용
+                const typeFilter = document.getElementById('scheduleTypeFilter')?.value || '';
+                const parentDept = document.getElementById('scheduleFilterParentDept')?.value || '';
+                const childDept = document.getElementById('scheduleFilterChildDept')?.value || '';
+                const memberId = document.getElementById('scheduleFilterMember')?.value || '';
+
+                // 부서 필터 적용
+                if (childDept) {
+                    activeMembers = activeMembers.filter(m => String(m.departmentId) === String(childDept));
+                } else if (parentDept) {
+                    const childDepts = scheduleDepartments.filter(d => String(d.parentId) === String(parentDept));
+                    const childDeptIds = childDepts.map(d => String(d.id));
+                    activeMembers = activeMembers.filter(m => childDeptIds.includes(String(m.departmentId)));
+                }
+
+                // 구성원 필터 적용
+                if (memberId) {
+                    activeMembers = activeMembers.filter(m => String(m.id) === String(memberId));
+                }
+
+                // 각 구성원별 연차 계산
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const tableData = activeMembers.map(member => {
+                    // 해당 구성원의 승인된 연차/반차/출장 일정
+                    const memberSchedules = schedules.filter(s =>
+                        String(s.memberId) === String(member.id) &&
+                        (s.status === 'APPROVED' || s.approvalStatus === 'APPROVED') &&
+                        (s.scheduleType === 'VACATION' || s.scheduleType === 'HALF_DAY' || s.scheduleType === 'BUSINESS_TRIP')
+                    );
+
+                    // 유형 필터 적용
+                    let filteredSchedules = memberSchedules;
+                    if (typeFilter) {
+                        filteredSchedules = memberSchedules.filter(s => s.scheduleType === typeFilter);
+                    }
+
+                    // 사용 연차 계산 (종료일 <= 오늘)
+                    const usedLeave = filteredSchedules.filter(s => {
+                        const endDate = new Date(s.endDate);
+                        endDate.setHours(0, 0, 0, 0);
+                        return endDate <= today;
+                    }).reduce((sum, s) => {
+                        if (s.scheduleType === 'HALF_DAY') return sum + 0.5;
+                        if (s.scheduleType === 'VACATION' || s.scheduleType === 'BUSINESS_TRIP') {
+                            const start = new Date(s.startDate);
+                            const end = new Date(s.endDate);
+                            const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+                            return sum + days;
+                        }
+                        return sum;
+                    }, 0);
+
+                    // 예정 연차 계산 (시작일 > 오늘)
+                    const scheduledLeave = filteredSchedules.filter(s => {
+                        const startDate = new Date(s.startDate);
+                        startDate.setHours(0, 0, 0, 0);
+                        return startDate > today;
+                    }).reduce((sum, s) => {
+                        if (s.scheduleType === 'HALF_DAY') return sum + 0.5;
+                        if (s.scheduleType === 'VACATION' || s.scheduleType === 'BUSINESS_TRIP') {
+                            const start = new Date(s.startDate);
+                            const end = new Date(s.endDate);
+                            const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+                            return sum + days;
+                        }
+                        return sum;
+                    }, 0);
+
+                    // 보유 연차 (members_intranet.annual_leave_granted 사용)
+                    const totalLeave = member.annualLeaveGranted || 15;
+                    const remainingLeave = totalLeave - usedLeave - scheduledLeave;
+
+                    // 부서 정보 찾기
+                    const dept = scheduleDepartments.find(d => String(d.id) === String(member.departmentId));
+                    const parentDeptObj = dept ? scheduleDepartments.find(d => String(d.id) === String(dept.parentId)) : null;
+
+                    return {
+                        id: member.id,
+                        division: parentDeptObj?.name || '-',
+                        department: dept?.name || '-',
+                        name: member.name,
+                        position: member.position || '-',
+                        totalLeave: totalLeave,
+                        remainingLeave: remainingLeave,
+                        usedLeave: usedLeave,
+                        scheduledLeave: scheduledLeave
+                    };
+                });
+
+                // 테이블 렌더링
+                displayAnnualLeaveTable(tableData);
+
+                // 카드 통계 업데이트
+                document.getElementById('annualLeaveCount').textContent = tableData.length;
+
+            } catch (error) {
+                console.error('연차 현황 로드 실패:', error);
+                tableContent.innerHTML = `
+                    <div class="empty-state">
+                        <p>데이터를 불러올 수 없습니다</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 연차 현황 테이블 표시
+        function displayAnnualLeaveTable(data) {
+            const tableContent = document.getElementById('scheduleTableContent');
+
+            if (data.length === 0) {
+                tableContent.innerHTML = `
+                    <div class="empty-state">
+                        <p>조건에 맞는 데이터가 없습니다</p>
+                    </div>
+                `;
+                return;
+            }
+
+            tableContent.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>본부</th>
+                            <th>부서</th>
+                            <th>이름</th>
+                            <th>직급</th>
+                            <th>보유 연차</th>
+                            <th>잔여 연차</th>
+                            <th>사용 연차</th>
+                            <th>예정 연차</th>
+                            <th>이력 확인</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(row => `
+                            <tr>
+                                <td>${row.division}</td>
+                                <td>${row.department}</td>
+                                <td>${row.name}</td>
+                                <td>${row.position}</td>
+                                <td><span class="leave-number leave-total">${row.totalLeave}</span>일</td>
+                                <td><span class="leave-number leave-remaining">${row.remainingLeave}</span>일</td>
+                                <td><span class="leave-number leave-used">${row.usedLeave}</span>일</td>
+                                <td><span class="leave-number leave-scheduled">${row.scheduledLeave}</span>일</td>
+                                <td><button class="btn-history" onclick="showLeaveHistory(${row.id}, '${row.name}')">확인</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // 연차 이력 팝업 열기
+        async function showLeaveHistory(memberId, memberName) {
+            const modal = document.getElementById('leaveHistoryModal');
+            const content = document.getElementById('leaveHistoryContent');
+
+            modal.style.display = 'block';
+
+            // 로딩 상태 표시
+            content.innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p style="margin-top: 16px;">로딩 중...</p>
+                </div>
+            `;
+
+            try {
+                // 해당 구성원의 연차 이력 조회
+                const response = await fetch('/api/intranet/schedules');
+                if (!response.ok) throw new Error('API 호출 실패');
+
+                const schedulesData = await response.json();
+                const schedules = Array.isArray(schedulesData) ? schedulesData : (schedulesData.schedules || []);
+
+                // 해당 구성원의 연차/반차만 필터링 (APPROVED 상태만)
+                const memberLeaveHistory = schedules.filter(s =>
+                    String(s.memberId) === String(memberId) &&
+                    (s.status === 'APPROVED' || s.approvalStatus === 'APPROVED') &&
+                    (s.scheduleType === 'VACATION' || s.scheduleType === 'HALF_DAY')
+                ).sort((a, b) => new Date(b.startDate) - new Date(a.startDate)); // 최신순 정렬
+
+                if (memberLeaveHistory.length === 0) {
+                    content.innerHTML = `
+                        <div class="history-empty">
+                            <p style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">${memberName}님</p>
+                            <p>사용된 이력이 없습니다.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // 사용일수 계산
+                const historyWithDays = memberLeaveHistory.map(s => {
+                    let daysUsed = 0;
+                    if (s.scheduleType === 'HALF_DAY') {
+                        daysUsed = 0.5;
+                    } else if (s.scheduleType === 'VACATION') {
+                        const start = new Date(s.startDate);
+                        const end = new Date(s.endDate);
+                        daysUsed = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+                    }
+                    return { ...s, daysUsed };
+                });
+
+                // 총 사용일수 계산
+                const totalDays = historyWithDays.reduce((sum, s) => sum + s.daysUsed, 0);
+
+                // 테이블 렌더링
+                content.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>이름</th>
+                                <th>시작일</th>
+                                <th>종료일</th>
+                                <th>사용일수</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${historyWithDays.map(s => `
+                                <tr>
+                                    <td>${memberName}</td>
+                                    <td>${s.startDate ? s.startDate.split('T')[0] : '-'}</td>
+                                    <td>${s.endDate ? s.endDate.split('T')[0] : '-'}</td>
+                                    <td>${s.daysUsed}일</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    <div class="history-summary">
+                        총 사용일수: ${totalDays}일
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('연차 이력 로드 실패:', error);
+                content.innerHTML = `
+                    <div class="history-empty">
+                        <p>데이터를 불러올 수 없습니다</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 연차 이력 팝업 닫기
+        function closeLeaveHistoryModal() {
+            document.getElementById('leaveHistoryModal').style.display = 'none';
+        }
+
+        // 필터 적용
+        // 필터 데이터 (새 구조용)
+        function filterScheduleData() {
+            if (selectedScheduleCard === 'annual') {
+                // 임직원 연차 현황 카드일 때만 테이블 필터링
+                loadAnnualLeaveTable();
+            } else if (selectedScheduleCard === 'company') {
+                // 전사 일정 카드일 때 달력 새로고침
+                refreshCompanyCalendar();
+            }
+        }
+
+        function filterSchedules() {
+            const statusFilter = document.getElementById('scheduleStatusFilter')?.value || '';
+            const typeFilter = document.getElementById('scheduleTypeFilter')?.value || '';
+            const parentDept = document.getElementById('scheduleFilterParentDept')?.value || '';
+            const childDept = document.getElementById('scheduleFilterChildDept')?.value || '';
+            const searchTerm = document.getElementById('scheduleSearchInput')?.value.toLowerCase() || '';
+
+            let filtered = [...allSchedules];
+
+            // 상태 필터
+            if (statusFilter) {
+                filtered = filtered.filter(s => (s.status || s.approvalStatus) === statusFilter);
+            }
+
+            // 유형 필터
+            if (typeFilter) {
+                filtered = filtered.filter(s => s.scheduleType === typeFilter);
+            }
+
+            // 본부 필터
+            if (parentDept && !childDept) {
+                const childDepts = scheduleDepartments.filter(d => String(d.parentId) === String(parentDept));
+                const childDeptIds = childDepts.map(d => d.id);
+                filtered = filtered.filter(s => childDeptIds.includes(Number(s.departmentId)));
+            }
+
+            // 부서 필터
+            if (childDept) {
+                filtered = filtered.filter(s => String(s.departmentId) === String(childDept));
+            }
+
+            // 검색어 필터 (신청자 이름)
+            if (searchTerm) {
+                filtered = filtered.filter(s => {
+                    const memberName = (s.memberName || s.userName || '').toLowerCase();
+                    return memberName.includes(searchTerm);
+                });
+            }
+
+            displayScheduleTable(filtered);
+        }
+
+        // 본부 선택 변경 시 (일정 탭)
+        function onScheduleParentDeptChange() {
+            const parentId = document.getElementById('scheduleFilterParentDept').value;
+            const childSelect = document.getElementById('scheduleFilterChildDept');
+            const memberSelect = document.getElementById('scheduleFilterMember');
+
+            // 부서 드롭다운 초기화
+            childSelect.innerHTML = '<option value="">전체 부서</option>';
+            childSelect.value = '';
+
+            // 구성원 드롭다운 초기화
+            memberSelect.innerHTML = '<option value="">전체 구성원</option>';
+            memberSelect.value = '';
+
+            if (parentId) {
+                const childDepts = scheduleDepartments.filter(d => String(d.parentId) === String(parentId));
+                childDepts.forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept.id;
+                    option.textContent = dept.name;
+                    childSelect.appendChild(option);
+                });
+
+                // 본부에 속한 구성원 로드
+                loadScheduleMembersByDept(parentId, null);
+            }
+
+            filterScheduleData();
+        }
+
+        // 부서 선택 변경 시 (일정 탭)
+        function onScheduleChildDeptChange() {
+            const parentId = document.getElementById('scheduleFilterParentDept').value;
+            const childId = document.getElementById('scheduleFilterChildDept').value;
+            const memberSelect = document.getElementById('scheduleFilterMember');
+
+            // 구성원 드롭다운 초기화
+            memberSelect.innerHTML = '<option value="">전체 구성원</option>';
+            memberSelect.value = '';
+
+            if (childId) {
+                // 부서에 속한 구성원 로드
+                loadScheduleMembersByDept(parentId, childId);
+            } else if (parentId) {
+                // 본부에 속한 구성원 로드
+                loadScheduleMembersByDept(parentId, null);
+            }
+
+            filterScheduleData();
+        }
+
+
+        // ======================================
+        // 경비보고서 탭 관련 함수
+        // ======================================
+        let calendar = null;
+
+        // 경비 통계 로드
+        async function loadExpenseStats() {
+            try {
+                console.log('경비보고서 통계 로드');
+                // 경비보고서 통계 API 호출 (필요시 추가)
+            } catch (error) {
+                console.error('경비 통계 로드 실패:', error);
+            }
+        }
+
+        // 캘린더 초기화 (경비보고서용 - schedule-calendar.html과 동일)
+        function initCalendar() {
+            const calendarEl = document.getElementById('calendar');
+            if (!calendarEl) {
+                console.log('calendar 요소를 찾을 수 없습니다');
+                return;
+            }
+
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'ko',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek'
+                },
+                buttonText: {
+                    today: '오늘',
+                    month: '월',
+                    week: '주'
+                },
+                height: 'auto',
+                // 관리자 페이지에서는 조회 전용
+                selectable: false,
+                editable: false,
+                // 이벤트 클릭 시 상세보기
+                eventClick: function(info) {
+                    alert(`일정: ${info.event.title}\n날짜: ${info.event.startStr}`);
+                },
+                // 이벤트 마우스 호버 (툴팁)
+                eventMouseEnter: function(info) {
+                    const event = info.event;
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'event-tooltip';
+                    tooltip.id = `tooltip-${event.id}`;
+
+                    const scheduleTypeLabels = {
+                        'VACATION': '연차',
+                        'HALF_DAY': '반차',
+                        'MEETING': '회의',
+                        'BUSINESS_TRIP': '출장'
+                    };
+
+                    const statusLabels = {
+                        'DRAFT': '초안',
+                        'SUBMITTED': '결재 대기',
+                        'PENDING': '결재 대기',
+                        'APPROVED': '승인됨',
+                        'REJECTED': '반려',
+                        'CANCELLED': '취소'
+                    };
+
+                    const scheduleType = scheduleTypeLabels[event.extendedProps.scheduleType] || event.extendedProps.scheduleType;
+                    const statusText = statusLabels[event.extendedProps.status] || event.extendedProps.status;
+
+                    tooltip.innerHTML = `
+                        <div style="padding: 12px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 150px; max-width: 250px;">
+                            <div style="font-size: 14px; font-weight: 700; color: #2d3748; margin-bottom: 4px;">${scheduleType}</div>
+                            <div style="font-size: 13px; color: #718096; margin-bottom: 8px;">${event.extendedProps.userName || event.extendedProps.memberName || ''}</div>
+                            <div style="font-size: 13px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 8px;">
+                                <strong>상태:</strong> ${statusText}
+                            </div>
+                        </div>
+                    `;
+
+                    document.body.appendChild(tooltip);
+
+                    const rect = info.el.getBoundingClientRect();
+                    tooltip.style.position = 'fixed';
+                    tooltip.style.left = rect.left + 'px';
+                    tooltip.style.top = (rect.bottom + 5) + 'px';
+                    tooltip.style.zIndex = '10000';
+                },
+                eventMouseLeave: function(info) {
+                    const tooltip = document.getElementById(`tooltip-${info.event.id}`);
+                    if (tooltip) {
+                        tooltip.remove();
+                    }
+                },
+                events: [],
+                eventTimeFormat: {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    meridiem: false,
+                    hour12: false
+                },
+                displayEventTime: false,
+                displayEventEnd: false
+            });
+
+            calendar.render();
+        }
+
+        window.addEventListener('load', async () => {
+            displayUserInfo();
+            loadAllNotifications();
+
+            // 첫 번째 탭(일정/휴가) 자동 로드
+            console.log('페이지 로드 완료 - 일정 탭 초기화 시작');
+            loadScheduleStats();
+            await initScheduleTab();
+        });
+    </script>
+</body>
+</html>

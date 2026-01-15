@@ -518,10 +518,10 @@
                 <p>지출 내역을 관리하고 경비보고서를 작성하세요</p>
             </div>
 
-            <div class="card" onclick="location.href='/member-management.html'" id="memberManagementCard" style="display:none;">
-                <div class="card-icon purple">👥</div>
-                <h3>사원 관리</h3>
-                <p>사원 정보를 조회하고 관리하세요 (ADMIN 전용)</p>
+			<div class="card" onclick="location.href='/admin.html'" id="adminCard" style="display:none;">
+			    <div class="card-icon purple">⚙️</div>
+			    <h3>관리자</h3>
+			    <p>시스템 전반의 관리 기능을 제공합니다 (ADMIN 전용)</p>
             </div>
         </div>
 
@@ -602,9 +602,9 @@
             const initial = user.name.charAt(0);
             document.getElementById('userAvatar').textContent = initial;
 
-            // ADMIN 권한일 경우 사원 관리 카드 표시
+            // ADMIN 권한일 경우 관리자 카드 표시
             if (user.role === 'ADMIN') {
-                document.getElementById('memberManagementCard').style.display = 'block';
+                document.getElementById('adminCard').style.display = 'block';
             }
         }
 
