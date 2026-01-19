@@ -71,4 +71,37 @@ public interface ScheduleIntranetMapper {
      * 문서 ID로 일정 조회
      */
     List<ScheduleIntranet> findByDocumentId(Long documentId);
+
+    /**
+     * 방범신청 시간대 중복 체크
+     * 같은 날짜에 시간대가 겹치는 승인된 방범신청 조회
+     */
+    List<ScheduleIntranet> findApprovedSecurityRequests(
+            @Param("startDate") Date startDate,
+            @Param("startTime") String startTime,
+            @Param("endTime") String endTime
+    );
+
+    /**
+     * 사용자별 일정 중복 체크
+     * 같은 사용자가 같은 유형으로 날짜 범위가 겹치는 일정 조회
+     */
+    List<ScheduleIntranet> findDuplicateSchedules(
+            @Param("memberId") Long memberId,
+            @Param("scheduleType") String scheduleType,
+            @Param("startDate") Date startDate,
+            @Param("endDate") Date endDate,
+            @Param("excludeId") Long excludeId
+    );
+
+    /**
+     * 휴일근무 중복 체크
+     * 같은 사용자가 휴일근무일 또는 대체휴무일이 겹치는 일정 조회
+     */
+    List<ScheduleIntranet> findDuplicateHolidayWork(
+            @Param("memberId") Long memberId,
+            @Param("holidayWorkDate") Date holidayWorkDate,
+            @Param("substituteHolidayDate") Date substituteHolidayDate,
+            @Param("excludeId") Long excludeId
+    );
 }

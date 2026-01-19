@@ -610,7 +610,31 @@ CREATE TABLE expense_items_intranet (
 
 ## 📅 버전 히스토리
 
-- **v0.25** (2026-01-15) - 날짜 형식 호환성 개선 🆕
+- **v0.26** (2026-01-19) - 일정 중복 등록 방지 기능 추가 🆕
+  - **방범신청 시간대 중복 방지**:
+    - 같은 날짜에 시간대가 겹치는 승인된 방범신청이 있으면 등록 불가
+    - 시간 겹침 판정: `start_time < endTime AND end_time > startTime`
+    - 에러 메시지: "해당 시간대에 이미 승인된 방범신청이 있습니다. (2026-01-20 09:00~12:00, 신청자: 홍길동)"
+
+  - **사용자별 일정 중복 방지**:
+    - 같은 사용자가 같은 일정 유형으로 날짜 범위가 겹치는 일정 등록 불가
+    - 취소(CANCELLED), 반려(REJECTED) 상태는 제외
+    - 에러 메시지: "해당 기간에 이미 등록된 연차이(가) 있습니다. (2026-01-20 ~ 2026-01-22)"
+
+  - **휴일근무 중복 방지**:
+    - 같은 사용자가 휴일근무일 또는 대체휴무일이 겹치는 휴일근무 등록 불가
+    - 교차 검증: 기존 휴일근무일 = 신규 대체휴무일, 기존 대체휴무일 = 신규 휴일근무일
+    - 에러 메시지: "이미 등록된 휴일근무와 날짜가 겹칩니다. (휴일근무일: 2026-01-25, 대체휴무일: 2026-01-27)"
+
+  - **파일 수정 내역**:
+    - ScheduleIntranetMapper.java: 3개 중복 체크 메서드 추가
+      - `findApprovedSecurityRequests()` - 방범신청 시간대 중복 체크
+      - `findDuplicateSchedules()` - 일반 일정 중복 체크
+      - `findDuplicateHolidayWork()` - 휴일근무 중복 체크
+    - ScheduleIntranetMapper.xml: 3개 SQL 쿼리 추가
+    - ScheduleIntranetService.java: `validateScheduleDuplication()` 검증 메서드 추가
+
+- **v0.25** (2026-01-15) - 날짜 형식 호환성 개선
   - **HTML5 date input 호환성 문제 해결**:
     - application.yml의 Jackson 설정으로 API가 `yyyy-MM-dd HH:mm:ss` 형식 반환
     - HTML5 date input은 `yyyy-MM-dd` 형식만 허용
@@ -1313,6 +1337,63 @@ CREATE TABLE expense_items_intranet (
     - currentEditingSchedule 존재 시 PUT 요청으로 라우팅
     - 폼 제출 로직에 수정/생성 구분 추가
     - schedule-calendar.html 폼 제출 핸들러 수정
+
+  - **새로운 일정 유형 추가 (v0.9.3)**:
+    - 휴일근무(HOLIDAY_WORK), 공가(OFFICIAL_LEAVE), 방범신청(SECURITY_REQUEST) 유형 추가
+    - 휴일근무: 전용 날짜 필드(holiday_work_date, substitute_holiday_date) 사용
+    - schedules_intranet 테이블 ALTER: start_date/end_date NULL 허용으로 변경
+    - 휴일근무는 start_date/end_date 대신 전용 날짜 필드 사용
+    - 공가: daysUsed = 0 (휴가 차감 없음)
+    - 방범신청: 회의 기반, 결재 필요
+    - ScheduleIntranet.java에 @JsonFormat 추가 (yyyy-MM-dd 파싱 지원)
+    - ScheduleIntranetMapper.xml에 jdbcType=DATE 추가 (NULL 허용)
+    - ScheduleIntranetService.java에 날짜 필드 검증 로직 추가
+      - 휴일근무: holiday_work_date, substitute_holiday_date 필수
+      - 그 외: start_date, end_date 필수
+    - schedule-calendar.html에 UI 및 색상 추가
+      - HOLIDAY_WORK: 주황색(#f59e0b)
+      - OFFICIAL_LEAVE: 청록색(#06b6d4)
+      - SECURITY_REQUEST: 남색(#6366f1)
+
+  - **신규 일정 유형 워크플로우 통합 (v0.9.4)**:
+    - **캘린더 일정 유형 한글 표시**:
+      - scheduleTypeLabels 객체에 신규 유형 추가
+      - 캘린더 이벤트 제목에 영문 코드 대신 한글명 표시
+      - schedule-calendar.html에 getScheduleTypeLabel() 함수 추가
+      - HOLIDAY_WORK → "휴일근무", OFFICIAL_LEAVE → "공가", SECURITY_REQUEST → "방범신청"
+
+    - **내 일정 사이드바 상태 뱃지 확장**:
+      - 휴일근무/공가/방범신청도 결재 상태 뱃지 표시
+      - isApprovalRequired 배열 확장: ['VACATION', 'HALF_DAY', 'HOLIDAY_WORK', 'OFFICIAL_LEAVE', 'SECURITY_REQUEST']
+      - SUBMITTED 상태 → "결재대기" 뱃지
+      - APPROVED 상태 → "승인" 뱃지
+      - 일정 배지에 날짜 정보 표시
+        - 휴일근무: "근무일: YYYY-MM-DD | 대체: YYYY-MM-DD"
+        - 기타: "유형명 | 시작일 ~ 종료일 | N일" (daysUsed가 0이면 일수 생략)
+
+    - **결재 승인/반려 후 상태 동기화 개선**:
+      - ApprovalService.syncScheduleStatus() 메서드 확장
+      - 결재 필요 일정 유형 조건 확장: VACATION, HALF_DAY, HOLIDAY_WORK, OFFICIAL_LEAVE, SECURITY_REQUEST
+      - 결재 승인 시 schedules_intranet.status를 APPROVED로 자동 업데이트
+      - 결재 반려 시 schedules_intranet.status를 REJECTED로 자동 업데이트
+      - schedule-calendar.html의 confirmApproval() 함수에 loadMySchedules() 호출 추가
+      - 결재 처리 후 캘린더와 내 일정 자동 새로고침
+
+    - **휴일근무/공가/방범신청 취소 신청 기능 확장**:
+      - ScheduleIntranetController 수정 (lines 246-250)
+      - 취소 신청 가능 일정 유형 확장: VACATION, HALF_DAY, HOLIDAY_WORK, OFFICIAL_LEAVE, SECURITY_REQUEST
+      - 에러 메시지 개선: "연차/반차만..." → "결재가 필요한 일정만 취소 신청이 가능합니다."
+
+    - **방범신청 캘린더 색상 가시성 개선**:
+      - SECURITY_REQUEST 색상 변경: #6366f1 (인디고) → #f97316 (주황색)
+      - 하얀 배경에서 명도 대비 향상으로 가독성 개선
+      - 내 일정 사이드바와 캘린더 뷰 모두 동일한 색상 적용
+
+    - **휴일근무 상세보기 날짜 표시 개선**:
+      - showEventDetail() 함수 수정 (schedule-calendar.html lines 1571-1578)
+      - 휴일근무 유형 감지 시 holidayWorkDate, substituteHolidayDate 필드 사용
+      - 일반 유형은 기존대로 startDate, endDate 필드 사용
+      - 상세보기 모달에서 휴일근무 날짜 정보 정상 표시
 
 - **v0.8** (2026-01-07) - 결재 시스템 개선
   - **결재 대기 목록 조회 기능**:

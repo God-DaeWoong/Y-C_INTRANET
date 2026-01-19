@@ -709,8 +709,11 @@
                     <select id="eventType" required onchange="handleEventTypeChange()">
                         <option value="VACATION">연차</option>
                         <option value="HALF_DAY">반차</option>
+                        <option value="HOLIDAY_WORK">휴일근무</option>
+                        <option value="OFFICIAL_LEAVE">공가</option>
                         <option value="BUSINESS_TRIP">출장</option>
                         <option value="MEETING">회의</option>
+                        <option value="SECURITY_REQUEST">방범신청</option>
                     </select>
                 </div>
 
@@ -727,7 +730,7 @@
                     <input type="text" id="eventTitle" required placeholder="일정 제목을 입력하세요">
                 </div>
 
-                <div class="form-row">
+                <div class="form-row" id="standardDateGroup">
                     <div class="form-group">
                         <label>시작일</label>
                         <input type="date" id="eventStartDate" required onchange="handleStartDateChange()">
@@ -735,6 +738,17 @@
                     <div class="form-group">
                         <label>종료일</label>
                         <input type="date" id="eventEndDate" required>
+                    </div>
+                </div>
+
+                <div class="form-row" id="holidayWorkDateGroup" style="display: none;">
+                    <div class="form-group">
+                        <label>휴일근무일</label>
+                        <input type="date" id="holidayWorkDate">
+                    </div>
+                    <div class="form-group">
+                        <label>대체휴무일</label>
+                        <input type="date" id="substituteHolidayDate">
                     </div>
                 </div>
 
@@ -976,6 +990,9 @@
                     const scheduleTypeLabels = {
                         'VACATION': '연차',
                         'HALF_DAY': '반차',
+                        'HOLIDAY_WORK': '휴일근무',
+                        'OFFICIAL_LEAVE': '공가',
+                        'SECURITY_REQUEST': '방범신청',
                         'MEETING': '회의',
                         'BUSINESS_TRIP': '출장'
                     };
@@ -1064,6 +1081,12 @@
                         icon = '🌴';
                     } else if (event.extendedProps.scheduleType === 'HALF_DAY') {
                         icon = '⏰';
+                    } else if (event.extendedProps.scheduleType === 'HOLIDAY_WORK') {
+                        icon = '🏢';
+                    } else if (event.extendedProps.scheduleType === 'OFFICIAL_LEAVE') {
+                        icon = '📋';
+                    } else if (event.extendedProps.scheduleType === 'SECURITY_REQUEST') {
+                        icon = '🔒';
                     } else if (event.extendedProps.scheduleType === 'MEETING') {
                         icon = '📄';
                     } else if (event.extendedProps.scheduleType === 'BUSINESS_TRIP') {
@@ -1127,6 +1150,78 @@
             calendar.render();
         }
 
+        // 휴일근무 이벤트 생성 함수 (휴일근무일 + 대체휴무일 2개 이벤트)
+        function createHolidayWorkEvents(schedule, formatDate) {
+            const memberName = schedule.memberName || '';
+
+            // 상태별 아이콘
+            const statusIcons = {
+                'DRAFT': '📝',
+                'SUBMITTED': '⏳',
+                'PENDING': '⏳',
+                'APPROVED': '✅',
+                'REJECTED': '❌',
+                'CANCELLED': '🚫'
+            };
+            const statusIcon = statusIcons[schedule.status] || '📌';
+
+            // 공통 extendedProps
+            const baseExtendedProps = {
+                scheduleType: schedule.scheduleType,
+                description: schedule.description,
+                status: schedule.status,
+                documentId: schedule.documentId,
+                documentTitle: schedule.documentTitle,
+                daysUsed: schedule.daysUsed,
+                memberName: schedule.memberName,
+                departmentName: schedule.departmentName,
+                holidayWorkDate: schedule.holidayWorkDate,
+                substituteHolidayDate: schedule.substituteHolidayDate
+            };
+
+            // 상태별 색상 처리 함수 (파스텔톤 배경 + 진한 테두리 + 검정 텍스트)
+            const applyStatusStyle = (event, bgColor, borderColor) => {
+                if (schedule.status === 'SUBMITTED' || schedule.status === 'PENDING') {
+                    event.backgroundColor = bgColor + 'aa'; // 약간 투명하게
+                    event.borderColor = borderColor;
+                    event.textColor = '#1e293b';
+                } else {
+                    event.backgroundColor = bgColor;
+                    event.borderColor = borderColor;
+                    event.textColor = '#1e293b';
+                }
+            };
+
+            // 1. 휴일근무일 이벤트
+            const workDateStr = formatDate(schedule.holidayWorkDate);
+            const workEvent = {
+                id: schedule.id + '_work',
+                title: `${statusIcon} 휴일근무 ${memberName}`.trim(),
+                start: workDateStr,
+                end: workDateStr,
+                allDay: true,
+                extendedProps: { ...baseExtendedProps, eventType: 'holiday_work' },
+                className: 'event-holiday-work'
+            };
+            applyStatusStyle(workEvent, '#fed7aa', '#f59e0b'); // 연한 주황 배경 + 진한 주황 테두리
+
+            // 2. 대체휴무일 이벤트
+            const substituteDateStr = formatDate(schedule.substituteHolidayDate);
+            const substituteEvent = {
+                id: schedule.id + '_substitute',
+                title: `${statusIcon} 대체휴무 ${memberName}`.trim(),
+                start: substituteDateStr,
+                end: substituteDateStr,
+                allDay: true,
+                extendedProps: { ...baseExtendedProps, eventType: 'substitute_holiday' },
+                className: 'event-substitute-holiday'
+            };
+            applyStatusStyle(substituteEvent, '#99f6e4', '#14b8a6'); // 연한 틸 배경 + 진한 틸 테두리
+
+            console.log('[달력] 휴일근무 이벤트 2개 생성:', workEvent, substituteEvent);
+            return [workEvent, substituteEvent];
+        }
+
         async function loadEvents(fetchInfo) {
             try {
                 // 필터 값 가져오기
@@ -1174,11 +1269,14 @@
                 console.log('[달력] 조회된 일정:', schedules);
 
                 // 표시할 일정 필터링
-                // 연차/반차: APPROVED, SUBMITTED, PENDING 표시
+                // 결재 필요 일정: APPROVED, SUBMITTED, PENDING 표시
                 // 회의/출장: 모든 상태 표시 (DRAFT, REJECTED, CANCELLED 제외)
                 const approvedSchedules = schedules.filter(schedule => {
-                    // 연차/반차는 APPROVED, SUBMITTED, PENDING 표시
-                    if (schedule.scheduleType === 'VACATION' || schedule.scheduleType === 'HALF_DAY') {
+                    // 결재 필요 일정 (연차/반차/휴일근무/공가/방범신청): APPROVED, SUBMITTED, PENDING 표시
+                    const isApprovalRequired = ['VACATION', 'HALF_DAY', 'HOLIDAY_WORK', 'OFFICIAL_LEAVE', 'SECURITY_REQUEST']
+                        .includes(schedule.scheduleType);
+
+                    if (isApprovalRequired) {
                         return schedule.status === 'APPROVED' ||
                                schedule.status === 'SUBMITTED' ||
                                schedule.status === 'PENDING';
@@ -1203,11 +1301,35 @@
 
                 // FullCalendar 이벤트 형식으로 변환
                 console.log('[달력] 이벤트 변환 시작');
-                const events = approvedSchedules.map(schedule => {
+
+                // 날짜를 YYYY-MM-DD 형식으로 변환하는 헬퍼 함수
+                const formatDate = (dateValue) => {
+                    if (!dateValue) return null;
+                    // 이미 문자열 형식인 경우 (YYYY-MM-DD)
+                    if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
+                        return dateValue.split('T')[0];
+                    }
+                    // Date 객체나 타임스탬프인 경우 - 로컬 날짜 기준
+                    const d = new Date(dateValue);
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                };
+
+                // flatMap을 사용하여 휴일근무는 2개 이벤트로 분리
+                const events = approvedSchedules.flatMap(schedule => {
+
+                    // 휴일근무는 2개의 이벤트 생성 (휴일근무일 + 대체휴무일)
+                    if (schedule.scheduleType === 'HOLIDAY_WORK') {
+                        return createHolidayWorkEvents(schedule, formatDate);
+                    }
+
+                    // 일반 일정은 1개 이벤트
                     const event = {
                         id: schedule.id,
                         title: schedule.title,
-                        allDay: !schedule.startTime, // 시간 정보가 없으면 종일 이벤트
+                        allDay: !schedule.startTime,
                         extendedProps: {
                             scheduleType: schedule.scheduleType,
                             description: schedule.description,
@@ -1222,23 +1344,9 @@
                         }
                     };
 
-                    // 날짜를 YYYY-MM-DD 형식으로 변환하는 헬퍼 함수
-                    const formatDate = (dateValue) => {
-                        if (!dateValue) return null;
-                        // 이미 문자열 형식인 경우 (YYYY-MM-DD)
-                        if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
-                            return dateValue.split('T')[0];
-                        }
-                        // Date 객체나 타임스탬프인 경우 - 로컬 날짜 기준
-                        const d = new Date(dateValue);
-                        const year = d.getFullYear();
-                        const month = String(d.getMonth() + 1).padStart(2, '0');
-                        const day = String(d.getDate()).padStart(2, '0');
-                        return `${year}-${month}-${day}`;
-                    };
-
-                    const startDateStr = formatDate(schedule.startDate);
-                    const endDateStr = formatDate(schedule.endDate);
+                    // 일반 날짜 필드 사용
+                    let startDateStr = formatDate(schedule.startDate);
+                    let endDateStr = formatDate(schedule.endDate);
 
                     // 시작일/종료일 설정
                     if (schedule.startTime && schedule.endTime) {
@@ -1254,42 +1362,35 @@
                         event.end = endDate.toISOString().split('T')[0];
                     }
 
-                    // 일정 유형별 색상 및 상태별 시각적 구분
-                    let baseColor, className;
-                    switch (schedule.scheduleType) {
-                        case 'VACATION':
-                            baseColor = '#ec4899';
-                            className = 'event-vacation';
-                            break;
-                        case 'HALF_DAY':
-                            baseColor = '#8b5cf6';
-                            className = 'event-half-day';
-                            break;
-                        case 'BUSINESS_TRIP':
-                            baseColor = '#3b82f6';
-                            className = 'event-business';
-                            break;
-                        case 'MEETING':
-                            baseColor = '#10b981';
-                            className = 'event-meeting';
-                            break;
-                        default:
-                            baseColor = '#6b7280';
-                            className = 'event-default';
-                    }
+                    // 일정 유형별 색상 (파스텔톤 배경 + 진한 테두리)
+                    const colorScheme = {
+                        'VACATION':         { bg: '#fbcfe8', border: '#ec4899' }, // 연한 핑크
+                        'HALF_DAY':         { bg: '#ddd6fe', border: '#8b5cf6' }, // 연한 보라
+                        'HOLIDAY_WORK':     { bg: '#fed7aa', border: '#f59e0b' }, // 연한 주황
+                        'OFFICIAL_LEAVE':   { bg: '#a5f3fc', border: '#06b6d4' }, // 연한 시안
+                        'BUSINESS_TRIP':    { bg: '#bfdbfe', border: '#3b82f6' }, // 연한 파랑
+                        'MEETING':          { bg: '#a7f3d0', border: '#10b981' }, // 연한 녹색
+                        'SECURITY_REQUEST': { bg: '#ffedd5', border: '#f97316' }  // 연한 오렌지
+                    };
 
-                    // 상태별 시각적 구분 (PENDING/SUBMITTED는 투명도 적용)
+                    const colors = colorScheme[schedule.scheduleType] || { bg: '#e5e7eb', border: '#6b7280' };
+                    let className = 'event-' + (schedule.scheduleType || 'default').toLowerCase().replace('_', '-');
+
+                    // 상태별 시각적 구분 (모든 상태에서 검정 텍스트 사용)
                     if (schedule.status === 'SUBMITTED' || schedule.status === 'PENDING') {
-                        event.backgroundColor = baseColor + '80'; // 50% 투명도
-                        event.borderColor = baseColor;
+                        event.backgroundColor = colors.bg + 'aa'; // 약간 투명하게
+                        event.borderColor = colors.border;
+                        event.textColor = '#1e293b';
                         event.className = className + ' event-pending';
                     } else if (schedule.status === 'IN_PROGRESS') {
-                        event.backgroundColor = baseColor;
-                        event.borderColor = '#fbbf24'; // 노란색 테두리
+                        event.backgroundColor = colors.bg;
+                        event.borderColor = '#fbbf24'; // 노란색 테두리 (진행 중)
+                        event.textColor = '#1e293b';
                         event.className = className + ' event-in-progress';
                     } else {
-                        event.backgroundColor = baseColor;
-                        event.borderColor = baseColor;
+                        event.backgroundColor = colors.bg;
+                        event.borderColor = colors.border;
+                        event.textColor = '#1e293b';
                         event.className = className;
                     }
 
@@ -1297,6 +1398,9 @@
                     const scheduleTypeLabels = {
                         'VACATION': '연차',
                         'HALF_DAY': '반차',
+                        'HOLIDAY_WORK': '휴일근무',
+                        'OFFICIAL_LEAVE': '공가',
+                        'SECURITY_REQUEST': '방범신청',
                         'MEETING': '회의',
                         'BUSINESS_TRIP': '출장'
                     };
@@ -1350,7 +1454,7 @@
                     event.title = displayTitle;
 
                     console.log('[달력] 변환된 이벤트:', event);
-                    return event;
+                    return [event]; // flatMap을 위해 배열로 반환
                 });
 
                 console.log('[달력] 최종 반환할 이벤트 목록:', events);
@@ -1452,7 +1556,12 @@
         // 이벤트 상세 보기 (수정 모드)
         async function showEventDetail(eventOrId) {
             // event 객체 또는 숫자 ID 모두 처리
-            const scheduleId = typeof eventOrId === 'object' ? eventOrId.id : eventOrId;
+            let scheduleId = typeof eventOrId === 'object' ? eventOrId.id : eventOrId;
+
+            // 휴일근무 이벤트 ID에서 원본 schedule ID 추출 (예: "148_work" → "148")
+            if (typeof scheduleId === 'string' && (scheduleId.endsWith('_work') || scheduleId.endsWith('_substitute'))) {
+                scheduleId = scheduleId.replace(/_work$|_substitute$/, '');
+            }
             console.log('일정 ID:', scheduleId);
 
             try {
@@ -1514,8 +1623,14 @@
                     return d.toISOString().split('T')[0];
                 };
 
-                document.getElementById('eventStartDate').value = formatDate(schedule.startDate);
-                document.getElementById('eventEndDate').value = formatDate(schedule.endDate);
+                // 휴일근무는 전용 날짜 필드 사용
+                if (schedule.scheduleType === 'HOLIDAY_WORK') {
+                    document.getElementById('holidayWorkDate').value = formatDate(schedule.holidayWorkDate);
+                    document.getElementById('substituteHolidayDate').value = formatDate(schedule.substituteHolidayDate);
+                } else {
+                    document.getElementById('eventStartDate').value = formatDate(schedule.startDate);
+                    document.getElementById('eventEndDate').value = formatDate(schedule.endDate);
+                }
 
                 if (schedule.startTime) {
                     document.getElementById('eventStartTime').value = schedule.startTime;
@@ -1531,15 +1646,18 @@
                 // 일정 타입 확인
                 const isVacationOrHalfDay = schedule.scheduleType === 'VACATION' || schedule.scheduleType === 'HALF_DAY';
                 const isMeetingOrTrip = schedule.scheduleType === 'MEETING' || schedule.scheduleType === 'BUSINESS_TRIP';
+                const isApprovalRequired = ['VACATION', 'HALF_DAY', 'HOLIDAY_WORK', 'OFFICIAL_LEAVE', 'SECURITY_REQUEST']
+                    .includes(schedule.scheduleType);
 
                 // 상태별 가능한 액션 결정 (일정 타입별로 다르게 처리)
                 function determineAvailableActions(schedule) {
                     const status = schedule.status;
-                    const isVacation = schedule.scheduleType === 'VACATION' || schedule.scheduleType === 'HALF_DAY';
-                    const isMeeting = schedule.scheduleType === 'MEETING' || schedule.scheduleType === 'BUSINESS_TRIP';
+                    const isApprovalRequired = ['VACATION', 'HALF_DAY', 'HOLIDAY_WORK', 'OFFICIAL_LEAVE', 'SECURITY_REQUEST']
+                        .includes(schedule.scheduleType);
+                    const isMeeting = ['MEETING', 'BUSINESS_TRIP'].includes(schedule.scheduleType);
 
-                    // 연차/반차 액션 규칙
-                    if (isVacation) {
+                    // 결재 필요 일정 액션 규칙 (연차/반차/휴일근무/공가/방범신청)
+                    if (isApprovalRequired) {
                         switch(status) {
                             case 'DRAFT':
                                 return { canEdit: true, canDelete: true, canSubmit: true, canCancelRequest: false, isReadOnly: false };
@@ -1635,12 +1753,12 @@
                 const statusContent = document.getElementById('approvalStatusContent');
 
                 console.log('결재 상태 표시 체크:', {
-                    isVacationOrHalfDay,
+                    isApprovalRequired,
                     documentId: schedule.documentId,
                     scheduleType: schedule.scheduleType
                 });
 
-                if (isVacationOrHalfDay && schedule.documentId) {
+                if (isApprovalRequired && schedule.documentId) {
                     console.log('결재 상태 조회 시작:', schedule.documentId);
                     try {
                         const docResponse = await fetch(`/api/intranet/approvals/document/${schedule.documentId}`, {
@@ -1858,6 +1976,8 @@
             const halfDayTypeGroup = document.getElementById('halfDayTypeGroup');
             const daysUsedGroup = document.getElementById('daysUsedGroup');
             const approverGroup = document.getElementById('approverGroup');
+            const standardDateGroup = document.getElementById('standardDateGroup');
+            const holidayWorkDateGroup = document.getElementById('holidayWorkDateGroup');
             const startDateInput = document.getElementById('eventStartDate');
             const endDateInput = document.getElementById('eventEndDate');
             const submitBtn = document.querySelector('.modal-footer .btn-success');
@@ -1867,8 +1987,11 @@
             const scheduleTypeLabels = {
                 'VACATION': '연차',
                 'HALF_DAY': '반차',
+                'HOLIDAY_WORK': '휴일근무',
+                'OFFICIAL_LEAVE': '공가',
                 'MEETING': '회의',
-                'BUSINESS_TRIP': '출장'
+                'BUSINESS_TRIP': '출장',
+                'SECURITY_REQUEST': '방범신청'
             };
 
             if (!currentEditingSchedule || !titleInput.value) {
@@ -1880,19 +2003,32 @@
             halfDayTypeGroup.style.display = 'none';
             daysUsedGroup.style.display = 'none';
             approverGroup.style.display = 'none';
+            standardDateGroup.style.display = 'flex';
+            holidayWorkDateGroup.style.display = 'none';
 
-            if (type === 'MEETING' || type === 'BUSINESS_TRIP') {
-                // 회의나 출장: 시간 입력 표시
+            // 일정 유형별 분기 처리
+            const vacationBasedTypes = ['VACATION', 'HALF_DAY', 'HOLIDAY_WORK', 'OFFICIAL_LEAVE'];
+            const meetingBasedTypes = ['MEETING', 'BUSINESS_TRIP', 'SECURITY_REQUEST'];
+
+            if (meetingBasedTypes.includes(type)) {
+                // 회의 기반: 시간 입력 표시
                 timeGroup.style.display = 'flex';
 
                 if (type === 'MEETING') {
                     // 회의는 기본 시간 설정
                     document.getElementById('eventStartTime').value = '14:00';
                     document.getElementById('eventEndTime').value = '16:00';
+                    // 버튼 텍스트를 "저장"으로 변경
+                    submitBtn.textContent = '저장';
+                } else if (type === 'BUSINESS_TRIP') {
+                    // 버튼 텍스트를 "저장"으로 변경
+                    submitBtn.textContent = '저장';
+                } else if (type === 'SECURITY_REQUEST') {
+                    // 방범신청은 결재 필요
+                    submitBtn.textContent = '저장 및 결재요청';
+                    approverGroup.style.display = 'block';
+                    await loadApproverInfo();
                 }
-
-                // 버튼 텍스트를 "저장"으로 변경
-                submitBtn.textContent = '저장';
             } else if (type === 'HALF_DAY') {
                 // 반차: 오전/오후 선택 표시
                 halfDayTypeGroup.style.display = 'block';
@@ -1920,6 +2056,25 @@
                     document.getElementById('eventDaysUsed').value = days;
                 }
 
+                // 버튼 텍스트를 "저장 및 결재요청"으로 변경
+                submitBtn.textContent = '저장 및 결재요청';
+
+                // 결재자 정보 표시
+                approverGroup.style.display = 'block';
+                await loadApproverInfo();
+            } else if (type === 'HOLIDAY_WORK') {
+                // 휴일근무: 전용 날짜 필드 표시
+                standardDateGroup.style.display = 'none';
+                holidayWorkDateGroup.style.display = 'flex';
+
+                // 버튼 텍스트를 "저장 및 결재요청"으로 변경
+                submitBtn.textContent = '저장 및 결재요청';
+
+                // 결재자 정보 표시
+                approverGroup.style.display = 'block';
+                await loadApproverInfo();
+            } else if (type === 'OFFICIAL_LEAVE') {
+                // 공가: 사용 일수 계산 제외
                 // 버튼 텍스트를 "저장 및 결재요청"으로 변경
                 submitBtn.textContent = '저장 및 결재요청';
 
@@ -2036,22 +2191,65 @@
             const eventData = {
                 scheduleType: type,
                 title: document.getElementById('eventTitle').value,
-                startDate: document.getElementById('eventStartDate').value,
-                endDate: document.getElementById('eventEndDate').value,
                 description: document.getElementById('eventDescription').value,
                 startTime: document.getElementById('eventStartTime').value || null,
                 endTime: document.getElementById('eventEndTime').value || null,
                 daysUsed: document.getElementById('eventDaysUsed').value || 0
             };
 
-            // 연차/반차인 경우 결재자 ID 추가
-            if (type === 'VACATION' || type === 'HALF_DAY') {
+            // 휴일근무인 경우 전용 날짜 필드 사용
+            if (type === 'HOLIDAY_WORK') {
+                const holidayWorkDate = document.getElementById('holidayWorkDate').value;
+                const substituteHolidayDate = document.getElementById('substituteHolidayDate').value;
+
+                if (!holidayWorkDate || !substituteHolidayDate) {
+                    alert('휴일근무일과 대체휴무일을 모두 입력해주세요');
+                    return;
+                }
+
+                eventData.holidayWorkDate = holidayWorkDate;
+                eventData.substituteHolidayDate = substituteHolidayDate;
+                eventData.startDate = null;
+                eventData.endDate = null;
+
                 const approverId = document.getElementById('approverId').value;
                 if (!approverId) {
                     alert('결재자를 선택해주세요');
                     return;
                 }
                 eventData.approverId = approverId;
+            } else {
+                // 일반 날짜 필드 사용
+                eventData.startDate = document.getElementById('eventStartDate').value;
+                eventData.endDate = document.getElementById('eventEndDate').value;
+            }
+
+            // 연차/반차/공가/방범신청인 경우 결재자 ID 추가
+            if (type === 'VACATION' || type === 'HALF_DAY' || type === 'OFFICIAL_LEAVE' || type === 'SECURITY_REQUEST') {
+                const approverId = document.getElementById('approverId').value;
+                if (!approverId) {
+                    alert('결재자를 선택해주세요');
+                    return;
+                }
+                eventData.approverId = approverId;
+            }
+
+            // 공가인 경우 사용일수 0으로 설정
+            if (type === 'OFFICIAL_LEAVE') {
+                eventData.daysUsed = 0;
+            }
+
+            // 방범신청인 경우 사용일수 0으로 설정 (휴가 차감 불필요)
+            if (type === 'SECURITY_REQUEST') {
+                eventData.daysUsed = 0;
+            }
+
+            // approverId와 daysUsed 타입 변환
+            if (eventData.approverId) {
+                eventData.approverId = parseInt(eventData.approverId);
+            }
+            if (eventData.daysUsed !== undefined && eventData.daysUsed !== null) {
+                eventData.daysUsed = parseFloat(eventData.daysUsed);
             }
 
             // 반차인 경우 오전/오후 정보 추가
@@ -2075,8 +2273,9 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    // 회의/출장은 결재 불필요, 연차/반차만 결재 필요
-                    if (type === 'VACATION' || type === 'HALF_DAY') {
+                    // 회의/출장은 결재 불필요, 연차/반차/휴일근무/공가/방범신청은 결재 필요
+                    const approvalTypes = ['VACATION', 'HALF_DAY', 'HOLIDAY_WORK', 'OFFICIAL_LEAVE', 'SECURITY_REQUEST'];
+                    if (approvalTypes.includes(type)) {
                         alert('일정이 저장되고 결재 요청되었습니다!');
                     } else {
                         alert('일정이 저장되었습니다!');
@@ -2396,15 +2595,21 @@
                     const colors = {
                         'VACATION': '#ec4899',
                         'HALF_DAY': '#8b5cf6',
+                        'HOLIDAY_WORK': '#f59e0b',
+                        'OFFICIAL_LEAVE': '#06b6d4',
                         'BUSINESS_TRIP': '#3b82f6',
-                        'MEETING': '#10b981'
+                        'MEETING': '#10b981',
+                        'SECURITY_REQUEST': '#f97316' // 주황색으로 변경 (가시성 개선)
                     };
 
                     const icons = {
                         'VACATION': '🌴',
                         'HALF_DAY': '⏰',
+                        'HOLIDAY_WORK': '🛠️',
+                        'OFFICIAL_LEAVE': '📋',
                         'BUSINESS_TRIP': '✈️',
-                        'MEETING': '📄'
+                        'MEETING': '📄',
+                        'SECURITY_REQUEST': '🔒'
                     };
 
                     const statusLabels = {
@@ -2474,8 +2679,8 @@
                             statusLabel = '종료됨';
                             statusColor = '#64748b';
                         }
-                    } else if (schedule.scheduleType === 'VACATION' || schedule.scheduleType === 'HALF_DAY') {
-                        // 연차/반차는 결재 상태 매핑
+                    } else if (['VACATION', 'HALF_DAY', 'HOLIDAY_WORK', 'OFFICIAL_LEAVE', 'SECURITY_REQUEST'].includes(schedule.scheduleType)) {
+                        // 결재 필요 일정(연차/반차/휴일근무/공가/방범신청)은 결재 상태 매핑
                         if (status === 'SUBMITTED') {
                             statusLabel = '결재대기';
                             statusColor = '#f59e0b';
@@ -2487,10 +2692,9 @@
                         ? `<button onclick="event.stopPropagation(); withdrawCancellation(${schedule.id});" style="margin-top: 6px; padding: 4px 10px; font-size: 11px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">철회</button>`
                         : '';
 
-                    // 휴가 배지 생성 (연차/반차인 경우만)
+                    // 일정 배지 생성 (결재 필요 일정 유형)
                     let vacationBadge = '';
-                    if (schedule.scheduleType === 'VACATION' || schedule.scheduleType === 'HALF_DAY') {
-                        const typeText = schedule.scheduleType === 'VACATION' ? '연차' : '반차';
+                    if (['VACATION', 'HALF_DAY', 'HOLIDAY_WORK', 'OFFICIAL_LEAVE', 'SECURITY_REQUEST'].includes(schedule.scheduleType)) {
                         // 날짜 포맷 함수 (로컬 기준)
                         const formatDateOnly = (dateValue) => {
                             if (!dateValue) return '';
@@ -2504,10 +2708,35 @@
                             const day = String(d.getDate()).padStart(2, '0');
                             return `${year}-${month}-${day}`;
                         };
-                        const startDate = formatDateOnly(schedule.startDate);
-                        const endDate = formatDateOnly(schedule.endDate) || startDate;
-                        const daysUsed = schedule.daysUsed || 1;
-                        vacationBadge = `<div style="margin-top: 6px;"><span style="display: inline-block; font-size: 10px; font-weight: 600; padding: 4px 8px; background: #fef3c7; color: #92400e; border-radius: 6px;">📅 ${typeText} | ${startDate} ~ ${endDate} | ${daysUsed}일</span></div>`;
+
+                        // 일정 유형명
+                        const typeLabels = {
+                            'VACATION': '연차',
+                            'HALF_DAY': '반차',
+                            'HOLIDAY_WORK': '휴일근무',
+                            'OFFICIAL_LEAVE': '공가',
+                            'SECURITY_REQUEST': '방범신청'
+                        };
+                        const typeText = typeLabels[schedule.scheduleType] || schedule.scheduleType;
+
+                        // 휴일근무는 전용 날짜 필드 사용
+                        let startDate, endDate, daysUsed;
+                        if (schedule.scheduleType === 'HOLIDAY_WORK') {
+                            startDate = formatDateOnly(schedule.holidayWorkDate);
+                            endDate = formatDateOnly(schedule.substituteHolidayDate);
+                            daysUsed = 0; // 휴일근무는 휴가 차감 없음
+                        } else {
+                            startDate = formatDateOnly(schedule.startDate);
+                            endDate = formatDateOnly(schedule.endDate) || startDate;
+                            daysUsed = schedule.daysUsed || 0;
+                        }
+
+                        // 배지 생성
+                        if (schedule.scheduleType === 'HOLIDAY_WORK') {
+                            vacationBadge = `<div style="margin-top: 6px;"><span style="display: inline-block; font-size: 10px; font-weight: 600; padding: 4px 8px; background: #fef3c7; color: #92400e; border-radius: 6px;">📅 ${typeText} | 근무일: ${startDate} | 대체: ${endDate}</span></div>`;
+                        } else {
+                            vacationBadge = `<div style="margin-top: 6px;"><span style="display: inline-block; font-size: 10px; font-weight: 600; padding: 4px 8px; background: #fef3c7; color: #92400e; border-radius: 6px;">📅 ${typeText} | ${startDate} ~ ${endDate}${daysUsed > 0 ? ' | ' + daysUsed + '일' : ''}</span></div>`;
+                        }
                     }
 
                     return `
@@ -2662,6 +2891,7 @@
                     closeApprovalModal();
                     loadPendingApprovals();
                     calendar.refetchEvents();
+                    loadMySchedules(); // 내 일정도 새로고침
                 } else {
                     alert(data.message || '처리에 실패했습니다');
                 }
@@ -2669,6 +2899,20 @@
                 console.error('결재 처리 오류:', error);
                 alert('서버 오류가 발생했습니다');
             }
+        }
+
+        // 일정 유형 코드를 한글명으로 변환
+        function getScheduleTypeLabel(scheduleType) {
+            const typeLabels = {
+                'VACATION': '연차',
+                'HALF_DAY': '반차',
+                'HOLIDAY_WORK': '휴일근무',
+                'OFFICIAL_LEAVE': '공가',
+                'SECURITY_REQUEST': '방범신청',
+                'MEETING': '회의',
+                'BUSINESS_TRIP': '출장'
+            };
+            return typeLabels[scheduleType] || scheduleType;
         }
 
         // 날짜/시간 포맷 함수

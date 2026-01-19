@@ -242,11 +242,14 @@ public class ScheduleIntranetController {
                         .body(Map.of("success", false, "message", "권한이 없습니다."));
             }
 
-            // 연차/반차 여부 확인
+            // 결재 필요 일정 여부 확인 (연차/반차/휴일근무/공가/방범신청)
             if (!("VACATION".equals(existingSchedule.getScheduleType()) ||
-                  "HALF_DAY".equals(existingSchedule.getScheduleType()))) {
+                  "HALF_DAY".equals(existingSchedule.getScheduleType()) ||
+                  "HOLIDAY_WORK".equals(existingSchedule.getScheduleType()) ||
+                  "OFFICIAL_LEAVE".equals(existingSchedule.getScheduleType()) ||
+                  "SECURITY_REQUEST".equals(existingSchedule.getScheduleType()))) {
                 return ResponseEntity.badRequest()
-                        .body(Map.of("success", false, "message", "연차/반차만 취소 신청이 가능합니다."));
+                        .body(Map.of("success", false, "message", "결재가 필요한 일정만 취소 신청이 가능합니다."));
             }
 
             // 승인 상태 확인

@@ -1,5 +1,6 @@
 package com.ync.intranet.domain;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.sql.Timestamp;
 import java.util.Date;
 
@@ -9,10 +10,14 @@ import java.util.Date;
 public class ScheduleIntranet {
     private Long id;
     private Long memberId;
-    private String scheduleType;        // VACATION, HALF_DAY, BUSINESS_TRIP, MEETING
+    private String scheduleType;        // VACATION, HALF_DAY, BUSINESS_TRIP, MEETING, HOLIDAY_WORK, OFFICIAL_LEAVE, SECURITY_REQUEST
     private String title;
     private String description;
+
+    @JsonFormat(pattern = "yyyy-MM-dd", timezone = "Asia/Seoul")
     private Date startDate;
+
+    @JsonFormat(pattern = "yyyy-MM-dd", timezone = "Asia/Seoul")
     private Date endDate;
     private String startTime;           // HH:MI
     private String endTime;             // HH:MI
@@ -22,6 +27,13 @@ public class ScheduleIntranet {
     private String status;              // DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED, RESERVED, IN_PROGRESS, COMPLETED
     private Timestamp createdAt;
     private Timestamp updatedAt;
+
+    // 휴일근무 전용 필드
+    @JsonFormat(pattern = "yyyy-MM-dd", timezone = "Asia/Seoul")
+    private Date holidayWorkDate;       // 휴일근무일
+
+    @JsonFormat(pattern = "yyyy-MM-dd", timezone = "Asia/Seoul")
+    private Date substituteHolidayDate; // 대체휴무일
 
     // 조인용 필드
     private String memberName;
@@ -171,5 +183,21 @@ public class ScheduleIntranet {
 
     public void setDepartmentName(String departmentName) {
         this.departmentName = departmentName;
+    }
+
+    public Date getHolidayWorkDate() {
+        return holidayWorkDate;
+    }
+
+    public void setHolidayWorkDate(Date holidayWorkDate) {
+        this.holidayWorkDate = holidayWorkDate;
+    }
+
+    public Date getSubstituteHolidayDate() {
+        return substituteHolidayDate;
+    }
+
+    public void setSubstituteHolidayDate(Date substituteHolidayDate) {
+        this.substituteHolidayDate = substituteHolidayDate;
     }
 }

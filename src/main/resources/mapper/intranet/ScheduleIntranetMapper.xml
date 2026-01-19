@@ -20,6 +20,8 @@
         <result property="status" column="status"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
+        <result property="holidayWorkDate" column="holiday_work_date"/>
+        <result property="substituteHolidayDate" column="substitute_holiday_date"/>
         <result property="memberName" column="member_name"/>
         <result property="memberEmail" column="member_email"/>
         <result property="departmentName" column="department_name"/>
@@ -33,12 +35,16 @@
         INSERT INTO schedules_intranet (
             id, member_id, schedule_type, title, description,
             start_date, end_date, start_time, end_time, days_used,
-            approver_id, document_id, status, created_at, updated_at
+            approver_id, document_id, status,
+            holiday_work_date, substitute_holiday_date,
+            created_at, updated_at
         )
         VALUES (
             #{id}, #{memberId}, #{scheduleType}, #{title}, #{description, jdbcType=CLOB},
-            #{startDate}, #{endDate}, #{startTime, jdbcType=VARCHAR}, #{endTime, jdbcType=VARCHAR}, #{daysUsed},
-            #{approverId, jdbcType=NUMERIC}, #{documentId, jdbcType=NUMERIC}, #{status}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            #{startDate, jdbcType=DATE}, #{endDate, jdbcType=DATE}, #{startTime, jdbcType=VARCHAR}, #{endTime, jdbcType=VARCHAR}, #{daysUsed},
+            #{approverId, jdbcType=NUMERIC}, #{documentId, jdbcType=NUMERIC}, #{status},
+            #{holidayWorkDate, jdbcType=DATE}, #{substituteHolidayDate, jdbcType=DATE},
+            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         )
     </insert>
 
@@ -48,14 +54,16 @@
         SET schedule_type = #{scheduleType},
             title = #{title},
             description = #{description, jdbcType=CLOB},
-            start_date = #{startDate},
-            end_date = #{endDate},
+            start_date = #{startDate, jdbcType=DATE},
+            end_date = #{endDate, jdbcType=DATE},
             start_time = #{startTime, jdbcType=VARCHAR},
             end_time = #{endTime, jdbcType=VARCHAR},
             days_used = #{daysUsed},
             approver_id = #{approverId, jdbcType=NUMERIC},
             document_id = #{documentId, jdbcType=NUMERIC},
             status = #{status},
+            holiday_work_date = #{holidayWorkDate, jdbcType=DATE},
+            substitute_holiday_date = #{substituteHolidayDate, jdbcType=DATE},
             updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
@@ -142,6 +150,59 @@
         LEFT JOIN departments_intranet d ON m.department_id = d.id
         WHERE s.document_id = #{documentId}
         ORDER BY s.start_date DESC
+    </select>
+
+    <!-- 방범신청 시간대 중복 체크: 같은 날짜에 시간대가 겹치는 승인된 방범신청 조회 -->
+    <select id="findApprovedSecurityRequests" resultMap="ScheduleIntranetResultMap">
+        <![CDATA[
+        SELECT s.*, m.name as member_name, m.email as member_email, d.name as department_name
+        FROM schedules_intranet s
+        LEFT JOIN members_intranet m ON s.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE s.schedule_type = 'SECURITY_REQUEST'
+          AND s.status = 'APPROVED'
+          AND TRUNC(s.start_date) = TRUNC(#{startDate})
+          AND s.start_time < #{endTime}
+          AND s.end_time > #{startTime}
+        ]]>
+    </select>
+
+    <!-- 사용자별 일정 중복 체크: 같은 사용자가 같은 유형으로 날짜 범위가 겹치는 일정 조회 -->
+    <select id="findDuplicateSchedules" resultMap="ScheduleIntranetResultMap">
+        <![CDATA[
+        SELECT s.*, m.name as member_name, m.email as member_email, d.name as department_name
+        FROM schedules_intranet s
+        LEFT JOIN members_intranet m ON s.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE s.member_id = #{memberId}
+          AND s.schedule_type = #{scheduleType}
+          AND s.status NOT IN ('CANCELLED', 'REJECTED')
+          AND TRUNC(s.start_date) <= TRUNC(#{endDate})
+          AND TRUNC(s.end_date) >= TRUNC(#{startDate})
+        ]]>
+        <if test="excludeId != null">
+          AND s.id != #{excludeId}
+        </if>
+    </select>
+
+    <!-- 휴일근무 중복 체크: 같은 사용자가 휴일근무일 또는 대체휴무일이 겹치는 일정 조회 -->
+    <select id="findDuplicateHolidayWork" resultMap="ScheduleIntranetResultMap">
+        SELECT s.*, m.name as member_name, m.email as member_email, d.name as department_name
+        FROM schedules_intranet s
+        LEFT JOIN members_intranet m ON s.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE s.member_id = #{memberId}
+          AND s.schedule_type = 'HOLIDAY_WORK'
+          AND s.status NOT IN ('CANCELLED', 'REJECTED')
+          AND (
+              TRUNC(s.holiday_work_date) = TRUNC(#{holidayWorkDate})
+              OR TRUNC(s.substitute_holiday_date) = TRUNC(#{substituteHolidayDate})
+              OR TRUNC(s.holiday_work_date) = TRUNC(#{substituteHolidayDate})
+              OR TRUNC(s.substitute_holiday_date) = TRUNC(#{holidayWorkDate})
+          )
+        <if test="excludeId != null">
+          AND s.id != #{excludeId}
+        </if>
     </select>
 
 </mapper>

@@ -54,12 +54,34 @@ public class ScheduleIntranetService {
             schedule.setDaysUsed(0.0);
         }
 
+        // 날짜 필드 검증
+        String scheduleType = schedule.getScheduleType();
+
+        // ========== 중복 일정 검증 ==========
+        validateScheduleDuplication(schedule, null);
+
+        if ("HOLIDAY_WORK".equals(scheduleType)) {
+            // 휴일근무: 전용 날짜 필드 필수
+            if (schedule.getHolidayWorkDate() == null || schedule.getSubstituteHolidayDate() == null) {
+                throw new IllegalArgumentException("휴일근무일과 대체휴무일은 필수입니다");
+            }
+        } else {
+            // 그 외 모든 유형: start_date, end_date 필수
+            if (schedule.getStartDate() == null || schedule.getEndDate() == null) {
+                throw new IllegalArgumentException("시작일과 종료일은 필수입니다");
+            }
+        }
+
         // 회의/출장인 경우 결재 불필요 (시간 기반 상태로 저장)
         if ("MEETING".equals(schedule.getScheduleType()) || "BUSINESS_TRIP".equals(schedule.getScheduleType())) {
             schedule.setStatus(calculateMeetingStatus(schedule));
         }
-        // 연차/반차인 경우 문서 생성 및 결재 요청
-        else if (("VACATION".equals(schedule.getScheduleType()) || "HALF_DAY".equals(schedule.getScheduleType()))
+        // 연차/반차/휴일근무/공가/방범신청인 경우 문서 생성 및 결재 요청
+        else if (("VACATION".equals(schedule.getScheduleType())
+                || "HALF_DAY".equals(schedule.getScheduleType())
+                || "HOLIDAY_WORK".equals(schedule.getScheduleType())
+                || "OFFICIAL_LEAVE".equals(schedule.getScheduleType())
+                || "SECURITY_REQUEST".equals(schedule.getScheduleType()))
                 && schedule.getApproverId() != null) {
 
             // 1. 문서 생성
@@ -102,18 +124,22 @@ public class ScheduleIntranetService {
         // 일정 저장 (ID 생성됨)
         scheduleMapper.insert(schedule);
 
-        // 휴가 신청 알림 전송 (schedule.getId()가 이제 사용 가능)
-        if (("VACATION".equals(schedule.getScheduleType()) || "HALF_DAY".equals(schedule.getScheduleType()))
+        // 결재 필요 일정 알림 전송 (schedule.getId()가 이제 사용 가능)
+        if (("VACATION".equals(schedule.getScheduleType())
+                || "HALF_DAY".equals(schedule.getScheduleType())
+                || "HOLIDAY_WORK".equals(schedule.getScheduleType())
+                || "OFFICIAL_LEAVE".equals(schedule.getScheduleType())
+                || "SECURITY_REQUEST".equals(schedule.getScheduleType()))
                 && schedule.getApproverId() != null) {
 
             // 신청자 정보 조회
             MemberIntranet requester = memberMapper.findById(schedule.getMemberId());
             String requesterName = (requester != null) ? requester.getName() : "사용자";
 
-            // 휴가 유형 추출
+            // 일정 유형 추출
             String leaveType = extractLeaveType(schedule.getTitle());
 
-            // 결재자에게 휴가 신청 알림 전송
+            // 결재자에게 일정 신청 알림 전송
             notificationService.createLeaveRequestNotification(
                 schedule.getApproverId(),
                 requesterName,
@@ -500,12 +526,12 @@ public class ScheduleIntranetService {
     }
 
     /**
-     * 제목에서 휴가 유형 추출
-     * 예: "연차 신청" -> "연차", "오전반차" -> "오전반차"
+     * 제목에서 일정 유형 추출
+     * 예: "연차 신청" -> "연차", "오전반차" -> "오전반차", "휴일근무" -> "휴일근무"
      */
     private String extractLeaveType(String title) {
         if (title == null) {
-            return "휴가";
+            return "일정";
         }
 
         if (title.contains("연차")) {
@@ -516,12 +542,137 @@ public class ScheduleIntranetService {
             return "오후반차";
         } else if (title.contains("반차")) {
             return "반차";
+        } else if (title.contains("휴일근무")) {
+            return "휴일근무";
+        } else if (title.contains("공가")) {
+            return "공가";
+        } else if (title.contains("방범신청") || title.contains("방범")) {
+            return "방범신청";
         } else if (title.contains("병가")) {
             return "병가";
         } else if (title.contains("경조사")) {
             return "경조사";
+        } else if (title.contains("출장")) {
+            return "출장";
+        } else if (title.contains("회의")) {
+            return "회의";
         } else {
-            return "휴가";
+            return "일정";
         }
+    }
+
+    /**
+     * 일정 중복 검증
+     * 1. 방범신청(SECURITY_REQUEST): 같은 날짜/시간대에 승인된 방범신청 중복 불가
+     * 2. 휴일근무(HOLIDAY_WORK): 휴일근무일/대체휴무일 중복 불가
+     * 3. 기타 일정: 같은 사용자가 같은 유형으로 같은 날짜에 중복 불가
+     *
+     * @param schedule 검증할 일정
+     * @param excludeId 수정 시 제외할 일정 ID (신규 생성 시 null)
+     */
+    private void validateScheduleDuplication(ScheduleIntranet schedule, Long excludeId) {
+        String scheduleType = schedule.getScheduleType();
+
+        // 1. 방범신청 시간대 중복 체크 (승인된 방범신청만)
+        if ("SECURITY_REQUEST".equals(scheduleType)) {
+            if (schedule.getStartDate() != null && schedule.getStartTime() != null && schedule.getEndTime() != null) {
+                List<ScheduleIntranet> duplicates = scheduleMapper.findApprovedSecurityRequests(
+                        schedule.getStartDate(),
+                        schedule.getStartTime(),
+                        schedule.getEndTime()
+                );
+
+                // excludeId가 있으면 해당 일정 제외
+                if (excludeId != null) {
+                    duplicates.removeIf(s -> excludeId.equals(s.getId()));
+                }
+
+                if (!duplicates.isEmpty()) {
+                    ScheduleIntranet conflict = duplicates.get(0);
+                    throw new IllegalArgumentException(
+                            String.format("해당 시간대에 이미 승인된 방범신청이 있습니다. (%s %s~%s, 신청자: %s)",
+                                    formatDate(conflict.getStartDate()),
+                                    conflict.getStartTime(),
+                                    conflict.getEndTime(),
+                                    conflict.getMemberName() != null ? conflict.getMemberName() : "알 수 없음")
+                    );
+                }
+            }
+        }
+
+        // 2. 휴일근무 중복 체크 (휴일근무일 또는 대체휴무일 겹침)
+        else if ("HOLIDAY_WORK".equals(scheduleType)) {
+            if (schedule.getHolidayWorkDate() != null && schedule.getSubstituteHolidayDate() != null) {
+                List<ScheduleIntranet> duplicates = scheduleMapper.findDuplicateHolidayWork(
+                        schedule.getMemberId(),
+                        schedule.getHolidayWorkDate(),
+                        schedule.getSubstituteHolidayDate(),
+                        excludeId
+                );
+
+                if (!duplicates.isEmpty()) {
+                    ScheduleIntranet conflict = duplicates.get(0);
+                    throw new IllegalArgumentException(
+                            String.format("이미 등록된 휴일근무와 날짜가 겹칩니다. (휴일근무일: %s, 대체휴무일: %s)",
+                                    formatDate(conflict.getHolidayWorkDate()),
+                                    formatDate(conflict.getSubstituteHolidayDate()))
+                    );
+                }
+            }
+        }
+
+        // 3. 일반 일정 중복 체크 (같은 사용자, 같은 유형, 날짜 범위 겹침)
+        else {
+            if (schedule.getStartDate() != null && schedule.getEndDate() != null) {
+                List<ScheduleIntranet> duplicates = scheduleMapper.findDuplicateSchedules(
+                        schedule.getMemberId(),
+                        scheduleType,
+                        schedule.getStartDate(),
+                        schedule.getEndDate(),
+                        excludeId
+                );
+
+                if (!duplicates.isEmpty()) {
+                    ScheduleIntranet conflict = duplicates.get(0);
+                    String typeLabel = getScheduleTypeLabel(scheduleType);
+                    throw new IllegalArgumentException(
+                            String.format("해당 기간에 이미 등록된 %s이(가) 있습니다. (%s ~ %s)",
+                                    typeLabel,
+                                    formatDate(conflict.getStartDate()),
+                                    formatDate(conflict.getEndDate()))
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * 일정 유형 한글 레이블 반환
+     */
+    private String getScheduleTypeLabel(String scheduleType) {
+        if (scheduleType == null) {
+            return "일정";
+        }
+        switch (scheduleType) {
+            case "VACATION": return "연차";
+            case "HALF_DAY": return "반차";
+            case "MEETING": return "회의";
+            case "BUSINESS_TRIP": return "출장";
+            case "HOLIDAY_WORK": return "휴일근무";
+            case "OFFICIAL_LEAVE": return "공가";
+            case "SECURITY_REQUEST": return "방범신청";
+            default: return "일정";
+        }
+    }
+
+    /**
+     * 날짜 포맷팅 (yyyy-MM-dd)
+     */
+    private String formatDate(Date date) {
+        if (date == null) {
+            return "";
+        }
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+        return sdf.format(date);
     }
 }

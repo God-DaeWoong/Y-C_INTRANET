@@ -251,8 +251,12 @@ public class ApprovalService {
             }
 
             for (ScheduleIntranet schedule : schedules) {
-                // 연차/반차 일정인 경우에만 상태 동기화
-                if ("VACATION".equals(schedule.getScheduleType()) || "HALF_DAY".equals(schedule.getScheduleType())) {
+                // 결재 필요 일정(연차/반차/휴일근무/공가/방범신청)인 경우 상태 동기화
+                if ("VACATION".equals(schedule.getScheduleType())
+                        || "HALF_DAY".equals(schedule.getScheduleType())
+                        || "HOLIDAY_WORK".equals(schedule.getScheduleType())
+                        || "OFFICIAL_LEAVE".equals(schedule.getScheduleType())
+                        || "SECURITY_REQUEST".equals(schedule.getScheduleType())) {
                     System.out.println("[일정 동기화] scheduleId=" + schedule.getId() +
                                      ", 상태 변경: " + schedule.getStatus() + " -> " + status);
                     schedule.setStatus(status);
