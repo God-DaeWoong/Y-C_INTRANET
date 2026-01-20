@@ -610,7 +610,129 @@ CREATE TABLE expense_items_intranet (
 
 ## 📅 버전 히스토리
 
-- **v0.27** (2026-01-20) - 문서 작성 페이지 일정 유형 확장 🆕
+- **v0.28** (2026-01-20) - 경비 신청/미확인 경비 관리 시스템 구축 🆕
+  - **경비 신청 워크플로우**:
+    - expense-report_intranet.html에서 "경비 신청" 버튼 추가
+    - 사용자가 월별 경비 입력 후 신청 시:
+      1. EXPENSE_ITEMS_INTRANET (DETAIL) → EXPENSE_ITEMS (MASTER)로 데이터 복사
+      2. EXPENSE_ITEM_READ_STATUS 테이블에 경영관리 Unit 팀원별 읽음 상태 생성
+      3. EXPENSE_ITEMS_INTRANET.EXPENSE_READ_ID에 READ_STATUS.ID 연결
+    - 신청 년/월(yyyy, mm) 파라미터로 EXPENSE_ITEMS에 저장
+
+  - **미확인 경비 관리 (admin.html)**:
+    - 경비보고서 관리 탭에 "미확인 보고서" 섹션 추가
+    - 경영관리 Unit 팀원에게만 미확인 경비 노출
+    - 미확인 경비 클릭 시 상세 모달 표시 및 읽음 처리
+    - 상단 탭에 미확인 경비 개수 배지 표시
+
+  - **새 테이블 생성 (DB)**:
+    ```sql
+    -- EXPENSE_ITEM_READ_STATUS 테이블
+    CREATE TABLE EXPENSE_ITEM_READ_STATUS (
+        ID                 NUMBER PRIMARY KEY,
+        EXPENSE_ITEM_ID    NUMBER,  -- EXPENSE_ITEMS_INTRANET.ID 참조
+        READER_MEMBER_ID   NUMBER,  -- 읽는 사람 (경영관리 Unit 팀원)
+        READ_YN            CHAR(1) DEFAULT 'N',
+        READ_AT            TIMESTAMP,
+        CREATED_AT         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UPDATED_AT         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- EXPENSE_ITEMS_INTRANET에 컬럼 추가
+    ALTER TABLE EXPENSE_ITEMS_INTRANET ADD EXPENSE_READ_ID NUMBER;
+
+    -- EXPENSE_ITEMS에 년/월 컬럼 추가
+    ALTER TABLE EXPENSE_ITEMS ADD YYYY VARCHAR2(4);
+    ALTER TABLE EXPENSE_ITEMS ADD MM VARCHAR2(2);
+    ```
+
+  - **새 도메인 클래스**:
+    - ExpenseItemReadStatus.java: 읽음 상태 도메인 (id, expenseItemId, readerMemberId, readYn, readAt)
+    - ExpenseStatsDto.java: 경비 통계 DTO (totalCount, totalAmount, categoryStats)
+    - UnreadExpenseDto.java: 미확인 경비 DTO (expenseItemId, submitterName, items, itemCount)
+
+  - **ExpenseItemIntranet.java 수정**:
+    - expenseReadId 필드 추가 (EXPENSE_ITEM_READ_STATUS.ID와 연동)
+
+  - **ExpenseItem.java (schedule) 수정**:
+    - usageDateStr 필드 추가 (VARCHAR2(20) 컬럼용 문자열 날짜)
+    - yyyy, mm 필드 추가 (신청 년/월)
+
+  - **새 Mapper 인터페이스**:
+    - ExpenseItemReadStatusMapper.java:
+      - insert(), insertWithId(), insertBatch()
+      - findByReaderMemberId(), findUnreadByReaderMemberId()
+      - markAsRead(), markAsReadById()
+      - countUnreadByReaderMemberId(), getNextId()
+
+  - **ExpenseItemIntranetMapper.java 수정**:
+    - findByExpenseReadId(): EXPENSE_READ_ID로 경비 항목 조회
+    - updateExpenseReadId(): 단일 항목 EXPENSE_READ_ID 업데이트
+    - updateExpenseReadIdBatch(): 여러 항목 일괄 업데이트
+
+  - **ExpenseItemMapper.java (schedule) 수정**:
+    - insertWithId(): ID를 직접 지정하여 INSERT (EXPENSE_ITEMS_INTRANET.ID 사용)
+    - findByDateRange(), findByMemberIdAndDateRange(): 날짜 범위 조회
+
+  - **ExpenseItemIntranetService.java 수정**:
+    - submitExpenseItems(): 경비 신청 처리 (3개 테이블 연동)
+    - getUnreadExpenses(): 미확인 경비 조회
+    - markExpenseAsRead(): 읽음 처리
+    - getUnreadCount(): 미확인 경비 개수 조회
+    - getExpenseStats(): 경비 통계 조회 (년/월별, 카테고리별)
+
+  - **ExpenseReportIntranetController.java 수정**:
+    - POST /items/submit: 경비 신청 API
+    - GET /items/unread: 미확인 경비 조회 API
+    - POST /items/{itemId}/mark-read: 읽음 처리 API
+    - GET /items/unread-count: 미확인 경비 개수 API
+    - GET /items/stats: 경비 통계 API
+    - GET /items/by-read-id/{readStatusId}: READ_STATUS.ID로 경비 항목 조회
+
+  - **Mapper XML 파일**:
+    - ExpenseItemIntranetMapper.xml: findByExpenseReadId, updateExpenseReadId, updateExpenseReadIdBatch 쿼리 추가
+    - ExpenseItemReadStatusMapper.xml: 전체 CRUD 쿼리 (신규)
+    - ExpenseItemMapper.xml: insertWithId 쿼리 추가
+
+  - **expense-report_intranet.html 수정**:
+    - "경비 신청" 버튼 추가 (btnSubmitExpense)
+    - submitExpense() 함수: 선택된 월의 경비 항목을 신청
+    - updateExpenseSubmitButton(): 신청 여부에 따른 버튼 표시/숨김 제어
+    - checkExpenseSubmitted(): EXPENSE_ITEMS에서 신청 여부 확인
+
+  - **admin.html 수정**:
+    - 경비보고서 관리 탭에 미확인 경비 섹션 추가
+    - loadUnreadExpenses(): 미확인 경비 목록 로드
+    - renderUnreadExpenses(): 미확인 경비 렌더링
+    - loadExpenseBadge(): 탭 배지 업데이트
+
+  - **데이터 흐름**:
+    ```
+    [expense-report_intranet.html]
+         │
+         ▼ 경비 신청 클릭
+    [ExpenseItemIntranetService.submitExpenseItems()]
+         │
+         ├─► EXPENSE_ITEMS_INTRANET 조회
+         │
+         ├─► EXPENSE_ITEMS INSERT (ID 동일하게 사용)
+         │
+         ├─► EXPENSE_ITEM_READ_STATUS INSERT (경영관리 Unit 팀원 수만큼)
+         │   └─ 동일한 ID로 여러 ROW 생성
+         │
+         └─► EXPENSE_ITEMS_INTRANET.EXPENSE_READ_ID 업데이트
+
+    [admin.html - 경영관리 Unit 팀원]
+         │
+         ▼ 경비보고서 관리 탭 진입
+    [loadUnreadExpenses()]
+         │
+         ├─► EXPENSE_ITEM_READ_STATUS에서 READ_YN='N' 조회
+         │
+         └─► EXPENSE_ITEMS_INTRANET.EXPENSE_READ_ID로 상세 조회
+    ```
+
+- **v0.27** (2026-01-20) - 문서 작성 페이지 일정 유형 확장
   - **결재 대기함 상세 수정**:
     - 문서 유형에따라 한글 표기되도록 수정
   - **새 문서 유형 추가**:
