@@ -338,6 +338,9 @@
                         <option value="">선택하세요</option>
                         <option value="EXPENSE">지출결의서</option>
                         <option value="VACATION">휴가신청서</option>
+                        <option value="HOLIDAY_WORK">휴일근무신청서</option>
+                        <option value="OFFICIAL_LEAVE">공가신청서</option>
+                        <option value="SECURITY_REQUEST">방범신청서</option>
                         <option value="BUSINESS_TRIP">출장신청서</option>
                         <option value="PURCHASE">구매요청서</option>
                         <option value="GENERAL">일반기안서</option>
@@ -378,6 +381,58 @@
                         <label for="daysUsed">사용 일수</label>
                         <input type="text" id="daysUsed" readonly placeholder="자동 계산됩니다">
                         <div class="help-text">주말 제외, 평일 기준으로 자동 계산됩니다</div>
+                    </div>
+                </div>
+
+                <!-- 휴일근무신청서 선택 시 나타나는 필드들 -->
+                <div id="holidayWorkFields" style="display: none;">
+                    <div class="form-group">
+                        <label for="holidayWorkDate">휴일근무일 <span class="required">*</span></label>
+                        <input type="date" id="holidayWorkDate">
+                        <div class="help-text">휴일에 근무하는 날짜를 선택하세요</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="substituteHolidayDate">대체휴무일 <span class="required">*</span></label>
+                        <input type="date" id="substituteHolidayDate">
+                        <div class="help-text">대체로 쉬는 날짜를 선택하세요</div>
+                    </div>
+                </div>
+
+                <!-- 공가신청서 선택 시 나타나는 필드들 -->
+                <div id="officialLeaveFields" style="display: none;">
+                    <div class="form-group">
+                        <label for="officialStartDate">시작일 <span class="required">*</span></label>
+                        <input type="date" id="officialStartDate">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="officialEndDate">종료일 <span class="required">*</span></label>
+                        <input type="date" id="officialEndDate">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="officialDaysUsed">사용 일수</label>
+                        <input type="text" id="officialDaysUsed" readonly placeholder="자동 계산됩니다">
+                        <div class="help-text">공가는 연차 차감 없이 처리됩니다</div>
+                    </div>
+                </div>
+
+                <!-- 방범신청서 선택 시 나타나는 필드들 -->
+                <div id="securityRequestFields" style="display: none;">
+                    <div class="form-group">
+                        <label for="securityDate">신청일 <span class="required">*</span></label>
+                        <input type="date" id="securityDate">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="securityStartTime">시작 시간 <span class="required">*</span></label>
+                        <input type="time" id="securityStartTime">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="securityEndTime">종료 시간 <span class="required">*</span></label>
+                        <input type="time" id="securityEndTime">
                     </div>
                 </div>
 
@@ -498,23 +553,57 @@
             return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
 
-        // 문서 유형 변경 시 휴가 필드 표시/숨김
+        // 문서 유형 변경 시 필드 표시/숨김
         document.addEventListener('DOMContentLoaded', () => {
             const documentType = document.getElementById('documentType');
             const vacationFields = document.getElementById('vacationFields');
+            const holidayWorkFields = document.getElementById('holidayWorkFields');
+            const officialLeaveFields = document.getElementById('officialLeaveFields');
+            const securityRequestFields = document.getElementById('securityRequestFields');
             const leaveType = document.getElementById('leaveType');
             const halfDayTypeGroup = document.getElementById('halfDayTypeGroup');
 
+            // 모든 추가 필드 숨기기 함수
+            function hideAllExtraFields() {
+                vacationFields.style.display = 'none';
+                holidayWorkFields.style.display = 'none';
+                officialLeaveFields.style.display = 'none';
+                securityRequestFields.style.display = 'none';
+
+                // 초기화
+                leaveType.required = false;
+                leaveType.value = '';
+                halfDayTypeGroup.style.display = 'none';
+                document.getElementById('halfDayType').value = '';
+            }
+
             documentType.addEventListener('change', () => {
+                hideAllExtraFields();
+
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
                 if (documentType.value === 'VACATION') {
                     vacationFields.style.display = 'block';
                     leaveType.required = true;
-                } else {
-                    vacationFields.style.display = 'none';
-                    leaveType.required = false;
-                    leaveType.value = '';
-                    halfDayTypeGroup.style.display = 'none';
-                    document.getElementById('halfDayType').value = '';
+                } else if (documentType.value === 'HOLIDAY_WORK') {
+                    holidayWorkFields.style.display = 'block';
+                    // 기본값 설정
+                    document.getElementById('holidayWorkDate').value = tomorrowStr;
+                    const nextWeek = new Date(tomorrow);
+                    nextWeek.setDate(nextWeek.getDate() + 7);
+                    document.getElementById('substituteHolidayDate').value = nextWeek.toISOString().split('T')[0];
+                } else if (documentType.value === 'OFFICIAL_LEAVE') {
+                    officialLeaveFields.style.display = 'block';
+                    document.getElementById('officialStartDate').value = tomorrowStr;
+                    document.getElementById('officialEndDate').value = tomorrowStr;
+                    calculateOfficialDays();
+                } else if (documentType.value === 'SECURITY_REQUEST') {
+                    securityRequestFields.style.display = 'block';
+                    document.getElementById('securityDate').value = tomorrowStr;
+                    document.getElementById('securityStartTime').value = '09:00';
+                    document.getElementById('securityEndTime').value = '18:00';
                 }
             });
 
@@ -587,6 +676,37 @@
                 if (vacationType && vacationType.value === 'HALF_DAY') return;
                 calculateDays();
             });
+
+            // 공가 일수 계산 함수
+            const officialStartDateInput = document.getElementById('officialStartDate');
+            const officialEndDateInput = document.getElementById('officialEndDate');
+            const officialDaysUsedInput = document.getElementById('officialDaysUsed');
+
+            function calculateOfficialDays() {
+                const startDate = new Date(officialStartDateInput.value);
+                const endDate = new Date(officialEndDateInput.value);
+
+                if (!officialStartDateInput.value || !officialEndDateInput.value || startDate > endDate) {
+                    officialDaysUsedInput.value = '';
+                    return;
+                }
+
+                let count = 0;
+                let current = new Date(startDate);
+
+                while (current <= endDate) {
+                    const dayOfWeek = current.getDay();
+                    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                        count++;
+                    }
+                    current.setDate(current.getDate() + 1);
+                }
+
+                officialDaysUsedInput.value = count + '일 (연차 차감 없음)';
+            }
+
+            officialStartDateInput.addEventListener('change', calculateOfficialDays);
+            officialEndDateInput.addEventListener('change', calculateOfficialDays);
         });
 
         async function loadMembers() {
@@ -667,6 +787,37 @@
                 }
             }
 
+            // 휴일근무신청서 검증
+            if (documentType === 'HOLIDAY_WORK') {
+                const holidayWorkDate = document.getElementById('holidayWorkDate').value;
+                const substituteHolidayDate = document.getElementById('substituteHolidayDate').value;
+                if (!holidayWorkDate || !substituteHolidayDate) {
+                    alert('휴일근무일과 대체휴무일을 선택해주세요');
+                    return;
+                }
+            }
+
+            // 공가신청서 검증
+            if (documentType === 'OFFICIAL_LEAVE') {
+                const startDate = document.getElementById('officialStartDate').value;
+                const endDate = document.getElementById('officialEndDate').value;
+                if (!startDate || !endDate) {
+                    alert('시작일과 종료일을 선택해주세요');
+                    return;
+                }
+            }
+
+            // 방범신청서 검증
+            if (documentType === 'SECURITY_REQUEST') {
+                const securityDate = document.getElementById('securityDate').value;
+                const startTime = document.getElementById('securityStartTime').value;
+                const endTime = document.getElementById('securityEndTime').value;
+                if (!securityDate || !startTime || !endTime) {
+                    alert('신청일과 시작/종료 시간을 입력해주세요');
+                    return;
+                }
+            }
+
             // 결재선 수집
             const approverSelects = document.querySelectorAll('[name^="approver-"]');
             const approvers = Array.from(approverSelects)
@@ -686,25 +837,66 @@
                 // 1단계: 문서 생성
                 let finalContent = content;
 
-                // 휴가신청서인 경우 일정 정보를 JSON으로 content에 포함
+                // 일정 연동이 필요한 문서 유형 처리
                 if (documentType === 'VACATION') {
+                    // 휴가신청서
                     const leaveType = document.getElementById('leaveType').value;
                     const startDate = document.getElementById('startDate').value;
                     const endDate = document.getElementById('endDate').value;
                     const daysUsedText = document.getElementById('daysUsed').value;
                     const daysUsed = parseFloat(daysUsedText.replace('일', '')) || 1;
 
-                    // scheduleType 결정 (VACATION or HALF_DAY)
                     const scheduleType = leaveType === 'HALF_DAY' ? 'HALF_DAY' : 'VACATION';
-
-                    // 일정 정보를 JSON으로 content에 추가
                     const scheduleInfo = {
                         scheduleType: scheduleType,
                         startDate: startDate,
                         endDate: endDate,
                         daysUsed: daysUsed
                     };
+                    finalContent = content + '\n\n[일정정보:' + JSON.stringify(scheduleInfo) + ']';
 
+                } else if (documentType === 'HOLIDAY_WORK') {
+                    // 휴일근무신청서
+                    const holidayWorkDate = document.getElementById('holidayWorkDate').value;
+                    const substituteHolidayDate = document.getElementById('substituteHolidayDate').value;
+
+                    const scheduleInfo = {
+                        scheduleType: 'HOLIDAY_WORK',
+                        holidayWorkDate: holidayWorkDate,
+                        substituteHolidayDate: substituteHolidayDate,
+                        daysUsed: 0
+                    };
+                    finalContent = content + '\n\n[일정정보:' + JSON.stringify(scheduleInfo) + ']';
+
+                } else if (documentType === 'OFFICIAL_LEAVE') {
+                    // 공가신청서
+                    const startDate = document.getElementById('officialStartDate').value;
+                    const endDate = document.getElementById('officialEndDate').value;
+                    const daysUsedText = document.getElementById('officialDaysUsed').value;
+                    const daysUsed = parseFloat(daysUsedText.replace(/[^0-9.]/g, '')) || 1;
+
+                    const scheduleInfo = {
+                        scheduleType: 'OFFICIAL_LEAVE',
+                        startDate: startDate,
+                        endDate: endDate,
+                        daysUsed: 0  // 공가는 연차 차감 없음
+                    };
+                    finalContent = content + '\n\n[일정정보:' + JSON.stringify(scheduleInfo) + ']';
+
+                } else if (documentType === 'SECURITY_REQUEST') {
+                    // 방범신청서
+                    const securityDate = document.getElementById('securityDate').value;
+                    const startTime = document.getElementById('securityStartTime').value;
+                    const endTime = document.getElementById('securityEndTime').value;
+
+                    const scheduleInfo = {
+                        scheduleType: 'SECURITY_REQUEST',
+                        startDate: securityDate,
+                        endDate: securityDate,
+                        startTime: startTime,
+                        endTime: endTime,
+                        daysUsed: 0
+                    };
                     finalContent = content + '\n\n[일정정보:' + JSON.stringify(scheduleInfo) + ']';
                 }
 

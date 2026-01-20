@@ -184,7 +184,7 @@ public class DocumentIntranet {
 
     // Enums
     public enum DocumentType {
-        LEAVE, EXPENSE, GENERAL
+        LEAVE, EXPENSE, GENERAL, HOLIDAY_WORK, OFFICIAL_LEAVE, SECURITY_REQUEST
     }
 
     public enum DocumentStatus {

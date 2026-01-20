@@ -339,23 +339,28 @@ public class ApprovalService {
     }
 
     /**
-     * 휴가신청 문서에서 일정 생성
+     * 일정 연동이 필요한 문서에서 일정 생성
      * 문서 제출 시 호출되어 PENDING 상태의 일정을 생성
+     * 지원 유형: VACATION, HOLIDAY_WORK, OFFICIAL_LEAVE, SECURITY_REQUEST
      */
     @Transactional
     public void createScheduleFromVacationDocument(DocumentIntranet document) {
         try {
-            System.out.println("[일정 생성] 휴가신청 문서에서 일정 생성 시작: documentId=" + document.getId() + ", documentType=" + document.getDocumentType());
+            System.out.println("[일정 생성] 문서에서 일정 생성 시작: documentId=" + document.getId() + ", documentType=" + document.getDocumentType());
 
-            // 휴가신청서가 아니면 종료 (LEAVE, VACATION, VACATION_REQUEST 모두 허용)
+            // 일정 연동이 필요한 문서 유형 확인
             String docType = String.valueOf(document.getDocumentType());
-            if (!"LEAVE".equals(docType) && !"VACATION".equals(docType) && !"VACATION_REQUEST".equals(docType)) {
-                System.out.println("[일정 생성] 휴가신청서가 아니므로 스킵: " + docType);
+            java.util.List<String> supportedTypes = java.util.Arrays.asList(
+                "LEAVE", "VACATION", "VACATION_REQUEST",
+                "HOLIDAY_WORK", "OFFICIAL_LEAVE", "SECURITY_REQUEST"
+            );
+
+            if (!supportedTypes.contains(docType)) {
+                System.out.println("[일정 생성] 일정 연동 대상 문서가 아니므로 스킵: " + docType);
                 return;
             }
 
             // 문서 content에서 일정 정보 추출
-            // 형식: [일정정보:{"scheduleType":"VACATION", "startDate":"2026-01-20", "endDate":"2026-01-22", "daysUsed":3}]
             String content = document.getContent();
             if (content == null || content.isEmpty()) {
                 System.err.println("[일정 생성 실패] 문서 내용이 비어있음");
@@ -371,12 +376,10 @@ public class ApprovalService {
 
             // JSON 파싱
             String scheduleType = extractJsonValue(jsonContent, "scheduleType");
-            String startDateStr = extractJsonValue(jsonContent, "startDate");
-            String endDateStr = extractJsonValue(jsonContent, "endDate");
             String daysUsedStr = extractJsonValue(jsonContent, "daysUsed");
 
-            if (scheduleType == null || startDateStr == null || endDateStr == null) {
-                System.err.println("[일정 생성 실패] 필수 일정 정보가 누락됨");
+            if (scheduleType == null) {
+                System.err.println("[일정 생성 실패] scheduleType이 누락됨");
                 return;
             }
 
@@ -384,20 +387,58 @@ public class ApprovalService {
             ScheduleIntranet schedule = new ScheduleIntranet();
             schedule.setMemberId(document.getAuthorId());
             schedule.setDocumentId(document.getId());
-            schedule.setScheduleType(scheduleType); // VACATION or HALF_DAY
+            schedule.setScheduleType(scheduleType);
             schedule.setTitle(document.getTitle());
             schedule.setDescription(document.getTitle());
             schedule.setStatus("PENDING"); // 결재 대기 상태
 
-            // 날짜 파싱 (java.util.Date) - 타임존 문제 해결
-            try {
-                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
-                sdf.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
-                schedule.setStartDate(sdf.parse(startDateStr));
-                schedule.setEndDate(sdf.parse(endDateStr));
-            } catch (Exception e) {
-                System.err.println("[일정 생성 실패] 날짜 파싱 오류: " + e.getMessage());
-                return;
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+            sdf.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+
+            // 일정 유형별 날짜 처리
+            if ("HOLIDAY_WORK".equals(scheduleType)) {
+                // 휴일근무: holidayWorkDate, substituteHolidayDate 사용
+                String holidayWorkDateStr = extractJsonValue(jsonContent, "holidayWorkDate");
+                String substituteHolidayDateStr = extractJsonValue(jsonContent, "substituteHolidayDate");
+
+                if (holidayWorkDateStr == null || substituteHolidayDateStr == null) {
+                    System.err.println("[일정 생성 실패] 휴일근무 날짜 정보가 누락됨");
+                    return;
+                }
+
+                try {
+                    schedule.setHolidayWorkDate(sdf.parse(holidayWorkDateStr));
+                    schedule.setSubstituteHolidayDate(sdf.parse(substituteHolidayDateStr));
+                    // startDate/endDate는 null로 유지 (휴일근무는 전용 필드 사용)
+                } catch (Exception e) {
+                    System.err.println("[일정 생성 실패] 휴일근무 날짜 파싱 오류: " + e.getMessage());
+                    return;
+                }
+            } else {
+                // 기타 유형: startDate, endDate 사용
+                String startDateStr = extractJsonValue(jsonContent, "startDate");
+                String endDateStr = extractJsonValue(jsonContent, "endDate");
+
+                if (startDateStr == null || endDateStr == null) {
+                    System.err.println("[일정 생성 실패] 시작일/종료일이 누락됨");
+                    return;
+                }
+
+                try {
+                    schedule.setStartDate(sdf.parse(startDateStr));
+                    schedule.setEndDate(sdf.parse(endDateStr));
+                } catch (Exception e) {
+                    System.err.println("[일정 생성 실패] 날짜 파싱 오류: " + e.getMessage());
+                    return;
+                }
+
+                // 방범신청: 시간 정보 추가
+                if ("SECURITY_REQUEST".equals(scheduleType)) {
+                    String startTime = extractJsonValue(jsonContent, "startTime");
+                    String endTime = extractJsonValue(jsonContent, "endTime");
+                    schedule.setStartTime(startTime);
+                    schedule.setEndTime(endTime);
+                }
             }
 
             // 사용 일수
@@ -405,7 +446,7 @@ public class ApprovalService {
                 try {
                     schedule.setDaysUsed(Double.parseDouble(daysUsedStr));
                 } catch (NumberFormatException e) {
-                    schedule.setDaysUsed(1.0);
+                    schedule.setDaysUsed(0.0);
                 }
             }
 
@@ -413,6 +454,7 @@ public class ApprovalService {
             scheduleMapper.insert(schedule);
             System.out.println("[일정 생성 완료] scheduleId=" + schedule.getId() +
                              ", documentId=" + document.getId() +
+                             ", scheduleType=" + scheduleType +
                              ", status=PENDING");
 
         } catch (Exception e) {

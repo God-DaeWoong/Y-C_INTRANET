@@ -91,30 +91,38 @@
         ORDER BY s.start_date DESC
     </select>
 
-    <!-- 사용자별 일정 조회 -->
+    <!-- 사용자별 일정 조회 (휴일근무 포함) -->
     <select id="findByMemberId" resultMap="ScheduleIntranetResultMap">
         SELECT s.*, m.name as member_name, m.email as member_email, d.name as department_name
         FROM schedules_intranet s
         LEFT JOIN members_intranet m ON s.member_id = m.id
         LEFT JOIN departments_intranet d ON m.department_id = d.id
         WHERE s.member_id = #{memberId}
-        ORDER BY s.start_date DESC
+        ORDER BY COALESCE(s.start_date, s.holiday_work_date) DESC
     </select>
 
-    <!-- 기간별 일정 조회 -->
+    <!-- 기간별 일정 조회 (휴일근무 포함) -->
     <select id="findByDateRange" resultMap="ScheduleIntranetResultMap">
         <![CDATA[
         SELECT s.*, m.name as member_name, m.email as member_email, d.name as department_name
         FROM schedules_intranet s
         LEFT JOIN members_intranet m ON s.member_id = m.id
         LEFT JOIN departments_intranet d ON m.department_id = d.id
-        WHERE s.start_date <= #{endDate}
-          AND s.end_date >= #{startDate}
-        ORDER BY s.start_date
+        WHERE (
+            -- 일반 일정: start_date, end_date 사용
+            (s.start_date IS NOT NULL AND s.start_date <= #{endDate} AND s.end_date >= #{startDate})
+            OR
+            -- 휴일근무: holiday_work_date, substitute_holiday_date 사용
+            (s.schedule_type = 'HOLIDAY_WORK' AND (
+                (s.holiday_work_date >= #{startDate} AND s.holiday_work_date <= #{endDate})
+                OR (s.substitute_holiday_date >= #{startDate} AND s.substitute_holiday_date <= #{endDate})
+            ))
+        )
+        ORDER BY COALESCE(s.start_date, s.holiday_work_date)
         ]]>
     </select>
 
-    <!-- 부서별 + 기간별 일정 조회 -->
+    <!-- 부서별 + 기간별 일정 조회 (휴일근무 포함) -->
     <select id="findByDepartmentAndDateRange" resultMap="ScheduleIntranetResultMap">
         <![CDATA[
         SELECT s.*, m.name as member_name, m.email as member_email, d.name as department_name
@@ -122,13 +130,19 @@
         LEFT JOIN members_intranet m ON s.member_id = m.id
         LEFT JOIN departments_intranet d ON m.department_id = d.id
         WHERE m.department_id = #{departmentId}
-          AND s.start_date <= #{endDate}
-          AND s.end_date >= #{startDate}
-        ORDER BY s.start_date
+          AND (
+            (s.start_date IS NOT NULL AND s.start_date <= #{endDate} AND s.end_date >= #{startDate})
+            OR
+            (s.schedule_type = 'HOLIDAY_WORK' AND (
+                (s.holiday_work_date >= #{startDate} AND s.holiday_work_date <= #{endDate})
+                OR (s.substitute_holiday_date >= #{startDate} AND s.substitute_holiday_date <= #{endDate})
+            ))
+          )
+        ORDER BY COALESCE(s.start_date, s.holiday_work_date)
         ]]>
     </select>
 
-    <!-- 본부별 + 기간별 일정 조회 -->
+    <!-- 본부별 + 기간별 일정 조회 (휴일근무 포함) -->
     <select id="findByDivisionAndDateRange" resultMap="ScheduleIntranetResultMap">
         <![CDATA[
         SELECT s.*, m.name as member_name, m.email as member_email, d.name as department_name
@@ -136,9 +150,15 @@
         INNER JOIN members_intranet m ON s.member_id = m.id
         INNER JOIN departments_intranet d ON m.department_id = d.id
         WHERE d.parent_id = #{divisionId}
-          AND s.start_date <= #{endDate}
-          AND s.end_date >= #{startDate}
-        ORDER BY s.start_date
+          AND (
+            (s.start_date IS NOT NULL AND s.start_date <= #{endDate} AND s.end_date >= #{startDate})
+            OR
+            (s.schedule_type = 'HOLIDAY_WORK' AND (
+                (s.holiday_work_date >= #{startDate} AND s.holiday_work_date <= #{endDate})
+                OR (s.substitute_holiday_date >= #{startDate} AND s.substitute_holiday_date <= #{endDate})
+            ))
+          )
+        ORDER BY COALESCE(s.start_date, s.holiday_work_date)
         ]]>
     </select>
 

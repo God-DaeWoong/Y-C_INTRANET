@@ -101,6 +101,12 @@ public class DocumentIntranetController {
                     metadata.append("}");
                     document.setMetadata(metadata.toString());
                 }
+            } else if ("HOLIDAY_WORK".equals(documentType)) {
+                document.setDocumentType(DocumentIntranet.DocumentType.HOLIDAY_WORK);
+            } else if ("OFFICIAL_LEAVE".equals(documentType)) {
+                document.setDocumentType(DocumentIntranet.DocumentType.OFFICIAL_LEAVE);
+            } else if ("SECURITY_REQUEST".equals(documentType)) {
+                document.setDocumentType(DocumentIntranet.DocumentType.SECURITY_REQUEST);
             } else {
                 document.setDocumentType(DocumentIntranet.DocumentType.GENERAL);
             }
@@ -118,9 +124,13 @@ public class DocumentIntranetController {
             // 3. 결재 상신
             documentService.submitDocument(createdDocument.getId(), approvalLines);
 
-            // 4. 휴가신청서인 경우 일정도 생성 (VACATION 또는 LEAVE 타입 모두 허용)
-            if ("VACATION".equals(documentType) || "LEAVE".equals(documentType) || "VACATION_REQUEST".equals(documentType)) {
-                System.out.println("[문서 생성] 휴가신청서 일정 생성 시작: documentType=" + documentType);
+            // 4. 일정 연동이 필요한 문서인 경우 일정도 생성
+            java.util.List<String> scheduleDocTypes = java.util.Arrays.asList(
+                "VACATION", "LEAVE", "VACATION_REQUEST",
+                "HOLIDAY_WORK", "OFFICIAL_LEAVE", "SECURITY_REQUEST"
+            );
+            if (scheduleDocTypes.contains(documentType)) {
+                System.out.println("[문서 생성] 일정 연동 문서 - 일정 생성 시작: documentType=" + documentType);
                 approvalService.createScheduleFromVacationDocument(createdDocument);
             }
 

@@ -689,7 +689,10 @@
                 'LEAVE': '휴가신청서',
                 'BUSINESS_TRIP': '출장신청서',
                 'PURCHASE': '구매요청서',
-                'GENERAL': '일반기안서'
+                'GENERAL': '일반기안서',
+                'HOLIDAY_WORK': '휴일근무신청서',
+                'OFFICIAL_LEAVE': '공가신청서',
+                'SECURITY_REQUEST': '방범신청서'
             };
             return types[docType] || docType || '기타';
         }
@@ -749,8 +752,24 @@
                     const scheduleInfo = parseScheduleInfo(doc.content);
                     let vacationBadge = '';
                     if (scheduleInfo) {
-                        const typeText = scheduleInfo.scheduleType === 'VACATION' ? '연차' : '반차';
-                        vacationBadge = `<span class="badge" style="background:#fef3c7;color:#92400e;">📅 ${typeText} | ${scheduleInfo.startDate} ~ ${scheduleInfo.endDate} | ${scheduleInfo.daysUsed}일</span>`;
+                        const scheduleTypeMap = {
+                            'VACATION': '연차',
+                            'HALF_DAY': '반차',
+                            'HOLIDAY_WORK': '휴일근무',
+                            'OFFICIAL_LEAVE': '공가',
+                            'SECURITY_REQUEST': '방범신청'
+                        };
+                        const typeText = scheduleTypeMap[scheduleInfo.scheduleType] || scheduleInfo.scheduleType;
+
+                        // 휴일근무는 별도 날짜 필드 사용
+                        let dateText = '';
+                        if (scheduleInfo.scheduleType === 'HOLIDAY_WORK') {
+                            dateText = `근무: ${scheduleInfo.holidayWorkDate || '-'} / 대체: ${scheduleInfo.substituteHolidayDate || '-'}`;
+                        } else {
+                            dateText = `${scheduleInfo.startDate || '-'} ~ ${scheduleInfo.endDate || '-'}`;
+                        }
+
+                        vacationBadge = `<span class="badge" style="background:#fef3c7;color:#92400e;">📅 ${typeText} | ${dateText} | ${scheduleInfo.daysUsed || 0}일</span>`;
                     }
 
                     // JSON 텍스트 제거한 깨끗한 내용
@@ -897,9 +916,9 @@
                     }
                     vacationInfo = `
                         <div class="detail-section">
-                            <div class="detail-label">휴가 정보</div>
+                            <div class="detail-label">정보</div>
                             <div class="detail-value">
-                                <p><strong>휴가 유형:</strong> ${leaveTypeText}</p>
+                                <p><strong>유형:</strong> ${leaveTypeText}</p>
                                 <p><strong>시작일:</strong> ${vr.startDate || '-'}</p>
                                 <p><strong>종료일:</strong> ${vr.endDate || '-'}</p>
                                 <p><strong>사용 일수:</strong> ${vr.usedDays || 0}일</p>
@@ -1066,20 +1085,44 @@
 
             const scheduleTypeMap = {
                 'VACATION': '연차',
-                'HALF_DAY': '반차'
+                'HALF_DAY': '반차',
+                'HOLIDAY_WORK': '휴일근무',
+                'OFFICIAL_LEAVE': '공가',
+                'SECURITY_REQUEST': '방범신청'
             };
 
             const scheduleTypeText = scheduleTypeMap[scheduleInfo.scheduleType] || scheduleInfo.scheduleType;
-            const startDate = scheduleInfo.startDate || '-';
-            const endDate = scheduleInfo.endDate || '-';
             const daysUsed = scheduleInfo.daysUsed || 0;
+
+            // 휴일근무는 별도 날짜 필드 사용
+            let dateHtml = '';
+            if (scheduleInfo.scheduleType === 'HOLIDAY_WORK') {
+                const holidayWorkDate = scheduleInfo.holidayWorkDate || '-';
+                const substituteHolidayDate = scheduleInfo.substituteHolidayDate || '-';
+                dateHtml = `
+                    <p><strong>휴일근무일:</strong> ${holidayWorkDate}</p>
+                    <p><strong>대체휴무일:</strong> ${substituteHolidayDate}</p>
+                `;
+            } else if (scheduleInfo.scheduleType === 'SECURITY_REQUEST') {
+                const startDate = scheduleInfo.startDate || '-';
+                const startTime = scheduleInfo.startTime || '-';
+                const endTime = scheduleInfo.endTime || '-';
+                dateHtml = `
+                    <p><strong>신청일:</strong> ${startDate}</p>
+                    <p><strong>시간:</strong> ${startTime} ~ ${endTime}</p>
+                `;
+            } else {
+                const startDate = scheduleInfo.startDate || '-';
+                const endDate = scheduleInfo.endDate || '-';
+                dateHtml = `<p><strong>사용 기간:</strong> ${startDate} ~ ${endDate}</p>`;
+            }
 
             return `
                 <div class="detail-section">
-                    <div class="detail-label">휴가 정보</div>
+                    <div class="detail-label">정보</div>
                     <div class="detail-value">
-                        <p><strong>휴가 유형:</strong> ${scheduleTypeText}</p>
-                        <p><strong>사용 기간:</strong> ${startDate} ~ ${endDate}</p>
+                        <p><strong>유형:</strong> ${scheduleTypeText}</p>
+                        ${dateHtml}
                         <p><strong>사용 일수:</strong> ${daysUsed}일</p>
                     </div>
                 </div>
@@ -1230,8 +1273,24 @@
                     // 휴가 배지 생성 (결재 대기 탭과 동일)
                     let vacationBadge = '';
                     if (scheduleInfo) {
-                        const typeText = scheduleInfo.scheduleType === 'VACATION' ? '연차' : '반차';
-                        vacationBadge = `<span class="badge" style="background:#fef3c7;color:#92400e;">📅 ${typeText} | ${scheduleInfo.startDate} ~ ${scheduleInfo.endDate} | ${scheduleInfo.daysUsed}일</span>`;
+                        const scheduleTypeMap = {
+                            'VACATION': '연차',
+                            'HALF_DAY': '반차',
+                            'HOLIDAY_WORK': '휴일근무',
+                            'OFFICIAL_LEAVE': '공가',
+                            'SECURITY_REQUEST': '방범신청'
+                        };
+                        const typeText = scheduleTypeMap[scheduleInfo.scheduleType] || scheduleInfo.scheduleType;
+
+                        // 휴일근무는 별도 날짜 필드 사용
+                        let dateText = '';
+                        if (scheduleInfo.scheduleType === 'HOLIDAY_WORK') {
+                            dateText = `근무: ${scheduleInfo.holidayWorkDate || '-'} / 대체: ${scheduleInfo.substituteHolidayDate || '-'}`;
+                        } else {
+                            dateText = `${scheduleInfo.startDate || '-'} ~ ${scheduleInfo.endDate || '-'}`;
+                        }
+
+                        vacationBadge = `<span class="badge" style="background:#fef3c7;color:#92400e;">📅 ${typeText} | ${dateText} | ${scheduleInfo.daysUsed || 0}일</span>`;
                     }
 
                     return `
@@ -1321,9 +1380,9 @@
                     }
                     vacationInfo = `
                         <div class="detail-section">
-                            <div class="detail-label">휴가 정보</div>
+                            <div class="detail-label">정보</div>
                             <div class="detail-value">
-                                <p><strong>휴가 유형:</strong> ${leaveTypeText}</p>
+                                <p><strong>유형:</strong> ${leaveTypeText}</p>
                                 <p><strong>시작일:</strong> ${vr.startDate || '-'}</p>
                                 <p><strong>종료일:</strong> ${vr.endDate || '-'}</p>
                                 <p><strong>사용 일수:</strong> ${vr.usedDays || 0}일</p>

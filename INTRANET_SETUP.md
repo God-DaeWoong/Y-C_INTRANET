@@ -610,7 +610,40 @@ CREATE TABLE expense_items_intranet (
 
 ## 📅 버전 히스토리
 
-- **v0.26** (2026-01-19) - 일정 중복 등록 방지 기능 추가 🆕
+- **v0.27** (2026-01-20) - 문서 작성 페이지 일정 유형 확장 🆕
+  - **결재 대기함 상세 수정**:
+    - 문서 유형에따라 한글 표기되도록 수정
+  - **새 문서 유형 추가**:
+    - 휴일근무신청서 (HOLIDAY_WORK)
+    - 공가신청서 (OFFICIAL_LEAVE)
+    - 방범신청서 (SECURITY_REQUEST)
+    - 기존: 휴가신청서 (VACATION/HALF_DAY), 경비보고서 (EXPENSE), 일반문서 (GENERAL)
+
+  - **문서-일정 연동 흐름**:
+    1. document-create.html에서 새 문서 유형 선택 및 작성
+    2. 결재 상신 시 schedules_intranet 테이블에 PENDING 상태로 일정 생성
+    3. 결재 승인 시 일정 상태 APPROVED로 변경 → 캘린더에 표시
+    4. 결재 반려 시 일정 상태 REJECTED로 변경
+
+  - **수정 파일**:
+    - DocumentIntranet.java: DocumentType enum에 HOLIDAY_WORK, OFFICIAL_LEAVE, SECURITY_REQUEST 추가
+    - DocumentIntranetController.java: 새 문서 유형별 조건 처리 추가
+    - document-create.html: 새 문서 유형 select option 및 입력 필드 추가 (이전 세션)
+    - ApprovalService.java: createScheduleFromVacationDocument()에서 새 유형 지원 (이전 세션)
+    - ScheduleIntranetMapper.xml: findByDateRange 등 쿼리에 HOLIDAY_WORK 날짜 필드 지원 (이전 세션)
+    - approval-pending.html: 배지 및 상세보기 한글 표시 지원 (이전 세션)
+
+  - **DB 변경 필요**:
+    ```sql
+    -- 기존 제약조건 삭제
+    ALTER TABLE documents_intranet DROP CONSTRAINT CHK_DOC_INTRA_TYPE;
+
+    -- 새 제약조건 추가 (새 문서 유형 포함)
+    ALTER TABLE documents_intranet ADD CONSTRAINT CHK_DOC_INTRA_TYPE
+    CHECK (document_type IN ('LEAVE', 'EXPENSE', 'GENERAL', 'HOLIDAY_WORK', 'OFFICIAL_LEAVE', 'SECURITY_REQUEST'));
+    ```
+
+- **v0.26** (2026-01-19) - 일정 중복 등록 방지 기능 추가
   - **방범신청 시간대 중복 방지**:
     - 같은 날짜에 시간대가 겹치는 승인된 방범신청이 있으면 등록 불가
     - 시간 겹침 판정: `start_time < endTime AND end_time > startTime`
