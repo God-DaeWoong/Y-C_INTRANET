@@ -61,4 +61,42 @@ public interface ExpenseItemIntranetMapper {
      * 멤버 ID와 연도로 복지비 항목 조회
      */
     List<ExpenseItemIntranet> findWelfareExpensesByMemberIdAndYear(@Param("memberId") Long memberId, @Param("year") Integer year);
+
+    /**
+     * 멤버 ID로 경비 항목 조회
+     */
+    List<ExpenseItemIntranet> findByMemberId(@Param("memberId") Long memberId);
+
+    /**
+     * 멤버 ID와 날짜 범위로 경비 항목 조회
+     */
+    List<ExpenseItemIntranet> findByMemberIdAndDateRange(
+            @Param("memberId") Long memberId,
+            @Param("startDate") String startDate,
+            @Param("endDate") String endDate
+    );
+
+    /**
+     * 날짜 범위로 경비 항목 조회
+     */
+    List<ExpenseItemIntranet> findByDateRange(
+            @Param("startDate") String startDate,
+            @Param("endDate") String endDate
+    );
+
+    /**
+     * EXPENSE_READ_ID로 경비 항목 조회
+     * 조인조건: EXPENSE_ITEM_READ_STATUS.ID = EXPENSE_ITEMS_INTRANET.EXPENSE_READ_ID
+     */
+    List<ExpenseItemIntranet> findByExpenseReadId(@Param("expenseReadId") Long expenseReadId);
+
+    /**
+     * EXPENSE_READ_ID 업데이트
+     */
+    void updateExpenseReadId(@Param("id") Long id, @Param("expenseReadId") Long expenseReadId);
+
+    /**
+     * 여러 항목의 EXPENSE_READ_ID 일괄 업데이트
+     */
+    void updateExpenseReadIdBatch(@Param("ids") List<Long> ids, @Param("expenseReadId") Long expenseReadId);
 }

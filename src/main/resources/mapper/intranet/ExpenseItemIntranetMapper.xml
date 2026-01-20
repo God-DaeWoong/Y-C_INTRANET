@@ -17,6 +17,7 @@
         <result property="projectCode" column="project_code"/>
         <result property="note" column="note"/>
         <result property="welfareFlag" column="welfare_flag"/>
+        <result property="expenseReadId" column="expense_read_id"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
         <association property="member" javaType="com.ync.intranet.domain.MemberIntranet">
@@ -148,5 +149,73 @@
           AND ei.welfare_flag = 'Y'
         ORDER BY ei.usage_date
     </select>
+
+    <!-- 멤버 ID로 경비 항목 조회 -->
+    <select id="findByMemberId" resultMap="ExpenseItemIntranetResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as member_department
+        FROM expense_items_intranet ei
+        LEFT JOIN members_intranet m ON ei.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE ei.member_id = #{memberId}
+        ORDER BY ei.usage_date DESC, ei.created_at DESC
+    </select>
+
+    <!-- 멤버 ID와 날짜 범위로 경비 항목 조회 -->
+    <select id="findByMemberIdAndDateRange" resultMap="ExpenseItemIntranetResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as member_department
+        FROM expense_items_intranet ei
+        LEFT JOIN members_intranet m ON ei.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE ei.member_id = #{memberId}
+          AND ei.usage_date BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD') AND TO_DATE(#{endDate}, 'YYYY-MM-DD')
+        ORDER BY ei.usage_date DESC, ei.created_at DESC
+    </select>
+
+    <!-- 날짜 범위로 경비 항목 조회 -->
+    <select id="findByDateRange" resultMap="ExpenseItemIntranetResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as member_department
+        FROM expense_items_intranet ei
+        LEFT JOIN members_intranet m ON ei.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE ei.usage_date BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD') AND TO_DATE(#{endDate}, 'YYYY-MM-DD')
+        ORDER BY ei.usage_date DESC, ei.created_at DESC
+    </select>
+
+    <!-- EXPENSE_READ_ID로 경비 항목 조회 -->
+    <select id="findByExpenseReadId" resultMap="ExpenseItemIntranetResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as member_department
+        FROM expense_items_intranet ei
+        LEFT JOIN members_intranet m ON ei.member_id = m.id
+        LEFT JOIN departments_intranet d ON m.department_id = d.id
+        WHERE ei.expense_read_id = #{expenseReadId}
+        ORDER BY ei.usage_date DESC, ei.created_at DESC
+    </select>
+
+    <!-- EXPENSE_READ_ID 업데이트 -->
+    <update id="updateExpenseReadId">
+        UPDATE expense_items_intranet
+        SET expense_read_id = #{expenseReadId},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 여러 항목의 EXPENSE_READ_ID 일괄 업데이트 -->
+    <update id="updateExpenseReadIdBatch">
+        UPDATE expense_items_intranet
+        SET expense_read_id = #{expenseReadId},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
 
 </mapper>

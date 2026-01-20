@@ -9,6 +9,7 @@ public class ExpenseItem {
     private Long id;
     private Long memberId;
     private LocalDate usageDate;
+    private String usageDateStr; // VARCHAR2(20) 컬럼용 문자열 날짜
     private String description;
     private String account;
     private BigDecimal amount;
@@ -17,6 +18,8 @@ public class ExpenseItem {
     private String projectCode;
     private String note;
     private String welfareFlag;
+    private String yyyy;  // 신청 년도 (화면에서 선택한 년도)
+    private String mm;    // 신청 월 (화면에서 선택한 월)
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -70,6 +73,14 @@ public class ExpenseItem {
 
     public void setUsageDate(LocalDate usageDate) {
         this.usageDate = usageDate;
+    }
+
+    public String getUsageDateStr() {
+        return usageDateStr;
+    }
+
+    public void setUsageDateStr(String usageDateStr) {
+        this.usageDateStr = usageDateStr;
     }
 
     public String getDescription() {
@@ -134,6 +145,22 @@ public class ExpenseItem {
 
     public void setWelfareFlag(String welfareFlag) {
         this.welfareFlag = welfareFlag;
+    }
+
+    public String getYyyy() {
+        return yyyy;
+    }
+
+    public void setYyyy(String yyyy) {
+        this.yyyy = yyyy;
+    }
+
+    public String getMm() {
+        return mm;
+    }
+
+    public void setMm(String mm) {
+        this.mm = mm;
     }
 
     public LocalDateTime getCreatedAt() {

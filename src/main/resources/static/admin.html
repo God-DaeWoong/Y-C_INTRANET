@@ -9,6 +9,9 @@
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
 
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
     <style>
         * {
             margin: 0;
@@ -1104,25 +1107,68 @@
                     <h3>경비보고서 관리</h3>
                 </div>
 
-                <div class="tab-stats">
-                    <div class="stat-card">
-                        <div class="stat-label">승인 대기 중</div>
-                        <div class="stat-value"><span id="pendingExpenseCount">0</span> <small>건</small></div>
-                    </div>
-                    <div class="stat-card secondary">
-                        <div class="stat-label">이번 달 총 경비</div>
-                        <div class="stat-value"><span id="monthlyExpenseAmount">0</span> <small>원</small></div>
-                    </div>
-                    <div class="stat-card warning">
-                        <div class="stat-label">이번 달 보고서</div>
-                        <div class="stat-value"><span id="monthlyExpenseCount">0</span> <small>건</small></div>
+                <!-- 필터 -->
+                <div class="member-actions" style="margin-bottom: 24px; position: relative; z-index: 10;">
+                    <div class="filter-group">
+                        <div class="filter-item">
+                            <label>본부</label>
+                            <select id="expenseFilterParentDept" onchange="onExpenseParentDeptChange()">
+                                <option value="">전체 본부</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label>부서</label>
+                            <select id="expenseFilterChildDept" onchange="onExpenseChildDeptChange()">
+                                <option value="">전체 팀</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label>구성원</label>
+                            <select id="expenseFilterMember" onchange="loadExpenseStats()">
+                                <option value="">전체 구성원</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
-                <div class="empty-state">
-                    <div class="empty-state-icon">💰</div>
-                    <h3>경비보고서 관리 기능</h3>
-                    <p>승인 대기 중인 경비보고서를 관리하고, 전체 경비 내역을 조회할 수 있습니다.</p>
+                <!-- 카드 그리드 -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px; margin-bottom: 32px; position: relative; z-index: 1;">
+                    <!-- 올해 총 경비 -->
+                    <div class="stat-card" style="background: white; color: #2d3748; padding: 24px; min-height: 350px;">
+                        <div class="stat-label" style="font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #2d3748;">올해 총 경비 (<span id="yearExpenseCount">0</span>건)</div>
+                        <canvas id="yearExpenseChart" style="max-height: 280px;"></canvas>
+                    </div>
+
+                    <!-- 이번 달 총 경비 -->
+                    <div class="stat-card" style="background: white; color: #2d3748; padding: 24px; min-height: 350px;">
+                        <div class="stat-label" style="font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #2d3748;">이번 달 총 경비 (<span id="monthExpenseCount">0</span>건)</div>
+                        <canvas id="monthExpenseChart" style="max-height: 280px;"></canvas>
+                    </div>
+                </div>
+
+                <!-- 미확인 보고서 -->
+                <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">미확인 보고서</h3>
+                    <div id="unreadExpenseList" style="display: flex; flex-direction: column; gap: 12px;">
+                        <div class="empty-state" style="padding: 32px;">
+                            <div class="empty-state-icon">📋</div>
+                            <h3>미확인 경비가 없습니다</h3>
+                            <p>모든 경비를 확인하셨습니다.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 경비 상세보기 모달 -->
+            <div id="expenseDetailModal" class="modal">
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="modal-header">
+                        <h3>경비 상세보기</h3>
+                        <span class="close" onclick="closeExpenseDetailModal()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div id="expenseDetailContent"></div>
+                    </div>
                 </div>
             </div>
 
@@ -1426,10 +1472,11 @@
                     console.log('일정 탭 이미 초기화됨 - 스킵');
                 }
             } else if (tabIndex === 1) {
-                loadExpenseStats();
-                // 경비보고서 탭의 캘린더 초기화 (한 번만 초기화)
-                if (!calendar) {
-                    initCalendar();
+                // 경비보고서 탭 초기화
+                if (!yearExpenseChart && !monthExpenseChart) {
+                    initExpenseTab();
+                } else {
+                    loadExpenseStats();
                 }
             } else if (tabIndex === 2) {
                 loadMemberStats();
@@ -1506,23 +1553,7 @@
             }
         }
 
-        // 경비보고서 통계 로드
-        async function loadExpenseStats() {
-            try {
-                // TODO: API 연동
-                // 임시 데이터
-                const pendingCount = 7;
-                const monthlyAmount = 2450000;
-                const monthlyCount = 12;
-
-                document.getElementById('pendingExpenseCount').textContent = pendingCount;
-                document.getElementById('monthlyExpenseAmount').textContent = monthlyAmount.toLocaleString('ko-KR');
-                document.getElementById('monthlyExpenseCount').textContent = monthlyCount;
-                updateNotificationBadge('expenseNotification', pendingCount);
-            } catch (error) {
-                console.error('경비보고서 통계 로드 실패:', error);
-            }
-        }
+        // 경비보고서 통계 로드 (하단에 실제 구현 있음)
 
         // 사원 통계 로드
         async function loadMemberStats() {
@@ -1545,13 +1576,21 @@
             }
         }
 
-        // 사원 목록 로드
+        // 사원 목록 로드 (공유 데이터 사용)
         async function loadMembers() {
             try {
+                // 공유 데이터가 있으면 사용, 없으면 API 호출
+                if (sharedMembers.length > 0) {
+                    allMembers = sharedMembers;
+                    displayMembers(allMembers);
+                    return;
+                }
+
                 const response = await fetch('/api/intranet/members');
                 const data = await response.json();
 
                 allMembers = data || [];
+                sharedMembers = allMembers; // 공유 변수에도 저장
                 displayMembers(allMembers);
 
             } catch (error) {
@@ -2136,8 +2175,23 @@
         // 전체 알림 로드
         async function loadAllNotifications() {
             await loadScheduleStats();
-            await loadExpenseStats();
+            await loadExpenseBadge(); // 배지만 업데이트 (차트 없이)
             await loadMemberStats();
+        }
+
+        // 경비보고서 배지만 업데이트 (초기 로드용)
+        async function loadExpenseBadge() {
+            try {
+                const unreadCountRes = await fetch('/api/intranet/expense-reports/items/unread-count', {
+                    credentials: 'include'
+                });
+                if (unreadCountRes.ok) {
+                    const unreadData = await unreadCountRes.json();
+                    updateNotificationBadge('expenseNotification', unreadData.count || 0);
+                }
+            } catch (error) {
+                console.error('경비 배지 로드 실패:', error);
+            }
         }
 
         // 모달 외부 클릭 시 닫기
@@ -2154,6 +2208,12 @@
         };
 
         // 페이지 로드 시 초기화
+        // ======================================
+        // 공유 필터 데이터 (모든 탭에서 사용)
+        // ======================================
+        let sharedDepartments = [];  // 일정 탭에서 로드, 경비/사원 탭에서 공유
+        let sharedMembers = [];      // 일정 탭에서 로드, 경비/사원 탭에서 공유
+
         // ======================================
         // 일정/휴가 탭 관련 함수
         // ======================================
@@ -2231,7 +2291,7 @@
             }
         }
 
-        // 부서 목록 로드 (일정 탭용)
+        // 부서 목록 로드 (일정 탭용) - 공유 데이터도 함께 저장
         async function loadScheduleDepartmentsForFilter() {
             try {
                 const rootResponse = await fetch('/api/intranet/departments/root');
@@ -2243,6 +2303,9 @@
                     const allDeptsResponse = await fetch('/api/intranet/departments');
                     const allDeptsData = await allDeptsResponse.json();
                     scheduleDepartments = allDeptsData.departments || allDeptsData || [];
+
+                    // 공유 변수에도 저장 (경비보고서, 사원관리 탭에서 사용)
+                    sharedDepartments = scheduleDepartments;
 
                     const divisionResponse = await fetch(`/api/intranet/departments/children/${companyId}`);
                     const divisionData = await divisionResponse.json();
@@ -2256,6 +2319,13 @@
                             select.appendChild(option);
                         });
                     }
+                }
+
+                // 멤버 데이터도 함께 로드 (공유용)
+                const memberResponse = await fetch('/api/intranet/members');
+                if (memberResponse.ok) {
+                    const memberData = await memberResponse.json();
+                    sharedMembers = memberData || [];
                 }
             } catch (error) {
                 console.error('부서 목록 로드 실패:', error);
@@ -3134,14 +3204,487 @@
         // 경비보고서 탭 관련 함수
         // ======================================
         let calendar = null;
+        let yearExpenseChart = null;
+        let monthExpenseChart = null;
+        const nf = new Intl.NumberFormat("ko-KR");
+
+        // 필터 이벤트 핸들러 (공유 데이터 사용)
+        function onExpenseParentDeptChange() {
+            const parentDeptId = document.getElementById('expenseFilterParentDept').value;
+            const childDeptSelect = document.getElementById('expenseFilterChildDept');
+            const memberSelect = document.getElementById('expenseFilterMember');
+
+            // 팀 드롭다운 초기화
+            childDeptSelect.innerHTML = '<option value="">전체 팀</option>';
+            memberSelect.innerHTML = '<option value="">전체 구성원</option>';
+
+            if (parentDeptId) {
+                // 선택된 본부의 팀들 표시
+                const childDepts = sharedDepartments.filter(d => d.parentId == parentDeptId);
+                childDepts.forEach(d => {
+                    const option = document.createElement('option');
+                    option.value = d.id;
+                    option.textContent = d.name;
+                    childDeptSelect.appendChild(option);
+                });
+
+                // 선택된 본부의 모든 멤버 표시
+                const childDeptIds = childDepts.map(d => d.id);
+                const filteredMembers = sharedMembers.filter(m => childDeptIds.includes(m.departmentId));
+                filteredMembers.forEach(m => {
+                    const option = document.createElement('option');
+                    option.value = m.id;
+                    option.textContent = `${m.name} (${m.departmentName || ''})`;
+                    memberSelect.appendChild(option);
+                });
+            } else {
+                // 전체 멤버 표시
+                sharedMembers.forEach(m => {
+                    const option = document.createElement('option');
+                    option.value = m.id;
+                    option.textContent = `${m.name} (${m.departmentName || ''})`;
+                    memberSelect.appendChild(option);
+                });
+            }
+
+            loadExpenseStats();
+        }
+
+        function onExpenseChildDeptChange() {
+            const childDeptId = document.getElementById('expenseFilterChildDept').value;
+            const memberSelect = document.getElementById('expenseFilterMember');
+
+            memberSelect.innerHTML = '<option value="">전체 구성원</option>';
+
+            if (childDeptId) {
+                // 선택된 팀의 멤버들만 표시
+                const filteredMembers = sharedMembers.filter(m => m.departmentId == childDeptId);
+                filteredMembers.forEach(m => {
+                    const option = document.createElement('option');
+                    option.value = m.id;
+                    option.textContent = `${m.name} (${m.departmentName || ''})`;
+                    memberSelect.appendChild(option);
+                });
+            } else {
+                // 본부가 선택되어 있으면 본부의 멤버들, 아니면 전체 멤버
+                const parentDeptId = document.getElementById('expenseFilterParentDept').value;
+                if (parentDeptId) {
+                    const childDepts = sharedDepartments.filter(d => d.parentId == parentDeptId);
+                    const childDeptIds = childDepts.map(d => d.id);
+                    const filteredMembers = sharedMembers.filter(m => childDeptIds.includes(m.departmentId));
+                    filteredMembers.forEach(m => {
+                        const option = document.createElement('option');
+                        option.value = m.id;
+                        option.textContent = `${m.name} (${m.departmentName || ''})`;
+                        memberSelect.appendChild(option);
+                    });
+                } else {
+                    sharedMembers.forEach(m => {
+                        const option = document.createElement('option');
+                        option.value = m.id;
+                        option.textContent = `${m.name} (${m.departmentName || ''})`;
+                        memberSelect.appendChild(option);
+                    });
+                }
+            }
+
+            loadExpenseStats();
+        }
 
         // 경비 통계 로드
         async function loadExpenseStats() {
             try {
-                console.log('경비보고서 통계 로드');
-                // 경비보고서 통계 API 호출 (필요시 추가)
+                const parentDeptId = document.getElementById('expenseFilterParentDept')?.value || '';
+                const deptId = document.getElementById('expenseFilterChildDept')?.value || '';
+                const memberId = document.getElementById('expenseFilterMember')?.value || '';
+
+                console.log('[경비통계] 필터:', { parentDeptId, deptId, memberId });
+
+                // 올해 총 경비
+                const yearParams = new URLSearchParams({ period: 'year' });
+                if (parentDeptId) yearParams.append('parentDeptId', parentDeptId);
+                if (deptId) yearParams.append('deptId', deptId);
+                if (memberId) yearParams.append('memberId', memberId);
+
+                console.log('[경비통계] 올해 API 호출:', `/api/intranet/expense-reports/items/stats?${yearParams}`);
+                const yearRes = await fetch(`/api/intranet/expense-reports/items/stats?${yearParams}`, {
+                    credentials: 'include'
+                });
+
+                if (yearRes.ok) {
+                    const yearData = await yearRes.json();
+                    console.log('[경비통계] 올해 데이터:', yearData);
+                    renderYearExpenseChart(yearData);
+                } else {
+                    console.error('[경비통계] 올해 API 오류:', yearRes.status);
+                }
+
+                // 이번 달 총 경비
+                const monthParams = new URLSearchParams({ period: 'month' });
+                if (parentDeptId) monthParams.append('parentDeptId', parentDeptId);
+                if (deptId) monthParams.append('deptId', deptId);
+                if (memberId) monthParams.append('memberId', memberId);
+
+                console.log('[경비통계] 이번달 API 호출:', `/api/intranet/expense-reports/items/stats?${monthParams}`);
+                const monthRes = await fetch(`/api/intranet/expense-reports/items/stats?${monthParams}`, {
+                    credentials: 'include'
+                });
+
+                if (monthRes.ok) {
+                    const monthData = await monthRes.json();
+                    console.log('[경비통계] 이번달 데이터:', monthData);
+                    renderMonthExpenseChart(monthData);
+                } else {
+                    console.error('[경비통계] 이번달 API 오류:', monthRes.status);
+                }
+
+                // 미확인 경비 조회 및 배지 업데이트
+                await loadUnreadExpenses();
+
+                // 배지 업데이트 (미확인 경비 개수)
+                const unreadCountRes = await fetch('/api/intranet/expense-reports/items/unread-count', {
+                    credentials: 'include'
+                });
+                if (unreadCountRes.ok) {
+                    const unreadData = await unreadCountRes.json();
+                    updateNotificationBadge('expenseNotification', unreadData.count || 0);
+                }
+
             } catch (error) {
                 console.error('경비 통계 로드 실패:', error);
+            }
+        }
+
+        // 올해 총 경비 차트
+        function renderYearExpenseChart(data) {
+            const ctx = document.getElementById('yearExpenseChart').getContext('2d');
+            document.getElementById('yearExpenseCount').textContent = data.totalCount || 0;
+
+            if (yearExpenseChart) {
+                yearExpenseChart.destroy();
+            }
+
+            // 데이터가 없으면 빈 차트 표시
+            const categoryStats = data.categoryStats || [];
+            if (categoryStats.length === 0) {
+                yearExpenseChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: { labels: ['데이터 없음'], datasets: [{ data: [1], backgroundColor: ['#e2e8f0'] }] },
+                    options: { responsive: true, plugins: { legend: { display: false } } }
+                });
+                return;
+            }
+
+            const labels = categoryStats.map(s => {
+                const welfareLabel = s.welfareFlag === 'Y' ? ' (복지비)' : '';
+                return s.category + welfareLabel;
+            });
+            const amounts = categoryStats.map(s => s.amount);
+            const colors = generateColors(categoryStats.length);
+
+            yearExpenseChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: amounts,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 10,
+                                font: { size: 11 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const percentage = categoryStats[context.dataIndex]?.percentage?.toFixed(1) || '0.0';
+                                    return `${label}: ${nf.format(value)}원 (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 이번 달 총 경비 차트
+        function renderMonthExpenseChart(data) {
+            const ctx = document.getElementById('monthExpenseChart').getContext('2d');
+            document.getElementById('monthExpenseCount').textContent = data.totalCount || 0;
+
+            if (monthExpenseChart) {
+                monthExpenseChart.destroy();
+            }
+
+            // 데이터가 없으면 빈 차트 표시
+            const categoryStats = data.categoryStats || [];
+            if (categoryStats.length === 0) {
+                monthExpenseChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: { labels: ['데이터 없음'], datasets: [{ data: [1], backgroundColor: ['#e2e8f0'] }] },
+                    options: { responsive: true, plugins: { legend: { display: false } } }
+                });
+                return;
+            }
+
+            const labels = categoryStats.map(s => {
+                const welfareLabel = s.welfareFlag === 'Y' ? ' (복지비)' : '';
+                return s.category + welfareLabel;
+            });
+            const amounts = categoryStats.map(s => s.amount);
+            const colors = generateColors(categoryStats.length);
+
+            monthExpenseChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: amounts,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 10,
+                                font: { size: 11 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const percentage = categoryStats[context.dataIndex]?.percentage?.toFixed(1) || '0.0';
+                                    return `${label}: ${nf.format(value)}원 (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 색상 생성
+        function generateColors(count) {
+            const colors = [
+                'rgba(102, 126, 234, 0.8)',
+                'rgba(118, 75, 162, 0.8)',
+                'rgba(16, 185, 129, 0.8)',
+                'rgba(245, 101, 101, 0.8)',
+                'rgba(251, 146, 60, 0.8)',
+                'rgba(59, 130, 246, 0.8)',
+                'rgba(139, 92, 246, 0.8)',
+                'rgba(236, 72, 153, 0.8)',
+                'rgba(20, 184, 166, 0.8)',
+                'rgba(245, 158, 11, 0.8)'
+            ];
+            return colors.slice(0, count);
+        }
+
+        // 미확인 경비 조회
+        async function loadUnreadExpenses() {
+            try {
+                console.log('[미확인경비] API 호출');
+                const res = await fetch('/api/intranet/expense-reports/items/unread', {
+                    credentials: 'include'
+                });
+
+                if (res.ok) {
+                    const unreadExpenses = await res.json();
+                    console.log('[미확인경비] 데이터:', unreadExpenses);
+                    renderUnreadExpenses(unreadExpenses);
+                } else {
+                    console.error('[미확인경비] API 오류:', res.status);
+                    renderUnreadExpenses([]);
+                }
+            } catch (error) {
+                console.error('미확인 경비 조회 실패:', error);
+                renderUnreadExpenses([]);
+            }
+        }
+
+        // 미확인 경비 렌더링
+        function renderUnreadExpenses(expenses) {
+            const container = document.getElementById('unreadExpenseList');
+
+            if (!expenses || expenses.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="padding: 32px;">
+                        <div class="empty-state-icon">📋</div>
+                        <h3>미확인 경비가 없습니다</h3>
+                        <p>모든 경비를 확인하셨습니다.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = expenses.map(exp => `
+                <div style="background: #f7fafc; border-radius: 8px; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 15px; font-weight: 600; color: #2d3748; margin-bottom: 4px;">
+                            지출보고서 (${exp.submitterName} - ${exp.submitterDepartment})
+                        </div>
+                        <div style="font-size: 13px; color: #718096;">
+                            등록일: ${new Date(exp.submittedAt).toLocaleDateString('ko-KR')} | 항목 ${exp.itemCount}건
+                        </div>
+                    </div>
+                    <button class="btn-primary" onclick="viewExpenseDetail(${exp.expenseItemId})" style="padding: 8px 16px; font-size: 14px;">
+                        상세보기
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // 경비 상세보기 (readStatusId로 조회)
+        async function viewExpenseDetail(readStatusId) {
+            try {
+                // EXPENSE_READ_ID로 경비 항목 조회
+                const res = await fetch(`/api/intranet/expense-reports/items/by-read-id/${readStatusId}`, {
+                    credentials: 'include'
+                });
+
+                if (res.ok) {
+                    const expenseItems = await res.json();
+                    showExpenseDetailModal(expenseItems);
+
+                    // 읽음 처리
+                    await fetch(`/api/intranet/expense-reports/items/${readStatusId}/mark-read`, {
+                        method: 'POST',
+                        credentials: 'include'
+                    });
+
+                    // 미확인 경비 목록 갱신
+                    await loadUnreadExpenses();
+
+                    // 배지 숫자 즉시 갱신
+                    await loadExpenseBadge();
+                } else {
+                    alert('경비 상세 정보를 찾을 수 없습니다.');
+                }
+            } catch (error) {
+                console.error('경비 상세 조회 실패:', error);
+                alert('경비 상세 정보를 불러오는데 실패했습니다.');
+            }
+        }
+
+        // 경비 상세 모달 표시 (여러 항목 지원)
+        function showExpenseDetailModal(expenseItems) {
+            const modal = document.getElementById('expenseDetailModal');
+            const content = document.getElementById('expenseDetailContent');
+
+            // 배열이 아닌 경우 배열로 변환
+            const items = Array.isArray(expenseItems) ? expenseItems : [expenseItems];
+
+            // 총계 계산
+            const totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0);
+
+            // 테이블 행 생성
+            const rows = items.map(item => {
+                const welfareText = item.welfareFlag === 'Y' ? '예' : '아니오';
+                return `
+                    <tr style="border-bottom: 1px solid #edf2f7;">
+                        <td style="padding: 12px; font-size: 13px;">${item.usageDate}</td>
+                        <td style="padding: 12px; font-size: 13px;">${item.description || '-'}</td>
+                        <td style="padding: 12px; font-size: 13px;">${item.account || '-'}</td>
+                        <td style="padding: 12px; font-size: 14px; font-weight: 700; text-align: right;">${nf.format(item.amount || 0)}</td>
+                        <td style="padding: 12px; font-size: 13px;">${item.vendor || '-'}</td>
+                        <td style="padding: 12px; font-size: 13px;">${item.costCode || '-'}</td>
+                        <td style="padding: 12px; font-size: 13px;">${item.projectCode || '-'}</td>
+                        <td style="padding: 12px; font-size: 12px; color: #718096;">${item.note || '-'}</td>
+                        <td style="padding: 12px; font-size: 13px; text-align: center;">${welfareText}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            content.innerHTML = `
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f7fafc; border-bottom: 2px solid #e2e8f0;">
+                                <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 700;">사용일시</th>
+                                <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 700;">사용내용</th>
+                                <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 700;">계정</th>
+                                <th style="padding: 12px; text-align: right; font-size: 13px; font-weight: 700;">사용금액</th>
+                                <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 700;">업소명</th>
+                                <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 700;">경비코드</th>
+                                <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 700;">프로젝트코드</th>
+                                <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 700;">메모</th>
+                                <th style="padding: 12px; text-align: center; font-size: 13px; font-weight: 700;">복지비</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 24px; padding-top: 16px; border-top: 2px solid #e2e8f0;">
+                    <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 600;">
+                        <span>총계 (${items.length}건)</span>
+                        <span>${nf.format(totalAmount)}원</span>
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'block';
+        }
+
+        // 경비 상세 모달 닫기
+        function closeExpenseDetailModal() {
+            document.getElementById('expenseDetailModal').style.display = 'none';
+        }
+
+        // 초기화 (공유 데이터 사용 - API 호출 없음)
+        async function initExpenseTab() {
+            try {
+                // 일정/휴가 탭에서 로드한 공유 데이터 사용 (API 호출 없음)
+                console.log('[경비탭] 공유 데이터 사용 - 부서:', sharedDepartments.length, '멤버:', sharedMembers.length);
+
+                // 본부 드롭다운 채우기
+                const parentDeptSelect = document.getElementById('expenseFilterParentDept');
+                parentDeptSelect.innerHTML = '<option value="">전체 본부</option>';
+                const company = sharedDepartments.find(d => d.parentId === null || d.parentId === 0);
+                const parentDepts = sharedDepartments.filter(d => d.parentId === company?.id);
+
+                parentDepts.forEach(d => {
+                    const option = document.createElement('option');
+                    option.value = d.id;
+                    option.textContent = d.name;
+                    parentDeptSelect.appendChild(option);
+                });
+
+                // 멤버 드롭다운 채우기
+                const memberSelect = document.getElementById('expenseFilterMember');
+                memberSelect.innerHTML = '<option value="">전체 구성원</option>';
+                sharedMembers.forEach(m => {
+                    const option = document.createElement('option');
+                    option.value = m.id;
+                    option.textContent = `${m.name} (${m.departmentName || ''})`;
+                    memberSelect.appendChild(option);
+                });
+
+                // 통계 로드
+                await loadExpenseStats();
+            } catch (error) {
+                console.error('경비 탭 초기화 실패:', error);
             }
         }
 

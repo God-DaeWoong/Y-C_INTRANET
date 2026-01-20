@@ -3,6 +3,8 @@ package com.ync.intranet.controller;
 import com.ync.intranet.domain.ExpenseItemIntranet;
 import com.ync.intranet.domain.ExpenseReportIntranet;
 import com.ync.intranet.dto.ExcelDownloadRequest;
+import com.ync.intranet.dto.ExpenseStatsDto;
+import com.ync.intranet.dto.UnreadExpenseDto;
 import com.ync.intranet.dto.WelfareSummaryDto;
 import com.ync.intranet.service.ExpenseExcelService;
 import com.ync.intranet.service.ExpenseItemIntranetService;
@@ -297,6 +299,29 @@ public class ExpenseReportIntranetController {
     }
 
     /**
+     * EXPENSE_READ_ID로 경비 항목 조회 (미확인 보고서 상세보기용)
+     * 조인조건: EXPENSE_ITEM_READ_STATUS.ID = EXPENSE_ITEMS_INTRANET.EXPENSE_READ_ID
+     */
+    @GetMapping("/items/by-read-id/{readStatusId}")
+    public ResponseEntity<List<ExpenseItemIntranet>> getExpenseItemsByReadId(@PathVariable Long readStatusId, HttpSession session) {
+        try {
+            Long userId = (Long) session.getAttribute("userId");
+            if (userId == null) {
+                return ResponseEntity.status(401).build();
+            }
+
+            List<ExpenseItemIntranet> items = expenseItemService.getExpenseItemsByReadId(readStatusId);
+            if (items == null || items.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(items);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    /**
      * 경비 항목 수정
      */
     @PutMapping("/items/{itemId}")
@@ -371,6 +396,126 @@ public class ExpenseReportIntranetController {
             e.printStackTrace();
             System.err.println("Excel download error: " + e.getMessage());
             return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 경비 신청 (알림 생성)
+     * @param requestData expenseItemIds: 경비 항목 ID 목록, yyyy: 신청 년도, mm: 신청 월
+     */
+    @PostMapping("/items/submit")
+    public ResponseEntity<Map<String, Object>> submitExpenseItems(@RequestBody Map<String, Object> requestData,
+                                                                    HttpSession session) {
+        try {
+            Long userId = (Long) session.getAttribute("userId");
+            if (userId == null) {
+                return ResponseEntity.status(401)
+                        .body(Map.of("success", false, "message", "로그인이 필요합니다."));
+            }
+
+            @SuppressWarnings("unchecked")
+            List<Integer> itemIdInts = (List<Integer>) requestData.get("expenseItemIds");
+            List<Long> expenseItemIds = itemIdInts.stream()
+                    .map(Integer::longValue)
+                    .toList();
+
+            // 화면에서 선택한 년/월 값 (예: "2026", "02")
+            String yyyy = (String) requestData.get("yyyy");
+            String mm = (String) requestData.get("mm");
+
+            expenseItemService.submitExpenseItems(expenseItemIds, userId, yyyy, mm);
+
+            return ResponseEntity.ok(Map.of("success", true, "message", "경비가 신청되었습니다."));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(Map.of("success", false, "message", "경비 신청에 실패했습니다: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 미확인 경비 조회
+     */
+    @GetMapping("/items/unread")
+    public ResponseEntity<List<UnreadExpenseDto>> getUnreadExpenses(HttpSession session) {
+        try {
+            Long userId = (Long) session.getAttribute("userId");
+            if (userId == null) {
+                return ResponseEntity.status(401).build();
+            }
+
+            List<UnreadExpenseDto> unreadExpenses = expenseItemService.getUnreadExpenses(userId);
+            return ResponseEntity.ok(unreadExpenses);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    /**
+     * 경비 상세 읽음 처리
+     */
+    @PostMapping("/items/{itemId}/mark-read")
+    public ResponseEntity<Map<String, Object>> markExpenseAsRead(@PathVariable Long itemId,
+                                                                   HttpSession session) {
+        try {
+            Long userId = (Long) session.getAttribute("userId");
+            if (userId == null) {
+                return ResponseEntity.status(401)
+                        .body(Map.of("success", false, "message", "로그인이 필요합니다."));
+            }
+
+            expenseItemService.markExpenseAsRead(itemId, userId);
+            return ResponseEntity.ok(Map.of("success", true, "message", "읽음 처리되었습니다."));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(Map.of("success", false, "message", "읽음 처리에 실패했습니다: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 미확인 경비 개수 조회
+     */
+    @GetMapping("/items/unread-count")
+    public ResponseEntity<Map<String, Object>> getUnreadCount(HttpSession session) {
+        try {
+            Long userId = (Long) session.getAttribute("userId");
+            if (userId == null) {
+                return ResponseEntity.status(401)
+                        .body(Map.of("success", false, "message", "로그인이 필요합니다."));
+            }
+
+            int count = expenseItemService.getUnreadCount(userId);
+            return ResponseEntity.ok(Map.of("success", true, "count", count));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(Map.of("success", false, "message", "조회에 실패했습니다: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 올해/이번달 총 경비 통계 조회
+     */
+    @GetMapping("/items/stats")
+    public ResponseEntity<ExpenseStatsDto> getExpenseStats(
+            @RequestParam String period,
+            @RequestParam(required = false) Long parentDeptId,
+            @RequestParam(required = false) Long deptId,
+            @RequestParam(required = false) Long memberId,
+            HttpSession session) {
+        try {
+            Long userId = (Long) session.getAttribute("userId");
+            if (userId == null) {
+                return ResponseEntity.status(401).build();
+            }
+
+            ExpenseStatsDto stats = expenseItemService.getExpenseStats(period, parentDeptId, deptId, memberId);
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().build();
         }
     }
 }

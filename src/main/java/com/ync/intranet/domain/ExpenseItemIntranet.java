@@ -21,6 +21,7 @@ public class ExpenseItemIntranet {
     private String projectCode;
     private String note;
     private String welfareFlag;
+    private Long expenseReadId;  // EXPENSE_ITEM_READ_STATUS와 연동되는 ID
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -149,6 +150,14 @@ public class ExpenseItemIntranet {
 
     public void setWelfareFlag(String welfareFlag) {
         this.welfareFlag = welfareFlag;
+    }
+
+    public Long getExpenseReadId() {
+        return expenseReadId;
+    }
+
+    public void setExpenseReadId(Long expenseReadId) {
+        this.expenseReadId = expenseReadId;
     }
 
     public LocalDateTime getCreatedAt() {

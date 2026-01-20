@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ync.intranet.mapper.ExpenseItemReadStatusMapper">
+
+    <resultMap id="ExpenseItemReadStatusResultMap" type="com.ync.intranet.domain.ExpenseItemReadStatus">
+        <id property="id" column="id"/>
+        <result property="expenseItemId" column="expense_item_id"/>
+        <result property="readerMemberId" column="reader_member_id"/>
+        <result property="readYn" column="read_yn"/>
+        <result property="readAt" column="read_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="readerMemberName" column="reader_member_name"/>
+        <result property="readerDepartmentName" column="reader_department_name"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.ync.intranet.domain.ExpenseItemReadStatus">
+        INSERT INTO EXPENSE_ITEM_READ_STATUS (
+            id,
+            expense_item_id,
+            reader_member_id,
+            read_yn,
+            read_at,
+            created_at,
+            updated_at
+        ) VALUES (
+            SEQ_EXPENSE_READ_STATUS.NEXTVAL,
+            #{expenseItemId},
+            #{readerMemberId},
+            #{readYn},
+            null,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO EXPENSE_ITEM_READ_STATUS (
+            id,
+            expense_item_id,
+            reader_member_id,
+            read_yn,
+            read_at,
+            created_at,
+            updated_at
+        )
+        <foreach collection="list" item="item" separator=" UNION ALL ">
+            SELECT
+                SEQ_EXPENSE_READ_STATUS.NEXTVAL,
+                #{item.expenseItemId},
+                #{item.readerMemberId},
+                #{item.readYn},
+                #{item.readAt},
+                CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP
+            FROM DUAL
+        </foreach>
+    </insert>
+
+    <select id="findByReaderMemberId" resultMap="ExpenseItemReadStatusResultMap">
+        SELECT
+            ers.id,
+            ers.expense_item_id,
+            ers.reader_member_id,
+            ers.read_yn,
+            ers.read_at,
+            ers.created_at,
+            ers.updated_at,
+            m.name AS reader_member_name,
+            d.name AS reader_department_name
+        FROM EXPENSE_ITEM_READ_STATUS ers
+        LEFT JOIN MEMBERS_INTRANET m ON ers.reader_member_id = m.id
+        LEFT JOIN DEPARTMENTS_INTRANET d ON m.department_id = d.id
+        WHERE ers.reader_member_id = #{readerMemberId}
+        ORDER BY ers.created_at DESC
+    </select>
+
+    <select id="findUnreadByReaderMemberId" resultMap="ExpenseItemReadStatusResultMap">
+        SELECT
+            ers.id,
+            ers.expense_item_id,
+            ers.reader_member_id,
+            ers.read_yn,
+            ers.read_at,
+            ers.created_at,
+            ers.updated_at,
+            m.name AS reader_member_name,
+            d.name AS reader_department_name
+        FROM EXPENSE_ITEM_READ_STATUS ers
+        LEFT JOIN MEMBERS_INTRANET m ON ers.reader_member_id = m.id
+        LEFT JOIN DEPARTMENTS_INTRANET d ON m.department_id = d.id
+        WHERE ers.reader_member_id = #{readerMemberId}
+          AND ers.read_yn = 'N'
+        ORDER BY ers.created_at DESC
+    </select>
+
+    <select id="findByExpenseItemIdAndReaderId" resultMap="ExpenseItemReadStatusResultMap">
+        SELECT
+            ers.id,
+            ers.expense_item_id,
+            ers.reader_member_id,
+            ers.read_yn,
+            ers.read_at,
+            ers.created_at,
+            ers.updated_at,
+            m.name AS reader_member_name,
+            d.name AS reader_department_name
+        FROM EXPENSE_ITEM_READ_STATUS ers
+        LEFT JOIN MEMBERS_INTRANET m ON ers.reader_member_id = m.id
+        LEFT JOIN DEPARTMENTS_INTRANET d ON m.department_id = d.id
+        WHERE ers.expense_item_id = #{expenseItemId}
+          AND ers.reader_member_id = #{readerMemberId}
+    </select>
+
+    <update id="markAsRead">
+        UPDATE EXPENSE_ITEM_READ_STATUS
+        SET read_yn = 'Y',
+            read_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE expense_item_id = #{expenseItemId}
+          AND reader_member_id = #{readerMemberId}
+    </update>
+
+    <!-- READ_STATUS.ID와 readerMemberId로 읽음 처리 -->
+    <update id="markAsReadById">
+        UPDATE EXPENSE_ITEM_READ_STATUS
+        SET read_yn = 'Y',
+            read_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND reader_member_id = #{readerMemberId}
+    </update>
+
+    <delete id="deleteByExpenseItemId">
+        DELETE FROM EXPENSE_ITEM_READ_STATUS
+        WHERE expense_item_id = #{expenseItemId}
+    </delete>
+
+    <select id="countUnreadByReaderMemberId" resultType="int">
+        SELECT COUNT(*)
+        FROM EXPENSE_ITEM_READ_STATUS
+        WHERE reader_member_id = #{readerMemberId}
+          AND read_yn = 'N'
+    </select>
+
+    <!-- MAX(ID) + 1 조회 (ID가 없으면 1 반환) -->
+    <select id="getNextId" resultType="java.lang.Long">
+        SELECT NVL(MAX(id), 0) + 1 FROM EXPENSE_ITEM_READ_STATUS
+    </select>
+
+    <!-- ID를 직접 지정하여 INSERT -->
+    <insert id="insertWithId" parameterType="com.ync.intranet.domain.ExpenseItemReadStatus">
+        INSERT INTO EXPENSE_ITEM_READ_STATUS (
+            id,
+            expense_item_id,
+            reader_member_id,
+            read_yn,
+            read_at,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{id},
+            #{expenseItemId},
+            #{readerMemberId},
+            #{readYn},
+            null,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+</mapper>

@@ -117,29 +117,47 @@
             id,
             member_id,
             usage_date,
-            description,
             account,
             amount,
-            <if test="vendor != null">vendor,</if>
-            <if test="costCode != null">cost_code,</if>
-            <if test="projectCode != null">project_code,</if>
-            <if test="note != null">note,</if>
-            <if test="welfareFlag != null">welfare_flag,</if>
+            welfare_flag,
             created_at,
             updated_at
         )
         VALUES (
             #{id},
             #{memberId},
-            #{usageDate, jdbcType=DATE},
-            #{description, jdbcType=VARCHAR},
+            #{usageDateStr, jdbcType=VARCHAR},
             #{account, jdbcType=VARCHAR},
             #{amount, jdbcType=DECIMAL},
-            <if test="vendor != null">#{vendor, jdbcType=VARCHAR},</if>
-            <if test="costCode != null">#{costCode, jdbcType=VARCHAR},</if>
-            <if test="projectCode != null">#{projectCode, jdbcType=VARCHAR},</if>
-            <if test="note != null">#{note, jdbcType=VARCHAR},</if>
-            <if test="welfareFlag != null">#{welfareFlag, jdbcType=CHAR},</if>
+            #{welfareFlag, jdbcType=CHAR},
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <!-- ID를 직접 지정하여 INSERT (EXPENSE_ITEMS_INTRANET.ID를 그대로 사용) -->
+    <insert id="insertWithId" parameterType="com.ync.schedule.domain.ExpenseItem">
+        INSERT INTO expense_items (
+            id,
+            member_id,
+            usage_date,
+            account,
+            amount,
+            welfare_flag,
+            yyyy,
+            mm,
+            created_at,
+            updated_at
+        )
+        VALUES (
+            #{id},
+            #{memberId},
+            #{usageDateStr, jdbcType=VARCHAR},
+            #{account, jdbcType=VARCHAR},
+            #{amount, jdbcType=DECIMAL},
+            #{welfareFlag, jdbcType=CHAR},
+            #{yyyy, jdbcType=VARCHAR},
+            #{mm, jdbcType=VARCHAR},
             CURRENT_TIMESTAMP,
             CURRENT_TIMESTAMP
         )

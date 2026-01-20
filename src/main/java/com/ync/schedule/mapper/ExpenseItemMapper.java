@@ -32,6 +32,11 @@ public interface ExpenseItemMapper {
 
     int insert(ExpenseItem expenseItem);
 
+    /**
+     * ID를 직접 지정하여 INSERT (EXPENSE_ITEMS_INTRANET.ID를 그대로 사용)
+     */
+    int insertWithId(ExpenseItem expenseItem);
+
     int update(ExpenseItem expenseItem);
 
     int deleteById(@Param("id") Long id);

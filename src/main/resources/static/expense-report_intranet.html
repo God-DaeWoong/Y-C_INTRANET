@@ -266,19 +266,19 @@
     <div class="body">
       <div style="margin-bottom:12px;">
         <label>본부</label>
-        <select id="filterParentDept">
+        <select id="filterParentDept" disabled style="background:#f7fafc;cursor:not-allowed;">
           <option value="">전체 본부</option>
         </select>
       </div>
       <div style="margin-bottom:12px;">
         <label>팀</label>
-        <select id="filterChildDept">
+        <select id="filterChildDept" disabled style="background:#f7fafc;cursor:not-allowed;">
           <option value="">전체 팀</option>
         </select>
       </div>
       <div style="margin-bottom:12px;">
         <label>멤버</label>
-        <select id="filterMember">
+        <select id="filterMember" disabled style="background:#f7fafc;cursor:not-allowed;">
           <option value="">전체 멤버</option>
         </select>
       </div>
@@ -332,7 +332,7 @@
       <div style="display:flex;flex-direction:column;gap:8px;">
         <button class="btn btn-primary" id="btnNew">+ 지출 추가</button>
         <button class="btn btn-success" id="btnExportExcel">📥 엑셀 다운로드</button>
-        <button class="btn btn-ghost" id="btnResetFilter">필터 초기화</button>
+        <button class="btn btn-ghost" id="btnResetFilter" style="display:none;">필터 초기화</button>
       </div>
 
       <div class="tiny" style="margin-top:12px;">
@@ -349,6 +349,7 @@
         <span class="chip">표시 합계: <b id="shownSum">0</b>원</span>
         <button class="btn btn-primary" id="btnAddRow" style="display:none;padding:6px 12px;font-size:12px;margin-left:8px;">+ 행 추가</button>
         <button class="btn btn-success" id="btnSaveBulk" style="display:none;padding:6px 12px;font-size:12px;margin-left:8px;">💾 일괄 저장</button>
+        <button class="btn btn-primary" id="btnSubmitExpense" style="display:none;padding:6px 12px;font-size:12px;margin-left:8px;background:linear-gradient(135deg,#10b981,#059669);">📤 경비 신청</button>
       </div>
       <input class="search" id="q" placeholder="검색: 사용내용/업소/메모 ..." />
     </div>
@@ -525,6 +526,7 @@
     btnNew: $("#btnNew"),
     btnAddRow: $("#btnAddRow"),
     btnSaveBulk: $("#btnSaveBulk"),
+    btnSubmitExpense: $("#btnSubmitExpense"),
     btnClose: $("#btnClose"),
     btnCancel: $("#btnCancel"),
     btnSave: $("#btnSave"),
@@ -694,13 +696,23 @@
     dom.shownCount.textContent = nf.format(filtered.length);
     dom.shownSum.textContent = nf.format(s);
 
+    // 선택한 년월의 min/max 날짜 계산
+    const filterMonth = dom.filterMonth.value || '';
+    let minDate = '', maxDate = '';
+    if(filterMonth){
+      const [year, month] = filterMonth.split('-');
+      minDate = `${year}-${month}-01`;
+      const lastDay = new Date(year, parseInt(month), 0).getDate();
+      maxDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+    }
+
     // 일괄 편집 행 렌더링
     const bulkRowsHTML = bulkEditRows.map((row, idx) => {
       const showWelfareCheckbox = row.account === '복리후생비';
       return `
       <tr class="bulk-edit-row" data-bulk-idx="${idx}" style="background:#fffbeb;">
         <td style="font-size:13px;font-weight:700;">${esc(row.memberName||"-")}</td>
-        <td><input type="date" class="bulk-input" data-field="usageDate" data-idx="${idx}" value="${row.usageDate||''}" style="width:100%;padding:4px;font-size:12px;border:1px solid #ddd;border-radius:4px;" /></td>
+        <td><input type="date" class="bulk-input" data-field="usageDate" data-idx="${idx}" value="${row.usageDate||''}" min="${minDate}" max="${maxDate}" style="width:100%;padding:4px;font-size:12px;border:1px solid #ddd;border-radius:4px;" /></td>
         <td><input type="text" class="bulk-input" data-field="description" data-idx="${idx}" value="${row.description||''}" placeholder="사용내용" style="width:100%;padding:4px;font-size:12px;border:1px solid #ddd;border-radius:4px;" /></td>
         <td>
           <select class="bulk-input bulk-account" data-field="account" data-idx="${idx}" style="width:100%;padding:4px;font-size:12px;border:1px solid #ddd;border-radius:4px;">
@@ -887,11 +899,13 @@
       alert('필수 항목을 입력하세요.'); return;
     }
 
-    // 복지비 체크 시 남은 예산 검증
+    // 복지비 체크 시 남은 예산 검증 (분기별 집행 원칙 적용)
     if(data.welfareFlag === 'Y'){
       console.log('[복지비 검증] 시작 - welfareFlag:', data.welfareFlag);
       const year = new Date(data.usageDate).getFullYear();
-      console.log('[복지비 검증] 연도:', year, '멤버ID:', data.memberId);
+      const currentMonth = new Date().getMonth() + 1; // 1-12
+      const currentQuarter = Math.ceil(currentMonth / 3); // 1-4
+      console.log('[복지비 검증] 연도:', year, '현재분기:', currentQuarter, '멤버ID:', data.memberId);
 
       try{
         const res = await fetch(`${API_BASE}/items/welfare-usage/${data.memberId}/${year}`);
@@ -911,16 +925,32 @@
             console.log('[복지비 검증] 기존 복지비 금액:', existingWelfareAmount);
           }
 
-          // 실제 남은 금액 = 연간 남은 금액 + 기존 복지비 금액 (수정 시)
-          const actualRemaining = welfareData.annualRemaining + existingWelfareAmount;
-          console.log('[복지비 검증] 실제 남은 금액:', actualRemaining, '입력 금액:', data.amount);
+          // 현재 분기까지의 누적 가능 예산 계산 (1분기~현재분기)
+          const quarters = welfareData.quarters || [];
+          let availableQuarters = quarters.filter(q => q.quarter <= currentQuarter);
+
+          // 각 분기의 남은 금액을 합산
+          let totalAvailableBudget = availableQuarters.reduce((sum, q) => sum + (q.remaining || 0), 0);
+
+          // 수정 시에는 기존 금액을 추가로 사용 가능
+          const actualRemaining = totalAvailableBudget + existingWelfareAmount;
+          console.log('[복지비 검증] 현재 분기까지 사용 가능:', totalAvailableBudget, '기존 금액:', existingWelfareAmount, '실제 사용 가능:', actualRemaining);
 
           if(data.amount > actualRemaining){
-            const maxAmount = actualRemaining;
-            console.log('[복지비 검증] 예산 초과! 최대 금액:', maxAmount);
-            alert(`복지비 예산을 초과했습니다!\n남은 복지비: ${nf.format(actualRemaining)}원\n입력 금액: ${nf.format(data.amount)}원\n초과 금액: ${nf.format(data.amount - actualRemaining)}원\n\n최대 사용 가능 금액으로 조정합니다.`);
-            data.amount = maxAmount;
-            dom.mAmount.value = maxAmount;
+            console.log('[복지비 검증] 예산 초과! 입력 금액:', data.amount, '최대 금액:', actualRemaining);
+
+            let message = `복지비 한도를 초과합니다 (현재 ${currentQuarter}분기).\n\n`;
+            message += `[사용 가능 예산 (1~${currentQuarter}분기)]\n`;
+            availableQuarters.forEach(q => {
+              message += `${q.quarter}분기: ${nf.format(q.remaining)}원\n`;
+            });
+            message += `- 총 사용 가능: ${nf.format(actualRemaining)}원\n\n`;
+            message += `입력 금액: ${nf.format(data.amount)}원\n`;
+            message += `초과 금액: ${nf.format(data.amount - actualRemaining)}원\n\n`;
+            message += `금액을 조정해주세요.\n`;
+            message += `(미래 분기 예산은 당겨 쓸 수 없습니다)`;
+
+            alert(message);
             return; // 사용자가 금액을 확인하고 다시 저장하도록 함
           }else{
             console.log('[복지비 검증] 예산 내 사용 - 통과');
@@ -1140,11 +1170,18 @@
       alert('멤버를 먼저 선택해주세요.');
       return;
     }
+    const filterMonth = dom.filterMonth.value;
+    if(!filterMonth){
+      alert('년월을 먼저 선택해주세요.');
+      return;
+    }
     const member = members.find(m => m.id == memberId);
+    // 선택한 년월의 1일로 기본 설정
+    const defaultDate = filterMonth + '-01';
     bulkEditRows.push({
       memberId: memberId,
       memberName: member ? member.name : '',
-      usageDate: todayISO(),
+      usageDate: defaultDate,
       description: '',
       account: '',
       amount: '',
@@ -1175,17 +1212,29 @@
     // 유효성 검사
     for(let i = 0; i < bulkEditRows.length; i++){
       const row = bulkEditRows[i];
-      if(!row.usageDate || !row.description || !row.amount){
-        alert(`${i+1}번째 행: 사용일시, 사용내용, 금액은 필수입니다.`);
+      if(!row.usageDate || !row.description || !row.amount || !row.account){
+        alert(`${i+1}번째 행: 사용일시, 사용내용, 계정, 금액은 필수입니다.`);
         return;
       }
     }
 
-    // 복지비 체크: 현재 분기까지의 누적 남은 금액 체크 (미래 분기 예산은 사용 불가)
+    // 복리후생비 한도 체크 (복지비 미체크 항목)
+    const nonWelfareRows = bulkEditRows.filter(row => row.account === '복리후생비' && row.welfareFlag === 'N');
+    const nonWelfareSum = nonWelfareRows.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
+    if (nonWelfareSum > 150000) {
+      alert(`복리후생비가 초과되었습니다.\n합계: ${nf.format(nonWelfareSum)}원\n한도: 150,000원`);
+      return;
+    }
+
+    // 복지비 체크: 선택한 년월 속한 분기만 체크 (이전/미래 분기 예산은 영향 없음)
     const memberId = bulkEditRows[0].memberId;
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1; // 1-12
-    const currentQuarter = Math.ceil(currentMonth / 3); // 1-4
+    const filterMonth = dom.filterMonth.value;
+    if(!filterMonth){
+      alert('년월을 선택해주세요.');
+      return;
+    }
+    const [selectedYear, selectedMonth] = filterMonth.split('-').map(Number);
+    const selectedQuarter = Math.ceil(selectedMonth / 3); // 선택한 년월의 분기
 
     // 저장하려는 복지비 항목들
     const welfareRows = bulkEditRows.filter(row => row.welfareFlag === 'Y');
@@ -1194,57 +1243,41 @@
     if(newWelfareAmount > 0){
       try{
         // 현재 복지비 사용 현황 조회
-        const welfareRes = await fetch(`${API_BASE}/items/welfare-usage/${memberId}/${currentYear}`);
+        const welfareRes = await fetch(`${API_BASE}/items/welfare-usage/${memberId}/${selectedYear}`);
         if(welfareRes.ok){
           const welfareSummary = await welfareRes.json();
           const quarters = welfareSummary.quarters || [];
 
-          // 현재 분기까지의 누적 가능 예산 계산 (1분기~현재분기)
-          let availableQuarters = quarters.filter(q => q.quarter <= currentQuarter);
-          let totalAvailableBudget = availableQuarters.reduce((sum, q) => sum + (q.remaining || 0), 0);
-
-          // 분기별 배분 시뮬레이션
-          let totalNewAmount = newWelfareAmount;
-          let allocated = [];
-
-          for(let q of availableQuarters){
-            if(totalNewAmount <= 0) break;
-
-            let allocatedToQuarter = Math.min(totalNewAmount, q.remaining);
-            allocated.push({
-              quarter: q.quarter,
-              amount: allocatedToQuarter,
-              remainingBefore: q.remaining,
-              remainingAfter: q.remaining - allocatedToQuarter
-            });
-            totalNewAmount -= allocatedToQuarter;
+          // 선택한 분기만 확인 (이전/미래 분기는 무관)
+          const targetQuarter = quarters.find(q => q.quarter === selectedQuarter);
+          if(!targetQuarter){
+            alert('분기 정보를 찾을 수 없습니다.');
+            return;
           }
 
+          const quarterRemaining = targetQuarter.remaining || 0;
+          const quarterBudget = targetQuarter.budget || 0;
+
           // 한도 초과 체크
-          if(totalNewAmount > 0){
+          if(newWelfareAmount > quarterRemaining){
             // 초과
-            let message = `복지비 한도를 초과합니다 (현재 ${currentQuarter}분기).\n\n`;
-            message += `[사용 가능 예산 (1~${currentQuarter}분기)]\n`;
-            availableQuarters.forEach(q => {
-              message += `${q.quarter}분기: ${nf.format(q.remaining)}원\n`;
-            });
-            message += `- 총 사용 가능: ${nf.format(totalAvailableBudget)}원\n\n`;
+            let message = `복지비 한도를 초과합니다.\n\n`;
+            message += `[${selectedQuarter}분기 예산]\n`;
+            message += `예산: ${nf.format(quarterBudget)}원\n`;
+            message += `사용: ${nf.format(quarterBudget - quarterRemaining)}원\n`;
+            message += `잔액: ${nf.format(quarterRemaining)}원\n\n`;
             message += `추가 금액: ${nf.format(newWelfareAmount)}원\n`;
-            message += `초과 금액: ${nf.format(totalNewAmount)}원\n\n`;
-            message += `복지비 체크를 해제하거나 금액을 조정해주세요.\n`;
-            message += `(미래 분기 예산은 당겨 쓸 수 없습니다)`;
+            message += `초과 금액: ${nf.format(newWelfareAmount - quarterRemaining)}원\n\n`;
+            message += `복지비 체크를 해제하거나 금액을 조정해주세요.`;
 
             alert(message);
             return; // 저장 중단
           } else {
-            // 한도 내 - 분기별 배분 표시
-            let message = `복지비가 다음과 같이 배분됩니다.\n\n`;
-            allocated.forEach(a => {
-              if(a.amount > 0){
-                message += `${a.quarter}분기: ${nf.format(a.amount)}원 사용\n`;
-                message += `  (잔액: ${nf.format(a.remainingBefore)}원 → ${nf.format(a.remainingAfter)}원)\n`;
-              }
-            });
+            // 한도 내 - 확인 메시지
+            let message = `복지비가 ${selectedQuarter}분기에 사용됩니다.\n\n`;
+            message += `[${selectedQuarter}분기]\n`;
+            message += `사용 금액: ${nf.format(newWelfareAmount)}원\n`;
+            message += `잔액: ${nf.format(quarterRemaining)}원 → ${nf.format(quarterRemaining - newWelfareAmount)}원\n`;
             message += `\n저장하시겠습니까?`;
 
             const confirm = window.confirm(message);
@@ -1358,26 +1391,45 @@
       dom.filterParentDept.value = myHeadquarters.id;
       sessionStorage.setItem('expenseFilterParentDept', myHeadquarters.id);
 
-      // 본부 변경 이벤트 트리거하여 팀 드롭다운 채우기
-      dom.filterParentDept.dispatchEvent(new Event('change'));
+      // 본부 선택 시 팀 목록 로드
+      const childDepts = departments.filter(d => d.parentId == myHeadquarters.id);
+      dom.filterChildDept.innerHTML = '<option value="">전체 팀</option>';
+      childDepts.forEach(d => {
+        const opt = new Option(d.name, d.id);
+        dom.filterChildDept.add(opt);
+      });
 
-      // 팀 드롭다운 설정 (change 이벤트 후 실행되도록 setTimeout 사용)
-      setTimeout(() => {
-        dom.filterChildDept.value = myTeam.id;
-        sessionStorage.setItem('expenseFilterChildDept', myTeam.id);
+      // 팀 드롭다운 설정
+      dom.filterChildDept.value = myTeam.id;
+      sessionStorage.setItem('expenseFilterChildDept', myTeam.id);
 
-        // 팀 변경 이벤트 트리거하여 멤버 드롭다운 채우기
-        dom.filterChildDept.dispatchEvent(new Event('change'));
+      // 팀 선택 시 멤버 목록 로드
+      const teamMembers = members.filter(m => m.departmentId == myTeam.id);
+      dom.filterMember.innerHTML = '<option value="">전체 멤버</option>';
+      teamMembers.forEach(m => {
+        const deptName = m.departmentName || '';
+        const opt = new Option(`${m.name} (${deptName})`, m.id);
+        dom.filterMember.add(opt);
+      });
 
-        // 멤버 드롭다운 설정
-        setTimeout(() => {
-          dom.filterMember.value = currentMember.id;
-          sessionStorage.setItem('expenseFilterMember', currentMember.id);
+      // 멤버 드롭다운 설정
+      dom.filterMember.value = currentMember.id;
+      sessionStorage.setItem('expenseFilterMember', currentMember.id);
 
-          // 멤버 변경 이벤트 트리거하여 복지비 정보 로드
-          dom.filterMember.dispatchEvent(new Event('change'));
-        }, 100);
-      }, 100);
+      // 년월 필터를 현재 시스템 날짜로 설정
+      const today = new Date();
+      const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      dom.filterMonth.value = currentMonth;
+      sessionStorage.setItem('expenseFilterMonth', currentMonth);
+
+      // 복지비 정보 로드
+      loadWelfareUsage(currentMember.id);
+
+      // 테이블 렌더링
+      renderTable();
+
+      // 경비 신청 버튼 상태 업데이트
+      await updateExpenseSubmitButton();
 
     }catch(e){
       console.error('내 정보 로드 실패:', e);
@@ -1404,89 +1456,149 @@
     }
   };
 
+  // 경비 신청 버튼 표시/숨김 업데이트
+  async function updateExpenseSubmitButton(){
+    const month = dom.filterMonth.value;
+    const memberId = dom.filterMember.value;
+
+    if(!month || !memberId){
+      dom.btnSubmitExpense.style.display = 'none';
+      dom.btnAddRow.style.display = 'none';
+      return;
+    }
+
+    // 선택한 년월의 경비 항목 확인 (EXPENSE_ITEMS_INTRANET)
+    const filtered = items.filter(x => {
+      if(x.memberId != memberId) return false;
+      if(!x.usageDate) return false;
+      const itemMonth = x.usageDate.substring(0, 7);
+      return itemMonth === month;
+    });
+
+    // EXPENSE_ITEMS에서 경비 신청 여부 확인
+    const hasSubmitted = await checkExpenseSubmitted(memberId, month);
+
+    console.log('[경비신청버튼] 년월:', month, '멤버:', memberId, '데이터수:', filtered.length, '신청여부:', hasSubmitted);
+
+    // 경비 신청 여부에 따른 버튼 제어
+    if(hasSubmitted){
+      // 이미 신청됨 - 행 추가 버튼 숨김, 경비신청 버튼 숨김
+      dom.btnAddRow.style.display = 'none';
+      dom.btnSubmitExpense.style.display = 'none';
+    } else {
+      // 아직 신청 안됨 - 행 추가 버튼 표시
+      dom.btnAddRow.style.display = 'inline-flex';
+      // 데이터가 있으면 경비신청 버튼 표시
+      if(filtered.length > 0){
+        dom.btnSubmitExpense.style.display = 'inline-flex';
+      } else {
+        dom.btnSubmitExpense.style.display = 'none';
+      }
+    }
+  }
+
+  // EXPENSE_ITEMS 테이블에서 경비 신청 여부 확인
+  async function checkExpenseSubmitted(memberId, month){
+    try {
+      // EXPENSE_ITEMS에 해당 년월의 데이터가 있는지 확인
+      // 이 API는 schedule 모듈의 API를 사용해야 함
+      const [year, monthNum] = month.split('-');
+      const startDate = `${year}-${monthNum}-01`;
+      const lastDay = new Date(year, parseInt(monthNum), 0).getDate();
+      const endDate = `${year}-${monthNum}-${String(lastDay).padStart(2, '0')}`;
+
+      const res = await fetch(`/api/expense-items/member/${memberId}/date-range?startDate=${startDate}&endDate=${endDate}`, {
+        credentials: 'include'
+      });
+
+      if(res.ok){
+        const data = await res.json();
+        return data && data.length > 0;
+      }
+      return false;
+    } catch(e){
+      console.error('경비 신청 확인 실패:', e);
+      return false;
+    }
+  }
+
+  // 경비 신청 함수
+  async function submitExpense(){
+    const month = dom.filterMonth.value;
+    if(!month){
+      alert('년월을 선택해주세요.');
+      return;
+    }
+
+    const memberId = dom.filterMember.value;
+    if(!memberId){
+      alert('멤버를 선택해주세요.');
+      return;
+    }
+
+    // 선택한 년월의 경비 항목 필터링
+    const filtered = items.filter(x => {
+      if(x.memberId != memberId) return false;
+      if(!x.usageDate) return false;
+      const itemMonth = x.usageDate.substring(0, 7);
+      return itemMonth === month;
+    });
+
+    if(filtered.length === 0){
+      alert('신청할 경비 항목이 없습니다.');
+      return;
+    }
+
+    // 경비 신청 확인
+    // 참고: 복지비/복리후생비 한도 검증은 DETAIL 저장 시(saveItem, saveBulk)에서 이미 완료됨
+    // 경비 신청은 EXPENSE_ITEMS_INTRANET(DETAIL) → EXPENSE_ITEMS(MASTER)로 확정하는 단계
+    if(!confirm(`${filtered.length}건의 경비를 신청하시겠습니까?`)){
+      return;
+    }
+
+    try {
+      const expenseItemIds = filtered.map(x => x.id);
+      // 화면에서 선택한 년/월 값 파싱 (예: "2026-02" → yyyy="2026", mm="02")
+      const [yyyy, mm] = month.split('-');
+
+      const res = await fetch(`${API_BASE}/items/submit`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        credentials: 'include',
+        body: JSON.stringify({ expenseItemIds, yyyy, mm })
+      });
+
+      if(checkAuthAndRedirect(res)) return;
+
+      if(res.ok){
+        alert('경비가 신청되었습니다.');
+        await loadItems();
+        renderTable();
+        await updateExpenseSubmitButton();
+      } else {
+        throw new Error('경비 신청 실패');
+      }
+    } catch(e){
+      console.error('경비 신청 실패:', e);
+      alert('경비 신청에 실패했습니다.');
+    }
+  }
+
   function bind(){
     dom.btnNew.addEventListener("click", openNew);
     dom.btnAddRow.addEventListener("click", addBulkRow);
     dom.btnSaveBulk.addEventListener("click", saveBulk);
+    dom.btnSubmitExpense.addEventListener("click", submitExpense);
     dom.btnBackToSchedule.addEventListener("click", ()=> window.location.href='schedule-calendar.html');
     dom.btnMapPage.addEventListener("click", ()=> window.location.href='http://70.90.150.126:8080/map.html');
     dom.btnMyInfo.addEventListener("click", loadMyInfo);
 
-    dom.filterParentDept.addEventListener("change", () => {
+    dom.filterParentDept.addEventListener("change", async () => {
       const parentId = dom.filterParentDept.value;
       sessionStorage.setItem('expenseFilterParentDept', parentId);
-      dom.filterChildDept.innerHTML = '<option value="">전체 팀</option>';
-      dom.filterChildDept.value = '';
-      sessionStorage.setItem('expenseFilterChildDept', '');
-      dom.filterMember.innerHTML = '<option value="">전체 멤버</option>';
-      dom.filterMember.value = '';
-      sessionStorage.setItem('expenseFilterMember', '');
 
-      if(parentId){
-        const childDepts = departments.filter(d => d.parentId == parentId);
-        childDepts.forEach(d => {
-          const opt = new Option(d.name, d.id);
-          dom.filterChildDept.add(opt);
-        });
-
-        // 본부 선택 시 해당 본부의 모든 멤버 표시
-        const childDeptIds = childDepts.map(d => d.id);
-        const filteredMembers = members.filter(m => childDeptIds.includes(m.departmentId));
-        filteredMembers.forEach(m => {
-          const deptName = m.departmentName || '';
-          const opt = new Option(`${m.name} (${deptName})`, m.id);
-          dom.filterMember.add(opt);
-        });
-      } else {
-        // 전체 본부일 때 모든 멤버 표시
-        members.forEach(m => {
-          const deptName = m.departmentName || '';
-          const opt = new Option(`${m.name} (${deptName})`, m.id);
-          dom.filterMember.add(opt);
-        });
-      }
-      // 본부 변경 시 복지비 섹션 숨김 및 화면 갱신
-      dom.welfareSection.style.display = 'none';
-      renderTable();
-    });
-
-    dom.filterChildDept.addEventListener("change", () => {
-      const childId = dom.filterChildDept.value;
-      sessionStorage.setItem('expenseFilterChildDept', childId);
-      dom.filterMember.innerHTML = '<option value="">전체 멤버</option>';
-      dom.filterMember.value = '';
-      sessionStorage.setItem('expenseFilterMember', '');
-
-      if(childId){
-        const filteredMembers = members.filter(m => m.departmentId == childId);
-        filteredMembers.forEach(m => {
-          const opt = new Option(`${m.name} (${m.departmentName||''})`, m.id);
-          dom.filterMember.add(opt);
-        });
-      } else {
-        const parentId = dom.filterParentDept.value;
-        if(parentId){
-          // 팀이 전체일 때, 선택된 본부의 모든 멤버 표시
-          const childDepts = departments.filter(d => d.parentId == parentId);
-          const childDeptIds = childDepts.map(d => d.id);
-          const filteredMembers = members.filter(m => childDeptIds.includes(m.departmentId));
-          filteredMembers.forEach(m => {
-            const deptName = m.departmentName || '';
-            const opt = new Option(`${m.name} (${deptName})`, m.id);
-            dom.filterMember.add(opt);
-          });
-        } else {
-          // 본부도 팀도 전체일 때 모든 멤버 표시
-          members.forEach(m => {
-            const deptName = m.departmentName || '';
-            const opt = new Option(`${m.name} (${deptName})`, m.id);
-            dom.filterMember.add(opt);
-          });
-        }
-      }
-      // 팀 변경 시 복지비 섹션 숨김
-      dom.welfareSection.style.display = 'none';
-      renderTable();
+      // 로그인한 사용자 정보 다시 로드
+      await loadMyInfo();
     });
 
     dom.tbody.addEventListener("click", (e) => {
@@ -1515,26 +1627,25 @@
       }
     });
 
-    dom.filterMember.addEventListener("change", () => {
-      sessionStorage.setItem('expenseFilterMember', dom.filterMember.value);
-      const memberId = dom.filterMember.value;
+    // 년월 변경 전 값 저장용
+    let previousFilterMonth = dom.filterMonth.value;
 
-      // 멤버 선택 시 일괄 편집 버튼 표시
-      if(memberId){
-        dom.btnAddRow.style.display = 'inline-flex';
-        dom.btnSaveBulk.style.display = bulkEditRows.length > 0 ? 'inline-flex' : 'none';
-      } else {
-        dom.btnAddRow.style.display = 'none';
+    dom.filterMonth.addEventListener("change", async (e) => {
+      // 행 추가로 입력된 데이터가 있으면 confirm
+      if(bulkEditRows.length > 0){
+        if(!confirm('년월 변경 시 입력된 정보는 삭제됩니다. 변경하시겠습니까?')){
+          // 취소 시 이전 값으로 복원
+          dom.filterMonth.value = previousFilterMonth;
+          return;
+        }
+        // 확인 시 행 데이터 삭제
+        bulkEditRows = [];
         dom.btnSaveBulk.style.display = 'none';
-        bulkEditRows = []; // 멤버 선택 해제 시 일괄 편집 행 초기화
       }
-
-      loadWelfareUsage(memberId);
-      renderTable();
-    });
-    dom.filterMonth.addEventListener("change", () => {
+      previousFilterMonth = dom.filterMonth.value;
       sessionStorage.setItem('expenseFilterMonth', dom.filterMonth.value);
       renderTable();
+      await updateExpenseSubmitButton();
     });
     dom.q.addEventListener("input", renderTable);
 
@@ -1671,7 +1782,10 @@
     await loadDepartments();
     await loadMembers();
     await loadItems();
-    restoreFilters();
+
+    // 로그인한 사용자 정보로 자동 설정
+    await loadMyInfo();
+
     bind();
   }
 
