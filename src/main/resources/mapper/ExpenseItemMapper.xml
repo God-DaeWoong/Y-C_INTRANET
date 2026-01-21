@@ -39,6 +39,8 @@
         <result property="projectCode" column="project_code"/>
         <result property="note" column="note"/>
         <result property="welfareFlag" column="welfare_flag"/>
+        <result property="yyyy" column="yyyy"/>
+        <result property="mm" column="mm"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
@@ -107,6 +109,58 @@
           AND ei.welfare_flag = 'Y'
           AND EXTRACT(YEAR FROM ei.usage_date) = #{year}
         ORDER BY ei.usage_date ASC
+    </select>
+
+    <!-- YYYY 컬럼 기준으로 조회 (올해 총 경비) -->
+    <select id="findByYyyy" resultMap="ExpenseItemDtoResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as department_name
+        FROM expense_items ei
+        LEFT JOIN members m ON ei.member_id = m.id
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE ei.yyyy = #{yyyy}
+        ORDER BY ei.usage_date ASC, ei.created_at ASC
+    </select>
+
+    <!-- YYYY, MM 컬럼 기준으로 조회 (이번 달 총 경비) -->
+    <select id="findByYyyyAndMm" resultMap="ExpenseItemDtoResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as department_name
+        FROM expense_items ei
+        LEFT JOIN members m ON ei.member_id = m.id
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE ei.yyyy = #{yyyy}
+          AND ei.mm = #{mm}
+        ORDER BY ei.usage_date ASC, ei.created_at ASC
+    </select>
+
+    <!-- 멤버 ID와 YYYY 기준으로 조회 -->
+    <select id="findByMemberIdAndYyyy" resultMap="ExpenseItemDtoResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as department_name
+        FROM expense_items ei
+        LEFT JOIN members m ON ei.member_id = m.id
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE ei.member_id = #{memberId}
+          AND ei.yyyy = #{yyyy}
+        ORDER BY ei.usage_date ASC, ei.created_at ASC
+    </select>
+
+    <!-- 멤버 ID와 YYYY, MM 기준으로 조회 -->
+    <select id="findByMemberIdAndYyyyAndMm" resultMap="ExpenseItemDtoResultMap">
+        SELECT ei.*,
+               m.name as member_name,
+               d.name as department_name
+        FROM expense_items ei
+        LEFT JOIN members m ON ei.member_id = m.id
+        LEFT JOIN departments d ON m.department_id = d.id
+        WHERE ei.member_id = #{memberId}
+          AND ei.yyyy = #{yyyy}
+          AND ei.mm = #{mm}
+        ORDER BY ei.usage_date ASC, ei.created_at ASC
     </select>
 
     <insert id="insert" parameterType="com.ync.schedule.domain.ExpenseItem">

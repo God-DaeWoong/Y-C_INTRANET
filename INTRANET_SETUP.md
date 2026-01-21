@@ -796,7 +796,126 @@ CREATE TABLE expense_item_read_status (
 
 ## 📅 버전 히스토리
 
-- **v0.28** (2026-01-20) - 경비 신청/미확인 경비 관리 시스템 구축 🆕
+- **v0.29** (2026-01-21) - 경비 통계 및 휴일·대체근무 관리 기능 개선 🆕
+
+  ### 1. 경비 통계 건수 계산 로직 수정 (ExpenseItemIntranetService.java)
+
+  **변경 전**: `DISTINCT(member_id)` - 멤버별 1건으로 계산
+  **변경 후**: `DISTINCT(member_id + yyyy + mm)` - 멤버+년+월 조합별 1건으로 계산
+
+  ```java
+  // 건수 기준: member_id + yyyy + mm 조합의 DISTINCT 수 (경비 신청 횟수)
+  // 예: 신의섭이 1월에 1번, 4월에 1번 신청 → 올해 2건, 이번달(1월) 1건
+  int totalCount = (int) items.stream()
+      .filter(item -> item.getMemberId() != null && item.getYyyy() != null && item.getMm() != null)
+      .map(item -> item.getMemberId() + "_" + item.getYyyy() + "_" + item.getMm())
+      .distinct()
+      .count();
+  ```
+
+  ### 2. ExpenseItemDto.java / ExpenseItem.java 수정
+
+  - **yyyy** (String): 신청 년도 (화면에서 선택한 년도, 예: "2026")
+  - **mm** (String): 신청 월 (화면에서 선택한 월, 예: "01")
+  - getter/setter 추가: `getYyyy()`, `setYyyy()`, `getMm()`, `setMm()`
+
+  ### 3. ExpenseItemMapper.xml 쿼리 추가
+
+  ```xml
+  <!-- YYYY 컬럼 기준으로 조회 (올해 총 경비) -->
+  <select id="findByYyyy" resultMap="ExpenseItemDtoResultMap">
+      SELECT ei.*, m.name as member_name, d.name as department_name
+      FROM expense_items ei
+      LEFT JOIN members m ON ei.member_id = m.id
+      LEFT JOIN departments d ON m.department_id = d.id
+      WHERE ei.yyyy = #{yyyy}
+      ORDER BY ei.usage_date ASC
+  </select>
+
+  <!-- YYYY, MM 컬럼 기준으로 조회 (이번 달 총 경비) -->
+  <select id="findByYyyyAndMm" resultMap="ExpenseItemDtoResultMap">
+      WHERE ei.yyyy = #{yyyy} AND ei.mm = #{mm}
+  </select>
+
+  <!-- 멤버 ID와 YYYY 기준으로 조회 -->
+  <select id="findByMemberIdAndYyyy" resultMap="ExpenseItemDtoResultMap">
+      WHERE ei.member_id = #{memberId} AND ei.yyyy = #{yyyy}
+  </select>
+
+  <!-- 멤버 ID와 YYYY, MM 기준으로 조회 -->
+  <select id="findByMemberIdAndYyyyAndMm" resultMap="ExpenseItemDtoResultMap">
+      WHERE ei.member_id = #{memberId} AND ei.yyyy = #{yyyy} AND ei.mm = #{mm}
+  </select>
+
+  <!-- ID를 직접 지정하여 INSERT (YYYY, MM 포함) -->
+  <insert id="insertWithId">
+      INSERT INTO expense_items (id, member_id, usage_date, account, amount,
+                                 welfare_flag, yyyy, mm, created_at, updated_at)
+      VALUES (#{id}, #{memberId}, #{usageDateStr}, #{account}, #{amount},
+              #{welfareFlag}, #{yyyy}, #{mm}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  </insert>
+  ```
+
+  ### 4. admin.html 휴일·대체근무 기능 개선
+
+  **4-1. 건수 계산 조건 변경**
+  - **변경 전**: 현월에서 "오늘 이후"의 승인된 휴일근무/공가 건수
+  - **변경 후**: 현월에 승인된 휴일근무/공가 건수 (오늘 이후 조건 제거)
+
+  ```javascript
+  // 현재 월 범위 내인 경우 (오늘 이후 조건 제거)
+  return targetDate >= monthStart && targetDate <= monthEnd;
+  ```
+
+  **4-2. 휴일·대체근무 리스트 표시 문제 해결**
+  - **원인**: `loadSchedules()` 함수에서 `allSchedules`를 휴가/반차/출장만 필터링하여 휴일근무/공가가 제외됨
+  - **해결**: `loadHolidayWorkList()` 함수에서 별도 API 호출하여 전체 일정 조회
+
+  ```javascript
+  // API에서 전체 일정 데이터 조회 (휴일근무/공가 포함)
+  const response = await fetch('/api/intranet/schedules');
+  let allSchedulesForList = [];
+  if (response.ok) {
+      const data = await response.json();
+      allSchedulesForList = Array.isArray(data) ? data : data.schedules || [];
+  }
+  ```
+
+  **4-3. 일수 계산 로직 추가**
+  - **변경 전**: `schedule.daysUsed || 1` 사용 (1일로 표시되는 문제)
+  - **변경 후**: `calculateDays()` 함수로 startDate ~ endDate 일수 계산 (시작일, 종료일 포함)
+
+  ```javascript
+  const calculateDays = (startDateStr, endDateStr) => {
+      if (!startDateStr || !endDateStr) return 1;
+      const start = new Date(startDateStr.split('T')[0]);
+      const end = new Date(endDateStr.split('T')[0]);
+      const diffTime = end.getTime() - start.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      return diffDays > 0 ? diffDays : 1;
+  };
+  ```
+
+  **4-4. 카드 UI 형식 변경**
+  ```
+  📋 유형: 휴가신청서 📝 작성자: 신의섭
+  📅 공가 | 2026-01-26 ~ 2026-01-27 | 2일
+  ```
+
+  ### 5. 관련 파일 목록
+
+  | 파일 | 변경 내용 |
+  |------|----------|
+  | `ExpenseItemIntranetService.java` | 경비 통계 건수 계산 로직 수정 (DISTINCT 기준 변경) |
+  | `ExpenseItemDto.java` | yyyy, mm 필드 및 getter/setter 추가 |
+  | `ExpenseItem.java` | yyyy, mm 필드 및 getter/setter 추가 |
+  | `ExpenseItemMapper.java` | findByYyyy, findByYyyyAndMm 등 메서드 추가 |
+  | `ExpenseItemMapper.xml` | YYYY/MM 기반 쿼리 추가, insertWithId 쿼리 수정 |
+  | `admin.html` | 휴일·대체근무 건수/리스트/일수 계산 로직 수정 |
+
+---
+
+- **v0.28** (2026-01-20) - 경비 신청/미확인 경비 관리 시스템 구축
   - **경비 신청 워크플로우**:
     - expense-report_intranet.html에서 "경비 신청" 버튼 추가
     - 사용자가 월별 경비 입력 후 신청 시:

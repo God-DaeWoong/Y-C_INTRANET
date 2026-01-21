@@ -1040,12 +1040,12 @@
                         <div class="stat-value"><span id="annualLeaveCount">0</span> <small>명</small></div>
                     </div>
                     <div class="stat-card stat-schedule-approval" onclick="selectScheduleCard('approval')" id="scheduleCardApproval">
-                        <div class="stat-label">휴가 승인 목록</div>
+                        <div class="stat-label">휴일·대체근무</div>
                         <div class="stat-value"><span id="approvalLeaveCount">0</span> <small>건</small></div>
                     </div>
                 </div>
 
-                <!-- 필터 (임직원 연차 현황 카드 선택 시에만 표시) -->
+                <!-- 필터 (카드 선택에 따라 표시) -->
                 <div class="member-actions" id="scheduleFilters" style="display: none;">
                     <div class="filter-group">
                         <div class="filter-item">
@@ -1065,6 +1065,15 @@
                             <select id="scheduleFilterMember" onchange="filterScheduleData()">
                                 <option value="">전체 구성원</option>
                             </select>
+                        </div>
+                        <!-- 시작일/종료일 필터 (휴일·대체근무 선택 시에만 표시) -->
+                        <div class="filter-item" id="scheduleFilterDateStart" style="display: none;">
+                            <label>시작일</label>
+                            <input type="date" id="scheduleStartDate" onchange="filterScheduleData()">
+                        </div>
+                        <div class="filter-item" id="scheduleFilterDateEnd" style="display: none;">
+                            <label>종료일</label>
+                            <input type="date" id="scheduleEndDate" onchange="filterScheduleData()">
                         </div>
                     </div>
                 </div>
@@ -1097,6 +1106,16 @@
                     <div id="scheduleTableContent" class="loading">
                         <div class="loading-spinner"></div>
                         <p style="margin-top: 16px;">로딩 중...</p>
+                    </div>
+                </div>
+
+                <!-- 휴일·대체근무 리스트 (휴일·대체근무 카드 선택 시에만 표시) -->
+                <div id="holidayWorkListContainer" style="display: none; margin-top: 24px;">
+                    <div id="holidayWorkListContent" style="display: flex; flex-direction: column; gap: 12px;">
+                        <div class="loading">
+                            <div class="loading-spinner"></div>
+                            <p style="margin-top: 16px;">로딩 중...</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2246,30 +2265,46 @@
                 document.getElementById('scheduleCardApproval').classList.add('selected');
             }
 
-            // 필터, 테이블, 달력 표시/숨김 처리
+            // 필터, 테이블, 달력, 휴일·대체근무 리스트 표시/숨김 처리
             const scheduleFilters = document.getElementById('scheduleFilters');
             const scheduleTableContainer = document.getElementById('scheduleTableContainer');
             const scheduleCalendarContainer = document.getElementById('scheduleCalendarContainer');
+            const holidayWorkListContainer = document.getElementById('holidayWorkListContainer');
+            const dateStartFilter = document.getElementById('scheduleFilterDateStart');
+            const dateEndFilter = document.getElementById('scheduleFilterDateEnd');
 
             if (cardType === 'annual') {
-                // 임직원 연차 현황 카드 선택 시 - 필터와 테이블 모두 표시
+                // 임직원 연차 현황 카드 선택 시 - 필터와 테이블 모두 표시, 날짜 필터 숨김
                 scheduleFilters.style.display = 'block';
                 scheduleTableContainer.style.display = 'block';
                 scheduleCalendarContainer.style.display = 'none';
+                holidayWorkListContainer.style.display = 'none';
+                dateStartFilter.style.display = 'none';
+                dateEndFilter.style.display = 'none';
                 // 연차 현황 테이블 로드
                 loadAnnualLeaveTable();
             } else if (cardType === 'company') {
-                // 전사 일정 카드 선택 시 - 필터와 달력 표시
+                // 전사 일정 카드 선택 시 - 필터와 달력 표시, 날짜 필터 숨김
                 scheduleFilters.style.display = 'block';
                 scheduleTableContainer.style.display = 'none';
                 scheduleCalendarContainer.style.display = 'block';
+                holidayWorkListContainer.style.display = 'none';
+                dateStartFilter.style.display = 'none';
+                dateEndFilter.style.display = 'none';
                 // 전사 일정 달력 초기화 및 로드
                 initCompanyScheduleCalendar();
-            } else {
-                // 휴가 승인 목록 카드 선택 시 - 모두 숨김
-                scheduleFilters.style.display = 'none';
+            } else if (cardType === 'approval') {
+                // 휴일·대체근무 카드 선택 시 - 필터(날짜 포함)와 리스트 표시
+                scheduleFilters.style.display = 'block';
                 scheduleTableContainer.style.display = 'none';
                 scheduleCalendarContainer.style.display = 'none';
+                holidayWorkListContainer.style.display = 'block';
+                dateStartFilter.style.display = 'block';
+                dateEndFilter.style.display = 'block';
+                // 날짜 필터 기본값 설정 (현재 월)
+                setHolidayWorkDateFilter();
+                // 휴일·대체근무 리스트 로드
+                loadHolidayWorkList();
             }
         }
 
@@ -2419,14 +2454,23 @@
                 eventDidMount: function(info) {
                     // 이벤트 엘리먼트에 직접 스타일 적용하여 확실하게 색상 통일
                     const scheduleType = info.event.extendedProps.scheduleType;
-                    let bgColor = '';
+                    const eventType = info.event.extendedProps.eventType; // 휴일근무/대체휴무 구분용
 
-                    if (scheduleType === 'VACATION') {
-                        bgColor = '#ec4899';
-                    } else if (scheduleType === 'HALF_DAY') {
-                        bgColor = '#8b5cf6';
-                    } else if (scheduleType === 'BUSINESS_TRIP') {
-                        bgColor = '#3b82f6';
+                    // 일정 유형별 색상 (schedule-calendar.html과 동일)
+                    const colorMap = {
+                        'VACATION': '#ec4899',
+                        'HALF_DAY': '#8b5cf6',
+                        'BUSINESS_TRIP': '#3b82f6',
+                        'HOLIDAY_WORK': '#f59e0b',
+                        'OFFICIAL_LEAVE': '#06b6d4',
+                        'SECURITY_REQUEST': '#f97316'
+                    };
+
+                    let bgColor = colorMap[scheduleType] || '';
+
+                    // 대체휴무인 경우 색상 변경
+                    if (eventType === 'substitute_holiday') {
+                        bgColor = '#14b8a6';
                     }
 
                     if (bgColor) {
@@ -2493,7 +2537,7 @@
                 const childDept = document.getElementById('scheduleFilterChildDept')?.value || '';
                 const memberId = document.getElementById('scheduleFilterMember')?.value || '';
 
-                // 일정 필터링
+                // 일정 필터링: 회의 제외, 비활성 사원 제외, 승인 완료 건만 표시
                 let filteredSchedules = schedules.filter(s => {
                     // 회의(MEETING) 제외
                     if (s.scheduleType === 'MEETING') return false;
@@ -2501,8 +2545,8 @@
                     // 비활성 사원 제외
                     if (!activeMemberIds.includes(String(s.memberId))) return false;
 
-                    // 승인된 일정 및 예약된 일정 표시 (APPROVED, RESERVED)
-                    return s.status === 'APPROVED' || s.status === 'RESERVED';
+                    // 승인 완료 건만 표시 (APPROVED만)
+                    return s.status === 'APPROVED';
                 });
 
                 // 부서 필터 적용
@@ -2520,59 +2564,100 @@
                     filteredSchedules = filteredSchedules.filter(s => divisionMemberIds.includes(String(s.memberId)));
                 }
 
-                // FullCalendar 이벤트 형식으로 변환
-                const events = filteredSchedules.map(schedule => {
+                // 날짜를 YYYY-MM-DD 형식으로 변환하는 헬퍼 함수
+                const formatDate = (dateValue) => {
+                    if (!dateValue) return null;
+                    // 이미 문자열 형식인 경우 (YYYY-MM-DD)
+                    if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
+                        return dateValue.split('T')[0];
+                    }
+                    // Date 객체나 타임스탬프인 경우
+                    const d = new Date(dateValue);
+                    return d.toISOString().split('T')[0];
+                };
+
+                // 일정 유형별 색상 및 라벨 (schedule-calendar.html과 동일)
+                const scheduleTypeConfig = {
+                    'VACATION':         { label: '연차', color: '#ec4899', className: 'event-vacation' },
+                    'HALF_DAY':         { label: '반차', color: '#8b5cf6', className: 'event-half-day' },
+                    'HOLIDAY_WORK':     { label: '휴일근무', color: '#f59e0b', className: 'event-holiday-work' },
+                    'OFFICIAL_LEAVE':   { label: '공가', color: '#06b6d4', className: 'event-official-leave' },
+                    'BUSINESS_TRIP':    { label: '출장', color: '#3b82f6', className: 'event-business-trip' },
+                    'SECURITY_REQUEST': { label: '방범신청', color: '#f97316', className: 'event-security-request' }
+                };
+
+                // 휴일근무 이벤트 생성 함수 (휴일근무일 + 대체휴무일 2개 이벤트)
+                const createHolidayWorkEvents = (schedule, memberName) => {
+                    const events = [];
+
+                    // 1. 휴일근무일 이벤트
+                    const workDateStr = formatDate(schedule.holidayWorkDate);
+                    if (workDateStr) {
+                        events.push({
+                            id: schedule.id + '_work',
+                            title: `휴일근무 ${memberName}`,
+                            start: workDateStr,
+                            end: workDateStr,
+                            allDay: true,
+                            backgroundColor: '#f59e0b',
+                            borderColor: '#f59e0b',
+                            className: 'event-holiday-work',
+                            extendedProps: {
+                                scheduleType: schedule.scheduleType,
+                                memberName: memberName,
+                                status: schedule.status,
+                                eventType: 'holiday_work'
+                            }
+                        });
+                    }
+
+                    // 2. 대체휴무일 이벤트
+                    const substituteDateStr = formatDate(schedule.substituteHolidayDate);
+                    if (substituteDateStr) {
+                        events.push({
+                            id: schedule.id + '_substitute',
+                            title: `대체휴무 ${memberName}`,
+                            start: substituteDateStr,
+                            end: substituteDateStr,
+                            allDay: true,
+                            backgroundColor: '#14b8a6',
+                            borderColor: '#14b8a6',
+                            className: 'event-substitute-holiday',
+                            extendedProps: {
+                                scheduleType: schedule.scheduleType,
+                                memberName: memberName,
+                                status: schedule.status,
+                                eventType: 'substitute_holiday'
+                            }
+                        });
+                    }
+
+                    return events;
+                };
+
+                // FullCalendar 이벤트 형식으로 변환 (flatMap으로 휴일근무 2개 이벤트 처리)
+                const events = filteredSchedules.flatMap(schedule => {
                     const member = members.find(m => String(m.id) === String(schedule.memberId));
                     const memberName = member ? member.name : '';
 
-                    let typeLabel = '';
-                    let color = '';
-                    let className = '';
-
-                    switch (schedule.scheduleType) {
-                        case 'VACATION':
-                            typeLabel = '연차';
-                            color = '#ec4899';
-                            className = 'event-vacation';
-                            break;
-                        case 'HALF_DAY':
-                            typeLabel = '반차';
-                            color = '#8b5cf6';
-                            className = 'event-half-day';
-                            break;
-                        case 'BUSINESS_TRIP':
-                            typeLabel = '출장';
-                            color = '#3b82f6';
-                            className = 'event-business-trip';
-                            break;
-                        default:
-                            typeLabel = schedule.scheduleType;
-                            color = '#6b7280';
-                            className = 'event-default';
+                    // 휴일근무는 2개의 이벤트 생성 (휴일근무일 + 대체휴무일)
+                    if (schedule.scheduleType === 'HOLIDAY_WORK') {
+                        return createHolidayWorkEvents(schedule, memberName);
                     }
 
-                    // 날짜를 YYYY-MM-DD 형식으로 변환하는 헬퍼 함수
-                    const formatDate = (dateValue) => {
-                        if (!dateValue) return null;
-                        // 이미 문자열 형식인 경우 (YYYY-MM-DD)
-                        if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
-                            return dateValue.split('T')[0];
-                        }
-                        // Date 객체나 타임스탬프인 경우
-                        const d = new Date(dateValue);
-                        return d.toISOString().split('T')[0];
-                    };
+                    // 일반 일정은 1개 이벤트
+                    const config = scheduleTypeConfig[schedule.scheduleType] || { label: schedule.scheduleType, color: '#6b7280', className: 'event-default' };
 
                     const startDateStr = formatDate(schedule.startDate);
                     const endDateStr = formatDate(schedule.endDate);
 
                     const event = {
                         id: schedule.id,
-                        title: `${typeLabel} ${memberName}`,
-                        allDay: !schedule.startTime, // 시간 정보가 없으면 종일 이벤트
-                        backgroundColor: color,
-                        borderColor: color,
-                        className: className,
+                        title: `${config.label} ${memberName}`,
+                        allDay: !schedule.startTime,
+                        backgroundColor: config.color,
+                        borderColor: config.color,
+                        className: config.className,
                         extendedProps: {
                             scheduleType: schedule.scheduleType,
                             memberName: memberName,
@@ -2584,11 +2669,9 @@
 
                     // 시작일/종료일 설정
                     if (schedule.startTime && schedule.endTime) {
-                        // 시간 정보가 있으면 날짜+시간 형식으로
                         event.start = `${startDateStr}T${schedule.startTime}:00`;
                         event.end = `${endDateStr}T${schedule.endTime}:00`;
                     } else {
-                        // 시간 정보가 없으면 날짜만 (종일 이벤트)
                         event.start = startDateStr;
                         // FullCalendar는 종일 이벤트의 종료일을 exclusive로 처리하므로 +1일
                         const endDate = new Date(endDateStr);
@@ -2596,7 +2679,7 @@
                         event.end = endDate.toISOString().split('T')[0];
                     }
 
-                    return event;
+                    return [event]; // flatMap을 위해 배열로 반환
                 });
 
                 return events;
@@ -2688,14 +2771,231 @@
                     document.getElementById('annualLeaveCount').textContent = activeMemberCount;
                 }
 
-                // 휴가 승인 목록 카드 - 승인된 휴가 개수
-                const approvedCount = allSchedules.filter(s =>
-                    (s.status === 'APPROVED' || s.approvalStatus === 'APPROVED')
-                ).length;
-                document.getElementById('approvalLeaveCount').textContent = approvedCount;
+                // 휴일·대체근무 카드 - 현월에 승인된 휴일근무/공가 건수
+                // 휴일근무/공가 데이터 조회를 위해 전체 일정에서 필터링
+                const statsResponse = await fetch('/api/intranet/schedules');
+                let holidayWorkCount = 0;
+                if (statsResponse.ok) {
+                    const statsData = await statsResponse.json();
+                    let allStatsSchedules = [];
+                    if (Array.isArray(statsData)) {
+                        allStatsSchedules = statsData;
+                    } else if (statsData.schedules) {
+                        allStatsSchedules = statsData.schedules;
+                    }
+
+                    const now = new Date();
+                    const year = now.getFullYear();
+                    const month = now.getMonth();
+                    // 현재 월의 1일
+                    const monthStart = new Date(year, month, 1);
+                    // 현재 월의 말일
+                    const monthEnd = new Date(year, month + 1, 0);
+
+                    holidayWorkCount = allStatsSchedules.filter(s => {
+                        // 승인 완료 건만
+                        if (s.status !== 'APPROVED') return false;
+                        // 휴일근무, 공가만
+                        if (s.scheduleType !== 'HOLIDAY_WORK' && s.scheduleType !== 'OFFICIAL_LEAVE') return false;
+
+                        // 휴일근무는 대체휴무일 기준, 공가는 startDate 기준
+                        let targetDate;
+                        if (s.scheduleType === 'HOLIDAY_WORK') {
+                            targetDate = s.substituteHolidayDate ? new Date(s.substituteHolidayDate) : null;
+                        } else {
+                            targetDate = s.startDate ? new Date(s.startDate) : null;
+                        }
+
+                        if (!targetDate) return false;
+
+                        // 현재 월 범위 내인 경우 (오늘 이후 조건 제거)
+                        return targetDate >= monthStart && targetDate <= monthEnd;
+                    }).length;
+                }
+                document.getElementById('approvalLeaveCount').textContent = holidayWorkCount;
             } catch (error) {
                 console.error('통계 업데이트 실패:', error);
             }
+        }
+
+        // 휴일·대체근무 날짜 필터 기본값 설정 (현재 월)
+        function setHolidayWorkDateFilter() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth();
+
+            // 현재 월의 1일
+            const startDateObj = new Date(year, month, 1);
+            const startDate = `${startDateObj.getFullYear()}-${String(startDateObj.getMonth() + 1).padStart(2, '0')}-${String(startDateObj.getDate()).padStart(2, '0')}`;
+
+            // 현재 월의 말일
+            const endDateObj = new Date(year, month + 1, 0);
+            const endDate = `${endDateObj.getFullYear()}-${String(endDateObj.getMonth() + 1).padStart(2, '0')}-${String(endDateObj.getDate()).padStart(2, '0')}`;
+
+            document.getElementById('scheduleStartDate').value = startDate;
+            document.getElementById('scheduleEndDate').value = endDate;
+        }
+
+        // 휴일·대체근무 리스트 로드
+        async function loadHolidayWorkList() {
+            const container = document.getElementById('holidayWorkListContent');
+            container.innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p style="margin-top: 16px;">로딩 중...</p>
+                </div>
+            `;
+
+            try {
+                // 필터 값 가져오기
+                const parentDept = document.getElementById('scheduleFilterParentDept')?.value || '';
+                const childDept = document.getElementById('scheduleFilterChildDept')?.value || '';
+                const memberId = document.getElementById('scheduleFilterMember')?.value || '';
+                const startDate = document.getElementById('scheduleStartDate')?.value || '';
+                const endDate = document.getElementById('scheduleEndDate')?.value || '';
+
+                // API에서 전체 일정 데이터 조회 (휴일근무/공가 포함)
+                const response = await fetch('/api/intranet/schedules');
+                let allSchedulesForList = [];
+                if (response.ok) {
+                    const data = await response.json();
+                    if (Array.isArray(data)) {
+                        allSchedulesForList = data;
+                    } else if (data.schedules) {
+                        allSchedulesForList = data.schedules;
+                    }
+                }
+
+                // 일정 데이터 필터링
+                let filteredSchedules = allSchedulesForList.filter(s => {
+                    // 승인 완료 건만
+                    if (s.status !== 'APPROVED') return false;
+                    // 휴일근무, 공가만
+                    if (s.scheduleType !== 'HOLIDAY_WORK' && s.scheduleType !== 'OFFICIAL_LEAVE') return false;
+                    return true;
+                });
+
+                // 멤버 필터
+                if (memberId) {
+                    filteredSchedules = filteredSchedules.filter(s => String(s.memberId) === String(memberId));
+                }
+
+                // 부서 필터
+                if (childDept && !memberId) {
+                    const deptMembers = sharedMembers.filter(m => String(m.departmentId) === String(childDept));
+                    const deptMemberIds = deptMembers.map(m => String(m.id));
+                    filteredSchedules = filteredSchedules.filter(s => deptMemberIds.includes(String(s.memberId)));
+                } else if (parentDept && !childDept && !memberId) {
+                    const childDepts = scheduleDepartments.filter(d => String(d.parentId) === String(parentDept));
+                    const childDeptIds = childDepts.map(d => String(d.id));
+                    const divisionMembers = sharedMembers.filter(m => childDeptIds.includes(String(m.departmentId)));
+                    const divisionMemberIds = divisionMembers.map(m => String(m.id));
+                    filteredSchedules = filteredSchedules.filter(s => divisionMemberIds.includes(String(s.memberId)));
+                }
+
+                // 날짜 필터 (휴일근무: 대체휴무일 기준, 공가: startDate 기준)
+                if (startDate || endDate) {
+                    filteredSchedules = filteredSchedules.filter(s => {
+                        let targetDateStr;
+                        if (s.scheduleType === 'HOLIDAY_WORK') {
+                            targetDateStr = s.substituteHolidayDate ? s.substituteHolidayDate.split('T')[0] : null;
+                        } else {
+                            targetDateStr = s.startDate ? s.startDate.split('T')[0] : null;
+                        }
+
+                        if (!targetDateStr) return false;
+
+                        if (startDate && targetDateStr < startDate) return false;
+                        if (endDate && targetDateStr > endDate) return false;
+                        return true;
+                    });
+                }
+
+                // 리스트 렌더링
+                renderHolidayWorkList(filteredSchedules);
+
+            } catch (error) {
+                console.error('휴일·대체근무 리스트 로드 실패:', error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>데이터를 불러올 수 없습니다</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 휴일·대체근무 리스트 렌더링
+        function renderHolidayWorkList(schedules) {
+            const container = document.getElementById('holidayWorkListContent');
+
+            if (!schedules || schedules.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="padding: 48px; text-align: center; color: #718096;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 48px; height: 48px; margin: 0 auto 16px;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p>조회된 휴일·대체근무가 없습니다</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const typeLabels = {
+                'HOLIDAY_WORK': '휴일근무',
+                'OFFICIAL_LEAVE': '공가'
+            };
+
+            // 날짜 포맷 함수
+            const formatDate = (dateStr) => {
+                if (!dateStr) return '-';
+                return dateStr.split('T')[0];
+            };
+
+            // 두 날짜 간 일수 계산 함수 (시작일, 종료일 포함)
+            const calculateDays = (startDateStr, endDateStr) => {
+                if (!startDateStr || !endDateStr) return 1;
+                const start = new Date(startDateStr.split('T')[0]);
+                const end = new Date(endDateStr.split('T')[0]);
+                const diffTime = end.getTime() - start.getTime();
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; // 시작일 포함이므로 +1
+                return diffDays > 0 ? diffDays : 1;
+            };
+
+            container.innerHTML = schedules.map(schedule => {
+                const typeName = typeLabels[schedule.scheduleType] || schedule.scheduleType;
+                const memberName = schedule.memberName || '알 수 없음';
+
+                // 날짜 및 일수 정보
+                let dateText = '';
+                let daysText = '';
+                if (schedule.scheduleType === 'HOLIDAY_WORK') {
+                    const workDate = formatDate(schedule.holidayWorkDate);
+                    const subDate = formatDate(schedule.substituteHolidayDate);
+                    dateText = `근무: ${workDate} / 대체: ${subDate}`;
+                    daysText = '1일';
+                } else {
+                    const startDate = formatDate(schedule.startDate);
+                    const endDate = formatDate(schedule.endDate);
+                    dateText = startDate === endDate ? startDate : `${startDate} ~ ${endDate}`;
+                    // 일수 계산: startDate ~ endDate 사이의 일수 (시작일, 종료일 포함)
+                    const days = calculateDays(schedule.startDate, schedule.endDate);
+                    daysText = `${days}일`;
+                }
+
+                return `
+                    <div style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); border-left: 4px solid ${schedule.scheduleType === 'HOLIDAY_WORK' ? '#f59e0b' : '#06b6d4'};">
+                        <div style="font-size: 16px; font-weight: 600; color: #2d3748; margin-bottom: 8px;">
+                            📋 유형: 휴가신청서 📝 작성자: ${memberName}
+                        </div>
+                        <div style="font-size: 14px; color: #718096;">
+                            📅 <span style="background: ${schedule.scheduleType === 'HOLIDAY_WORK' ? '#fef3c7' : '#a5f3fc'}; color: ${schedule.scheduleType === 'HOLIDAY_WORK' ? '#92400e' : '#0e7490'}; padding: 2px 8px; border-radius: 4px; font-weight: 500;">
+                                ${typeName}
+                            </span>
+                            | ${dateText} | ${daysText}
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         // 일정 테이블 표시
@@ -3103,6 +3403,9 @@
             } else if (selectedScheduleCard === 'company') {
                 // 전사 일정 카드일 때 달력 새로고침
                 refreshCompanyCalendar();
+            } else if (selectedScheduleCard === 'approval') {
+                // 휴일·대체근무 카드일 때 리스트 새로고침
+                loadHolidayWorkList();
             }
         }
 
