@@ -12,18 +12,22 @@ YNC INTRANET은 기존 yncIntranet 프로젝트에 새로운 인트라넷 시스
 yncIntranet/
 ├── sql/                                    # 데이터베이스 스크립트
 │   ├── 00_setup_guide.md                  # SQL 설치 가이드
-│   ├── 01_create_tables.sql               # 테이블 생성 (12개)
+│   ├── 01_create_tables.sql               # 테이블 생성
 │   ├── 02_create_sequences.sql            # 시퀀스 생성
 │   ├── 03_create_indexes.sql              # 인덱스 생성
 │   ├── 04_insert_common_data.sql          # 기본 데이터 삽입
+│   ├── 08_create_schedule_tables.sql      # 일정/휴가 테이블 생성
 │   ├── 99_drop_all.sql                    # 전체 삭제
 │   └── check_installation.sql             # 설치 확인
 │
 ├── src/main/java/com/ync/
 │   ├── schedule/                          # 기존 시스템 (유지)
 │   │   ├── domain/
+│   │   │   └── ExpenseItem.java           # 경비 항목 (MASTER)
 │   │   ├── dto/
+│   │   │   └── ExpenseItemDto.java
 │   │   ├── mapper/
+│   │   │   └── ExpenseItemMapper.java
 │   │   ├── service/
 │   │   └── controller/
 │   │
@@ -33,46 +37,102 @@ yncIntranet/
 │       │   ├── DepartmentIntranet.java
 │       │   ├── DocumentIntranet.java
 │       │   ├── ApprovalLineIntranet.java
-│       │   ├── LeaveRequestIntranet.java
+│       │   ├── ScheduleIntranet.java      # 일정/휴가
+│       │   ├── NotificationIntranet.java  # 알림
 │       │   ├── ExpenseReportIntranet.java
-│       │   ├── ExpenseItemIntranet.java
+│       │   ├── ExpenseItemIntranet.java   # 경비 항목 (DETAIL)
+│       │   ├── ExpenseItemReadStatus.java # 경비 읽음 상태 🆕
+│       │   ├── LeaveRequestIntranet.java
 │       │   ├── CommonCodeIntranet.java
 │       │   └── NoticeIntranet.java
 │       │
-│       ├── dto/                           # DTO (추후 작성)
+│       ├── dto/
+│       │   ├── ExpenseStatsDto.java       # 경비 통계 🆕
+│       │   ├── UnreadExpenseDto.java      # 미확인 경비 🆕
+│       │   ├── WelfareSummaryDto.java     # 복지비 현황
+│       │   ├── WelfareUsageDto.java
+│       │   └── ExcelDownloadRequest.java
+│       │
 │       ├── mapper/                        # MyBatis Mapper 인터페이스
 │       │   ├── MemberIntranetMapper.java
+│       │   ├── DepartmentIntranetMapper.java
 │       │   ├── DocumentIntranetMapper.java
-│       │   └── ApprovalLineIntranetMapper.java
+│       │   ├── ApprovalLineIntranetMapper.java
+│       │   ├── ScheduleIntranetMapper.java
+│       │   ├── NotificationIntranetMapper.java
+│       │   ├── ExpenseItemIntranetMapper.java
+│       │   ├── ExpenseItemReadStatusMapper.java  # 🆕
+│       │   └── ExpenseReportIntranetMapper.java
 │       │
-│       ├── service/                       # Service 계층 (추후 작성)
-│       └── controller/                    # REST API (추후 작성)
+│       ├── service/
+│       │   ├── AuthService.java
+│       │   ├── MemberIntranetService.java
+│       │   ├── DocumentIntranetService.java
+│       │   ├── ApprovalService.java
+│       │   ├── ScheduleIntranetService.java
+│       │   ├── NotificationIntranetService.java
+│       │   ├── ExpenseItemIntranetService.java
+│       │   ├── ExpenseReportIntranetService.java
+│       │   └── ExpenseExcelService.java
+│       │
+│       └── controller/
+│           ├── AuthController.java
+│           ├── MemberIntranetController.java
+│           ├── DocumentIntranetController.java
+│           ├── ApprovalController.java
+│           ├── ScheduleIntranetController.java
+│           ├── NotificationIntranetController.java
+│           └── ExpenseReportIntranetController.java
 │
-└── src/main/resources/
-    ├── application.yml                    # 설정 파일 (수정됨)
-    └── mapper/
-        ├── *.xml                          # 기존 Mapper XML
-        └── intranet/                      # 인트라넷 Mapper XML ⭐
-            ├── MemberIntranetMapper.xml
-            ├── DocumentIntranetMapper.xml
-            └── ApprovalLineIntranetMapper.xml
+├── src/main/resources/
+│   ├── application.yml                    # 설정 파일
+│   ├── templates/
+│   │   └── expense_report_template.xlsx   # 엑셀 템플릿
+│   └── mapper/
+│       ├── ExpenseItemMapper.xml          # schedule 모듈
+│       └── intranet/
+│           ├── MemberIntranetMapper.xml
+│           ├── DepartmentIntranetMapper.xml
+│           ├── DocumentIntranetMapper.xml
+│           ├── ApprovalLineIntranetMapper.xml
+│           ├── ScheduleIntranetMapper.xml
+│           ├── NotificationIntranetMapper.xml
+│           ├── ExpenseItemIntranetMapper.xml
+│           ├── ExpenseItemReadStatusMapper.xml   # 🆕
+│           └── ExpenseReportIntranetMapper.xml
+│
+├── src/main/resources/static/             # 프론트엔드 페이지
+│   ├── intranet-main.html                 # 메인 대시보드
+│   ├── schedule-calendar.html             # 일정/휴가 관리
+│   ├── approval-pending.html              # 결재 대기함
+│   ├── document-create.html               # 문서 작성
+│   ├── my-documents.html                  # 내 문서함
+│   ├── expense-report_intranet.html       # 경비보고서 (사용자)
+│   ├── admin.html                         # 관리자 페이지
+│   ├── css/
+│   │   └── notification-bell.css          # 알림 공통 스타일
+│   └── js/
+│       └── notification-bell.js           # 알림 공통 스크립트
 ```
 
 ---
 
 ## 🗄️ 데이터베이스 구조
 
-### 테이블 목록 (13개)
+### 테이블 목록 (15개+)
 
 | 테이블명 | 설명 | 관계 |
 |----------|------|------|
 | **departments_intranet** | 부서 | - |
 | **members_intranet** | 사원 (인증 포함) | → departments_intranet |
 | **documents_intranet** | 문서 통합 ⭐ | → members_intranet |
-| **schedules_intranet** | 일정/휴가 관리 🆕 | → members_intranet, documents_intranet |
+| **schedules_intranet** | 일정/휴가 관리 | → members_intranet, documents_intranet |
+| **notifications_intranet** | 알림 🆕 | → members_intranet |
 | **leave_requests_intranet** | 휴가 신청 | → documents_intranet |
 | **expense_reports_intranet** | 경비보고서 | → documents_intranet |
-| **expense_items_intranet** | 경비 항목 | → expense_reports_intranet |
+| **expense_items_intranet** | 경비 항목 (DETAIL) | → expense_reports_intranet |
+| **expense_items** | 경비 항목 (MASTER) 🆕 | - |
+| **expense_item_read_status** | 경비 읽음 상태 🆕 | → expense_items_intranet |
 | **approval_lines_intranet** | 결재선 ⭐ | → documents_intranet |
 | **attachments_intranet** | 첨부파일 | → documents_intranet |
 | **notices_intranet** | 공지사항 | → members_intranet |
@@ -85,7 +145,8 @@ yncIntranet/
 #### 1. 문서 통합 구조 (documents_intranet)
 ```
 모든 문서를 하나의 테이블로 통합 관리
-- document_type: LEAVE, EXPENSE, GENERAL
+- document_type: VACATION, HALF_DAY, HOLIDAY_WORK, OFFICIAL_LEAVE,
+                 SECURITY_REQUEST, EXPENSE, GENERAL
 - status: DRAFT, PENDING, APPROVED, REJECTED, CANCELED
 - 상세 정보는 별도 테이블 (1:1)
 ```
@@ -170,59 +231,91 @@ logging:
 ### ✅ 완료된 작업
 
 1. **데이터베이스 스키마** (100%)
-   - 테이블 12개 생성
-   - 시퀀스 11개 생성
-   - 인덱스 50개+ 생성
+   - 테이블 15개+ 생성
+   - 시퀀스 생성
+   - 인덱스 생성
    - 기본 데이터 삽입
 
 2. **Domain 클래스** (100%)
-   - MemberIntranet.java
-   - DepartmentIntranet.java
-   - DocumentIntranet.java
-   - ApprovalLineIntranet.java
-   - LeaveRequestIntranet.java
-   - ExpenseReportIntranet.java
-   - ExpenseItemIntranet.java
-   - CommonCodeIntranet.java
-   - NoticeIntranet.java
+   - MemberIntranet.java ✅
+   - DepartmentIntranet.java ✅
+   - DocumentIntranet.java ✅
+   - ApprovalLineIntranet.java ✅
+   - ScheduleIntranet.java ✅
+   - NotificationIntranet.java ✅
+   - ExpenseReportIntranet.java ✅
+   - ExpenseItemIntranet.java ✅
+   - ExpenseItemReadStatus.java ✅ 🆕
+   - LeaveRequestIntranet.java ✅
+   - CommonCodeIntranet.java ✅
+   - NoticeIntranet.java ✅
 
-3. **Mapper 인터페이스** (50%)
+3. **Mapper 인터페이스** (100%)
    - MemberIntranetMapper.java ✅
+   - DepartmentIntranetMapper.java ✅
    - DocumentIntranetMapper.java ✅
    - ApprovalLineIntranetMapper.java ✅
-   - DepartmentIntranetMapper.java ⏸️
-   - LeaveRequestIntranetMapper.java ⏸️
-   - ExpenseReportIntranetMapper.java ⏸️
+   - ScheduleIntranetMapper.java ✅
+   - NotificationIntranetMapper.java ✅
+   - ExpenseItemIntranetMapper.java ✅
+   - ExpenseItemReadStatusMapper.java ✅ 🆕
+   - ExpenseReportIntranetMapper.java ✅
 
-4. **Mapper XML** (50%)
+4. **Mapper XML** (100%)
    - MemberIntranetMapper.xml ✅
+   - DepartmentIntranetMapper.xml ✅
    - DocumentIntranetMapper.xml ✅
    - ApprovalLineIntranetMapper.xml ✅
+   - ScheduleIntranetMapper.xml ✅
+   - NotificationIntranetMapper.xml ✅
+   - ExpenseItemIntranetMapper.xml ✅
+   - ExpenseItemReadStatusMapper.xml ✅ 🆕
+   - ExpenseReportIntranetMapper.xml ✅
 
-5. **Service 계층** (100%) ✅
+5. **Service 계층** (100%)
    - AuthService (로그인/로그아웃) ✅
    - MemberIntranetService ✅
    - DocumentIntranetService ✅
    - ApprovalService ✅
+   - ScheduleIntranetService ✅
+   - NotificationIntranetService ✅
+   - ExpenseItemIntranetService ✅
+   - ExpenseReportIntranetService ✅
+   - ExpenseExcelService ✅
 
-6. **Controller** (100%) ✅
+6. **Controller** (100%)
    - AuthController ✅
    - MemberIntranetController ✅
+   - DocumentIntranetController ✅
    - ApprovalController ✅
+   - ScheduleIntranetController ✅
+   - NotificationIntranetController ✅
+   - ExpenseReportIntranetController ✅
 
-7. **인증 시스템** (100%) ✅
+7. **인증 시스템** (100%)
    - Session 기반 인증 ✅
    - BCrypt 비밀번호 암호화 ✅
    - Session 기반 권한 체크 ✅
 
-### ⏳ 추가 개발 가능 항목
+8. **프론트엔드 페이지** (100%)
+   - intranet-main.html (메인 대시보드) ✅
+   - schedule-calendar.html (일정/휴가 관리) ✅
+   - approval-pending.html (결재 대기함) ✅
+   - document-create.html (문서 작성) ✅
+   - my-documents.html (내 문서함) ✅
+   - expense-report_intranet.html (경비보고서) ✅
+   - admin.html (관리자 페이지) ✅
 
-8. **나머지 Controller** (0%)
-   - DocumentController (문서 작성/상신)
-   - LeaveRequestController (휴가 신청)
-   - ExpenseReportController (경비보고서)
-   - DashboardController (대시보드)
-   - NoticeController (공지사항)
+9. **알림 시스템** (100%) 🆕
+   - 알림 테이블 (notifications_intranet) ✅
+   - 알림 API (생성/조회/읽음처리/삭제) ✅
+   - 알림 벨 UI (모든 페이지 적용) ✅
+   - 30초 폴링 자동 업데이트 ✅
+
+10. **경비 신청/미확인 시스템** (100%) 🆕
+    - 경비 신청 워크플로우 ✅
+    - 미확인 경비 관리 (admin.html) ✅
+    - 경비 읽음 상태 관리 ✅
 
 ---
 
@@ -375,9 +468,14 @@ public class ExampleController {
 
 1. **로그인/로그아웃** - Session 기반 인증 완료
 2. **사원 관리** - 조회, 등록, 수정, 비활성화
-3. **결재 시스템** - 승인, 반려, 취소
-4. **일정/휴가 관리** - 캘린더 기반 일정 관리 및 결재 연동 (v0.4)
-5. **지출보고서 관리** - 지출 내역 관리 및 엑셀 다운로드, 복지비 자동 태깅 (v0.5) 🆕
+3. **결재 시스템** - 승인, 반려, 취소, 결재 대기함
+4. **문서 관리** - 문서 작성, 내 문서함, 첨부파일
+5. **일정/휴가 관리** - 캘린더 기반 일정 관리 및 결재 연동
+   - 연차, 반차, 출장, 회의, 휴일근무, 공가, 방범신청
+6. **경비보고서 관리** - 지출 내역 관리 및 엑셀 다운로드, 복지비 자동 태깅
+7. **알림 시스템** - 결재/일정 알림, 알림 벨 (모든 페이지 적용)
+8. **관리자 페이지** - 미확인 경비 관리, 사용자 관리
+9. **경비 신청 시스템** - DETAIL → MASTER 워크플로우, 읽음 상태 관리 🆕
 
 ### 🚀 실행 방법
 
@@ -411,12 +509,16 @@ mvn spring-boot:run
 - 월간/주간/목록 뷰 지원
 - 드래그 앤 드롭으로 날짜 선택
 - 일정 클릭 시 상세 정보 표시
+- 공휴일 자동 표시 (네이버 공휴일 API 연동)
 
 #### 2. 일정 유형
-- **연차 (VACATION)**: 1일 이상의 휴가
-- **반차 (HALF_DAY)**: 오전반차 (09:00-13:00) / 오후반차 (13:00-18:00)
+- **연차 (VACATION)**: 1일 이상의 휴가 → 결재 필요
+- **반차 (HALF_DAY)**: 오전반차 (09:00-13:00) / 오후반차 (13:00-18:00) → 결재 필요
 - **출장 (BUSINESS_TRIP)**: 출장 일정
 - **회의 (MEETING)**: 회의 일정 (시간 지정 가능)
+- **휴일근무 (HOLIDAY_WORK)**: 휴일근무 + 대체휴무일 지정 → 결재 필요 🆕
+- **공가 (OFFICIAL_LEAVE)**: 공가 신청 → 결재 필요 🆕
+- **방범신청 (SECURITY_REQUEST)**: 방범 신청 → 결재 필요 🆕
 
 #### 3. 일정 등록 기능
 - **자동 날짜 매핑**: 시작일 선택 시 종료일 자동 설정
@@ -427,7 +529,7 @@ mvn spring-boot:run
 #### 4. 사이드바 기능
 - **휴가 현황**: 부여/사용/잔여 일수 표시
 - **결재 대기**: 승인 대기 중인 일정 목록 및 승인/반려 처리
-- **내 일정**: 등록된 내 일정 목록 (시간 정보 포함)
+- **내 일정**: 등록된 내 일정 목록 (이번 달 + 다음 달만 표시)
 - **필터링**: 부서/구성원별 필터링
 
 #### 5. 결재 연동
@@ -442,7 +544,8 @@ mvn spring-boot:run
 CREATE TABLE schedules_intranet (
     id NUMBER PRIMARY KEY,
     member_id NUMBER NOT NULL,                -- 작성자 (FK: members_intranet)
-    schedule_type VARCHAR2(50) NOT NULL,      -- VACATION, HALF_DAY, BUSINESS_TRIP, MEETING
+    schedule_type VARCHAR2(50) NOT NULL,      -- VACATION, HALF_DAY, BUSINESS_TRIP, MEETING,
+                                               -- HOLIDAY_WORK, OFFICIAL_LEAVE, SECURITY_REQUEST
     title VARCHAR2(200) NOT NULL,             -- 제목
     description CLOB,                          -- 설명
     start_date DATE NOT NULL,                  -- 시작일
@@ -450,7 +553,10 @@ CREATE TABLE schedules_intranet (
     start_time VARCHAR2(5),                    -- 시작 시간 (HH:MI)
     end_time VARCHAR2(5),                      -- 종료 시간 (HH:MI)
     days_used NUMBER(3,1) DEFAULT 0,           -- 사용 일수 (0.5, 1, 1.5 등)
+    approver_id NUMBER,                        -- 결재자 ID (FK: members_intranet)
     document_id NUMBER,                        -- 연결된 결재 문서 ID (FK: documents_intranet)
+    holiday_work_date DATE,                    -- 휴일근무일 (HOLIDAY_WORK 전용) 🆕
+    substitute_holiday_date DATE,              -- 대체휴무일 (HOLIDAY_WORK 전용) 🆕
     status VARCHAR2(20) DEFAULT 'DRAFT',       -- DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -502,10 +608,11 @@ CREATE TABLE schedules_intranet (
 
 ---
 
-## 💰 지출보고서 관리 시스템
+## 💰 경비보고서 관리 시스템
 
 ### 개요
 법인카드 및 개인 경비 지출 내역을 관리하고 엑셀로 다운로드할 수 있는 시스템입니다.
+경비 신청 워크플로우를 통해 DETAIL → MASTER 테이블로 데이터가 이동하며, 경영관리 Unit에서 미확인 경비를 관리합니다.
 
 ### 주요 기능
 
@@ -515,14 +622,25 @@ CREATE TABLE schedules_intranet (
 - **필터링**: 사용자, 부서, 날짜, 복지비 여부로 필터링
 - **엑셀 다운로드**: 선택한 조건으로 엑셀 파일 생성
 
-#### 2. 복지비 자동 태깅 (v0.5 신규 기능) 🆕
+#### 2. 복지비 자동 태깅
 - **자동 태그 추가**: 복지비 체크박스 선택 시 메모에 "[복지비]" 자동 추가
 - **자동 태그 제거**: 체크 해제 시 "[복지비]" 자동 제거
 - **지출 추가 모달 연동**: 팝업에서 복지비 체크 시 실시간 반영
 - **행추가 연동**: 대량 입력 시에도 복지비 체크 가능
 - **기존 데이터 로딩**: 복지비 플래그가 'Y'인 항목은 자동으로 "[복지비]" 표시
 
-#### 3. 지출 항목 필드
+#### 3. 경비 신청 시스템 🆕
+- **경비 신청 버튼**: 월별 경비 입력 후 신청
+- **데이터 흐름**: EXPENSE_ITEMS_INTRANET (DETAIL) → EXPENSE_ITEMS (MASTER)
+- **읽음 상태 관리**: EXPENSE_ITEM_READ_STATUS 테이블로 경영관리 Unit 팀원별 읽음 상태 관리
+- **신청 년/월**: 화면에서 선택한 년/월로 EXPENSE_ITEMS에 저장
+
+#### 4. 미확인 경비 관리 (admin.html) 🆕
+- **미확인 보고서 섹션**: 경영관리 Unit 팀원에게만 노출
+- **미확인 경비 클릭**: 상세 모달 표시 및 읽음 처리
+- **배지 표시**: 상단 탭에 미확인 경비 개수 배지
+
+#### 5. 지출 항목 필드
 - **사용일시**: 지출이 발생한 날짜
 - **사용 내용**: 지출 설명 (예: 회의비, 교통비)
 - **계정**: 지출 계정 (예: 복리후생비, 교통비)
@@ -533,7 +651,7 @@ CREATE TABLE schedules_intranet (
 - **비고**: 추가 메모 (복지비 태그 포함)
 - **복지비 여부**: Y/N 플래그
 
-#### 4. 엑셀 다운로드 기능
+#### 6. 엑셀 다운로드 기능
 - **템플릿 기반**: expense_report_template.xlsx 템플릿 사용
 - **동적 시트명**: "지출내역(매니저명)", "지출보고서(매니저명)"
 - **자동 서식**: 템플릿의 스타일 및 수식 유지
@@ -541,10 +659,11 @@ CREATE TABLE schedules_intranet (
 
 ### 데이터베이스 스키마
 
-#### expense_items_intranet 테이블
+#### expense_items_intranet 테이블 (DETAIL)
 ```sql
 CREATE TABLE expense_items_intranet (
     id NUMBER PRIMARY KEY,
+    expense_report_id NUMBER,                  -- 경비보고서 ID (FK)
     member_id NUMBER,                          -- 사용자 ID (FK: members_intranet)
     usage_date DATE,                           -- 사용일시
     description VARCHAR2(500),                 -- 사용 내용
@@ -555,6 +674,36 @@ CREATE TABLE expense_items_intranet (
     project_code VARCHAR2(100),                -- 프로젝트코드
     note CLOB,                                 -- 비고 (복지비 태그 포함)
     welfare_flag VARCHAR2(1) DEFAULT 'N',     -- 복지비 여부 (Y/N)
+    expense_read_id NUMBER,                    -- EXPENSE_ITEM_READ_STATUS.ID 🆕
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### expense_items 테이블 (MASTER) 🆕
+```sql
+CREATE TABLE expense_items (
+    id NUMBER PRIMARY KEY,                     -- EXPENSE_ITEMS_INTRANET.ID 동일하게 사용
+    member_id NUMBER,
+    usage_date VARCHAR2(20),                   -- 문자열 날짜
+    account VARCHAR2(100),
+    amount NUMBER,
+    welfare_flag VARCHAR2(1),
+    yyyy VARCHAR2(4),                          -- 신청 년도 🆕
+    mm VARCHAR2(2),                            -- 신청 월 🆕
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### expense_item_read_status 테이블 🆕
+```sql
+CREATE TABLE expense_item_read_status (
+    id NUMBER PRIMARY KEY,                     -- 동일 경비 신청 건은 같은 ID 공유
+    expense_item_id NUMBER,                    -- EXPENSE_ITEMS_INTRANET.ID 참조
+    reader_member_id NUMBER,                   -- 읽는 사람 (경영관리 Unit 팀원)
+    read_yn CHAR(1) DEFAULT 'N',              -- 읽음 여부
+    read_at TIMESTAMP,                         -- 읽은 시간
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -564,13 +713,22 @@ CREATE TABLE expense_items_intranet (
 
 #### expense-report_intranet.html
 - **위치**: `src/main/resources/static/expense-report_intranet.html`
-- **접근**: 메인 화면 → "지출보고서 관리" 카드 클릭
+- **접근**: 메인 화면 → "경비보고서" 카드 클릭
 - **기능**:
   - 지출 내역 테이블 표시
   - 필터링 (사용자, 부서, 날짜, 복지비)
   - 지출 추가 모달
   - 행추가 대량 입력
   - 엑셀 다운로드
+  - **경비 신청 버튼**: 월별 경비 신청 🆕
+
+#### admin.html (경비보고서 관리 탭)
+- **위치**: `src/main/resources/static/admin.html`
+- **접근**: 관리자 페이지 → "경비보고서 관리" 탭
+- **기능**:
+  - 경비 통계 (올해/이번달)
+  - 미확인 보고서 목록 🆕
+  - 미확인 경비 클릭 시 상세 모달 및 읽음 처리 🆕
 
 ### 데이터베이스 마이그레이션 스크립트
 
@@ -605,6 +763,34 @@ CREATE TABLE expense_items_intranet (
    - 필터 조건 선택 (사용자, 부서, 날짜)
    - "엑셀 다운로드" 버튼 클릭
    - 템플릿 기반 엑셀 파일 생성 및 다운로드
+
+4. **경비 신청** 🆕
+   - 월 선택 후 "경비 신청" 버튼 클릭
+   - EXPENSE_ITEMS_INTRANET → EXPENSE_ITEMS로 데이터 복사
+   - EXPENSE_ITEM_READ_STATUS에 경영관리 Unit 팀원별 읽음 상태 생성
+   - 신청 완료 후 버튼 비활성화
+
+5. **미확인 경비 확인 (admin.html)** 🆕
+   - 경비보고서 관리 탭 진입
+   - 미확인 보고서 목록에서 클릭
+   - 상세 모달 표시 및 읽음 처리
+
+### API 엔드포인트 (경비)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/intranet/expense-reports/items` | 전체 경비 항목 조회 |
+| POST | `/api/intranet/expense-reports/items` | 경비 항목 생성 |
+| PUT | `/api/intranet/expense-reports/items/{id}` | 경비 항목 수정 |
+| DELETE | `/api/intranet/expense-reports/items/{id}` | 경비 항목 삭제 |
+| POST | `/api/intranet/expense-reports/items/submit` | 경비 신청 🆕 |
+| GET | `/api/intranet/expense-reports/items/unread` | 미확인 경비 조회 🆕 |
+| POST | `/api/intranet/expense-reports/items/{id}/mark-read` | 읽음 처리 🆕 |
+| GET | `/api/intranet/expense-reports/items/unread-count` | 미확인 경비 개수 🆕 |
+| GET | `/api/intranet/expense-reports/items/stats` | 경비 통계 🆕 |
+| GET | `/api/intranet/expense-reports/items/by-read-id/{id}` | READ_STATUS.ID로 경비 조회 🆕 |
+| GET | `/api/intranet/expense-reports/items/welfare-usage/{memberId}/{year}` | 복지비 사용 현황 |
+| POST | `/api/intranet/expense-reports/items/excel` | 엑셀 다운로드 |
 
 ---
 
