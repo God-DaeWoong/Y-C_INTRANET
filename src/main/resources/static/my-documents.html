@@ -364,6 +364,55 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* 페이징 스타일 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 24px;
+            background: white;
+            border-radius: 12px;
+            margin-top: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            color: #2d3748;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 40px;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #f7fafc;
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .pagination button.active {
+            background: #667eea;
+            border-color: #667eea;
+            color: white;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .pagination .page-info {
+            margin: 0 12px;
+            color: #718096;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -412,6 +461,16 @@
                 <p style="margin-top: 16px;">로딩 중...</p>
             </div>
         </div>
+
+        <!-- 페이징 -->
+        <div id="pagination" class="pagination" style="display: none;">
+            <button onclick="goToPage(1)" id="firstPage">«</button>
+            <button onclick="goToPage(currentPage - 1)" id="prevPage">‹</button>
+            <div id="pageNumbers" style="display: flex; gap: 8px;"></div>
+            <button onclick="goToPage(currentPage + 1)" id="nextPage">›</button>
+            <button onclick="goToPage(totalPages)" id="lastPage">»</button>
+            <span id="pageInfo" class="page-info"></span>
+        </div>
     </div>
 
     <!-- 문서 상세 모달 -->
@@ -430,6 +489,11 @@
     <script>
         let allDocuments = [];
         let currentFilter = 'all';
+
+        // 페이징 변수
+        let currentPage = 1;
+        let totalPages = 1;
+        let pageSize = 5;
 
         function checkLogin() {
             const user = sessionStorage.getItem('user');
@@ -471,6 +535,7 @@
 
         function filterDocuments(filter) {
             currentFilter = filter;
+            currentPage = 1;  // 필터 변경 시 페이지 초기화
 
             // 탭 활성화 상태 변경
             document.querySelectorAll('.filter-tab').forEach(tab => {
@@ -515,12 +580,44 @@
                         <p>작성한 문서가 없습니다</p>
                     </div>
                 `;
+                document.getElementById('pagination').style.display = 'none';
                 return;
             }
 
-            container.innerHTML = documents.map(doc => {
+            // 페이징 계산
+            totalPages = Math.ceil(documents.length / pageSize);
+            if (currentPage > totalPages) currentPage = 1;
+
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageDocuments = documents.slice(start, end);
+
+            container.innerHTML = pageDocuments.map(doc => {
                 const statusBadge = getStatusBadge(doc.status);
                 const canCancel = doc.status === 'PENDING';
+
+                // 일정 정보 파싱 및 배지 생성
+                const scheduleInfo = parseScheduleInfo(doc.content);
+                let vacationBadge = '';
+                if (scheduleInfo) {
+                    const scheduleTypeMap = {
+                        'VACATION': '연차',
+                        'HALF_DAY': '반차',
+                        'HOLIDAY_WORK': '휴일근무',
+                        'OFFICIAL_LEAVE': '공가',
+                        'SECURITY_REQUEST': '방범신청'
+                    };
+                    const typeText = scheduleTypeMap[scheduleInfo.scheduleType] || scheduleInfo.scheduleType;
+
+                    let dateText = '';
+                    if (scheduleInfo.scheduleType === 'HOLIDAY_WORK') {
+                        dateText = `근무: ${scheduleInfo.holidayWorkDate || '-'} / 대체: ${scheduleInfo.substituteHolidayDate || '-'}`;
+                    } else {
+                        dateText = `${scheduleInfo.startDate || '-'} ~ ${scheduleInfo.endDate || '-'}`;
+                    }
+
+                    vacationBadge = `<span class="badge" style="background:#fef3c7;color:#92400e;">📅 ${typeText} | ${dateText} | ${scheduleInfo.daysUsed || 0}일</span>`;
+                }
 
                 return `
                     <div class="document-item" onclick="showDocumentDetail(${doc.id})" style="cursor: pointer;">
@@ -531,6 +628,7 @@
                                     <span>📄 ${getDocTypeText(doc.documentType)}</span>
                                     <span>📅 ${formatDate(doc.createdAt)}</span>
                                     <span>🔢 #${doc.id}</span>
+                                    ${vacationBadge}
                                 </div>
                             </div>
                             <div class="document-status">
@@ -565,6 +663,9 @@
                     </div>
                 `;
             }).join('');
+
+            // 페이징 UI 업데이트
+            updatePagination(documents.length);
         }
 
         function getStatusBadge(status) {
@@ -596,7 +697,7 @@
             const doc = allDocuments.find(d => d.id === documentId);
             if (!doc) return;
 
-            const getDocTypeText = (type) => {
+            const getDocTypeTextLocal = (type) => {
                 const types = {
                     'GENERAL': '일반',
                     'LEAVE': '휴가신청서',
@@ -607,6 +708,11 @@
             };
 
             const statusBadge = getStatusBadge(doc.status);
+
+            // 일정정보 파싱
+            const scheduleInfo = parseScheduleInfo(doc.content);
+            const cleanContent = removeScheduleInfo(doc.content);
+            const scheduleInfoHtml = formatScheduleInfoHtml(scheduleInfo);
 
             const modalBody = document.getElementById('modalBody');
             modalBody.innerHTML = `
@@ -620,7 +726,7 @@
                 </div>
                 <div class="detail-section">
                     <div class="detail-label">문서 유형</div>
-                    <div class="detail-value">${getDocTypeText(doc.documentType)}</div>
+                    <div class="detail-value">${getDocTypeTextLocal(doc.documentType)}</div>
                 </div>
                 <div class="detail-section">
                     <div class="detail-label">작성일</div>
@@ -630,9 +736,10 @@
                     <div class="detail-label">상태</div>
                     <div class="detail-value">${statusBadge}</div>
                 </div>
+                ${scheduleInfoHtml}
                 <div class="detail-section">
                     <div class="detail-label">문서 내용</div>
-                    <div class="detail-content">${doc.content || '내용 없음'}</div>
+                    <div class="detail-content">${cleanContent || '내용 없음'}</div>
                 </div>
                 ${doc.approvals && doc.approvals.length > 0 ? `
                     <div class="detail-section">
@@ -667,6 +774,115 @@
 
         function closeDocumentModal() {
             document.getElementById('documentModal').classList.remove('active');
+        }
+
+        // 일정정보 JSON 파싱 함수
+        function parseScheduleInfo(content) {
+            if (!content) return null;
+            const regex = /\[일정정보:(\{[^\]]+\})\]/;
+            const match = content.match(regex);
+            if (match && match[1]) {
+                try {
+                    return JSON.parse(match[1]);
+                } catch (e) {
+                    console.error('일정정보 파싱 실패:', e);
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        // 일정정보 제거 함수
+        function removeScheduleInfo(content) {
+            if (!content) return content;
+            return content.replace(/\[일정정보:\{[^\]]+\}\]/g, '').trim();
+        }
+
+        // 일정정보 HTML 생성 함수
+        function formatScheduleInfoHtml(scheduleInfo) {
+            if (!scheduleInfo) return '';
+
+            const scheduleTypeMap = {
+                'VACATION': '연차',
+                'HALF_DAY': '반차',
+                'HOLIDAY_WORK': '휴일근무',
+                'OFFICIAL_LEAVE': '공가',
+                'SECURITY_REQUEST': '방범신청'
+            };
+
+            const scheduleTypeText = scheduleTypeMap[scheduleInfo.scheduleType] || scheduleInfo.scheduleType;
+            const daysUsed = scheduleInfo.daysUsed || 0;
+
+            let dateHtml = '';
+            if (scheduleInfo.scheduleType === 'HOLIDAY_WORK') {
+                dateHtml = `
+                    <p><strong>휴일근무일:</strong> ${scheduleInfo.holidayWorkDate || '-'}</p>
+                    <p><strong>대체휴무일:</strong> ${scheduleInfo.substituteHolidayDate || '-'}</p>
+                `;
+            } else if (scheduleInfo.scheduleType === 'SECURITY_REQUEST') {
+                dateHtml = `
+                    <p><strong>신청일:</strong> ${scheduleInfo.startDate || '-'}</p>
+                    <p><strong>시간:</strong> ${scheduleInfo.startTime || '-'} ~ ${scheduleInfo.endTime || '-'}</p>
+                `;
+            } else {
+                dateHtml = `<p><strong>사용 기간:</strong> ${scheduleInfo.startDate || '-'} ~ ${scheduleInfo.endDate || '-'}</p>`;
+            }
+
+            return `
+                <div class="detail-section">
+                    <div class="detail-label">일정 정보</div>
+                    <div class="detail-value">
+                        <p><strong>유형:</strong> ${scheduleTypeText}</p>
+                        ${dateHtml}
+                        <p><strong>사용 일수:</strong> ${daysUsed}일</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 페이징 UI 업데이트 함수
+        function updatePagination(totalCount) {
+            const paginationEl = document.getElementById('pagination');
+
+            if (totalCount <= pageSize) {
+                paginationEl.style.display = 'none';
+                return;
+            }
+
+            paginationEl.style.display = 'flex';
+
+            document.getElementById('firstPage').disabled = currentPage === 1;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage === totalPages;
+            document.getElementById('lastPage').disabled = currentPage === totalPages;
+
+            const pageNumbers = document.getElementById('pageNumbers');
+            pageNumbers.innerHTML = '';
+
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + 4);
+
+            if (endPage - startPage < 4) {
+                startPage = Math.max(1, endPage - 4);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                btn.onclick = () => goToPage(i);
+                if (i === currentPage) btn.className = 'active';
+                pageNumbers.appendChild(btn);
+            }
+
+            document.getElementById('pageInfo').textContent =
+                `${currentPage} / ${totalPages} 페이지 (총 ${totalCount}건)`;
+        }
+
+        // 페이지 이동 함수
+        function goToPage(page) {
+            if (page < 1 || page > totalPages || page === currentPage) return;
+            currentPage = page;
+            displayDocuments();
         }
 
         async function cancelDocument(documentId) {

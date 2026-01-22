@@ -796,7 +796,78 @@ CREATE TABLE expense_item_read_status (
 
 ## 📅 버전 히스토리
 
-- **v0.29** (2026-01-21) - 경비 통계 및 휴일·대체근무 관리 기능 개선 🆕
+- **v0.30** (2026-01-22) - 내 문서함 페이징 및 문서 상세 개선 🆕
+
+  ### 1. 페이징 기능 추가 (my-documents.html)
+
+  **변경 전**: 전체 문서를 한 번에 로드하여 표시
+  **변경 후**: 5개씩 페이징 처리, approval-pending.html과 동일한 UI
+
+  ```javascript
+  // 페이징 변수
+  let currentPage = 1;
+  let totalPages = 1;
+  let pageSize = 5;
+
+  // 페이징 계산
+  totalPages = Math.ceil(documents.length / pageSize);
+  const start = (currentPage - 1) * pageSize;
+  const end = start + pageSize;
+  const pageDocuments = documents.slice(start, end);
+  ```
+
+  **페이징 UI**:
+  - « ‹ 1 2 3 › » 네비게이션
+  - 현재 페이지 / 전체 페이지 (총 N건) 표시
+  - 필터 변경 시 페이지 자동 초기화
+
+  ### 2. 문서 상세 일정정보 표시 개선
+
+  **변경 전**: JSON 형태 그대로 노출
+  ```
+  [일정정보:{"scheduleType":"HALF_DAY","startDate":"2026-01-21","endDate":"2026-01-21","daysUsed":0.5}]
+  ```
+
+  **변경 후**: 사용자 친화적 포맷으로 표시
+  ```
+  일정 정보
+  유형: 반차
+  사용 기간: 2026-01-21 ~ 2026-01-21
+  사용 일수: 0.5일
+  ```
+
+  **일정정보 파싱 함수 추가**:
+  - `parseScheduleInfo(content)`: JSON 파싱
+  - `removeScheduleInfo(content)`: JSON 텍스트 제거
+  - `formatScheduleInfoHtml(scheduleInfo)`: HTML 생성
+
+  ### 3. 목록에 휴가 배지 표시
+
+  문서 목록에서 휴가/일정 관련 문서에 배지 표시:
+  ```
+  📅 연차 | 2026-01-21 ~ 2026-01-22 | 1일
+  📅 반차 | 2026-01-21 ~ 2026-01-21 | 0.5일
+  📅 휴일근무 | 근무: 2026-01-25 / 대체: 2026-01-27
+  ```
+
+  ### 4. 수정 파일
+
+  | 파일 | 변경 내용 |
+  |------|----------|
+  | `my-documents.html` | 페이징 CSS/HTML/JS 추가, 일정정보 파싱 함수 3개 추가, displayDocuments() 수정, showDocumentDetail() 수정, filterDocuments() 수정 |
+
+  ### 5. 위원회 검토 결과
+
+  - **대웅** (아키텍트): approval-pending.html과 일관된 패턴 적용 승인
+  - **의섭** (DB): DB 변경 없음, 클라이언트 페이징으로 현재 규모 문제 없음
+  - **준영** (인프라): 기존 API 그대로 사용, 추가 설정 불필요
+  - **현수** (개발): 작업 분해 완료, 구현 가능
+  - **충원** (리스크): 함수 중복은 추후 공통 모듈화 과제로 기록
+  - **은지** (UI/UX): 결재 대기함과 동일한 UI로 사용자 학습 비용 최소화
+
+---
+
+- **v0.29** (2026-01-21) - 경비 통계 및 휴일·대체근무 관리 기능 개선
 
   ### 1. 경비 통계 건수 계산 로직 수정 (ExpenseItemIntranetService.java)
 
