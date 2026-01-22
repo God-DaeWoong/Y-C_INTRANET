@@ -30,6 +30,26 @@ public interface ExpenseItemMapper {
         @Param("year") Integer year
     );
 
+    /**
+     * YYYY 컬럼 기준으로 조회 (올해 총 경비)
+     */
+    List<ExpenseItemDto> findByYyyy(@Param("yyyy") String yyyy);
+
+    /**
+     * YYYY, MM 컬럼 기준으로 조회 (이번 달 총 경비)
+     */
+    List<ExpenseItemDto> findByYyyyAndMm(@Param("yyyy") String yyyy, @Param("mm") String mm);
+
+    /**
+     * 멤버 ID와 YYYY 기준으로 조회
+     */
+    List<ExpenseItemDto> findByMemberIdAndYyyy(@Param("memberId") Long memberId, @Param("yyyy") String yyyy);
+
+    /**
+     * 멤버 ID와 YYYY, MM 기준으로 조회
+     */
+    List<ExpenseItemDto> findByMemberIdAndYyyyAndMm(@Param("memberId") Long memberId, @Param("yyyy") String yyyy, @Param("mm") String mm);
+
     int insert(ExpenseItem expenseItem);
 
     /**

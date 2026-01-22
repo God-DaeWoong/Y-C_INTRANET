@@ -287,6 +287,11 @@ public class ExpenseItemIntranetService {
      */
     @Transactional
     public void submitExpenseItems(List<Long> expenseItemIds, Long submitterId, String yyyy, String mm) {
+        System.out.println("▶ submitExpenseItems 호출");
+        System.out.println("  expenseItemIds=" + expenseItemIds);
+        System.out.println("  submitterId=" + submitterId);
+        System.out.println("  yyyy=" + yyyy + ", mm=" + mm);
+
         if (expenseItemIds == null || expenseItemIds.isEmpty()) {
             throw new RuntimeException("신청할 경비 항목이 없습니다.");
         }
@@ -330,6 +335,11 @@ public class ExpenseItemIntranetService {
             scheduleItem.setWelfareFlag(intranetItem.getWelfareFlag());
             scheduleItem.setYyyy(yyyy);  // 화면에서 선택한 년도
             scheduleItem.setMm(mm);      // 화면에서 선택한 월
+
+            System.out.println("▶ EXPENSE_ITEMS INSERT 준비");
+            System.out.println("  scheduleItem.id=" + scheduleItem.getId());
+            System.out.println("  scheduleItem.yyyy=" + scheduleItem.getYyyy());
+            System.out.println("  scheduleItem.mm=" + scheduleItem.getMm());
 
             scheduleExpenseItemMapper.insertWithId(scheduleItem); // ID 직접 지정하여 INSERT
         }
@@ -430,43 +440,66 @@ public class ExpenseItemIntranetService {
 
     /**
      * 올해/이번달 총 경비 통계 조회 (EXPENSE_ITEMS 테이블 기준)
+     * - 올해: YYYY 컬럼 기준 조회, member_id DISTINCT
+     * - 이번달: YYYY + MM 컬럼 기준 조회, member_id DISTINCT
      */
     public ExpenseStatsDto getExpenseStats(String period, Long parentDeptId, Long deptId, Long memberId) {
         LocalDate now = LocalDate.now();
-        LocalDate startDate, endDate;
+        String yyyy = String.valueOf(now.getYear());
+        String mm = String.format("%02d", now.getMonthValue());
+
+        System.out.println("▶ getExpenseStats 호출");
+        System.out.println("  period=" + period + ", yyyy=" + yyyy + ", mm=" + mm);
+
+        // EXPENSE_ITEMS 테이블에서 YYYY/MM 기준으로 경비 항목 조회
+        List<com.ync.schedule.dto.ExpenseItemDto> items;
 
         if ("year".equals(period)) {
-            startDate = LocalDate.of(now.getYear(), 1, 1);
-            endDate = LocalDate.of(now.getYear(), 12, 31);
-        } else { // month
-            startDate = LocalDate.of(now.getYear(), now.getMonthValue(), 1);
-            endDate = LocalDate.of(now.getYear(), now.getMonthValue(), now.lengthOfMonth());
+            // 올해: YYYY 컬럼 기준
+            if (memberId != null) {
+                items = scheduleExpenseItemMapper.findByMemberIdAndYyyy(memberId, yyyy);
+            } else {
+                items = scheduleExpenseItemMapper.findByYyyy(yyyy);
+            }
+            System.out.println("  [올해] 조회 결과: " + items.size() + "건");
+        } else {
+            // 이번달: YYYY + MM 컬럼 기준
+            if (memberId != null) {
+                items = scheduleExpenseItemMapper.findByMemberIdAndYyyyAndMm(memberId, yyyy, mm);
+            } else {
+                items = scheduleExpenseItemMapper.findByYyyyAndMm(yyyy, mm);
+            }
+            System.out.println("  [이번달] 조회 결과 (row 수): " + items.size() + "건");
+            // 디버깅: 각 항목의 상세 정보 출력
+            for (com.ync.schedule.dto.ExpenseItemDto item : items) {
+                System.out.println("    - ID=" + item.getId() + ", memberId=" + item.getMemberId() +
+                    ", memberName=" + item.getMemberName() + ", usageDate=" + item.getUsageDate() +
+                    ", yyyy=" + item.getYyyy() + ", mm=" + item.getMm());
+            }
+            // DISTINCT(member_id, yyyy, mm) 수 계산
+            long distinctCount = items.stream()
+                .filter(item -> item.getMemberId() != null && item.getYyyy() != null && item.getMm() != null)
+                .map(item -> item.getMemberId() + "_" + item.getYyyy() + "_" + item.getMm())
+                .distinct()
+                .count();
+            System.out.println("  [이번달] DISTINCT(member_id, yyyy, mm) 건수: " + distinctCount + "건");
         }
 
-        // EXPENSE_ITEMS 테이블에서 필터링된 경비 항목 조회
-        List<com.ync.schedule.dto.ExpenseItemDto> items;
-        if (memberId != null) {
-            items = scheduleExpenseItemMapper.findByMemberIdAndDateRange(memberId, startDate, endDate);
-        } else {
-            items = scheduleExpenseItemMapper.findByDateRange(startDate, endDate);
-
-            // 부서 필터링
-            if (parentDeptId != null || deptId != null) {
-                List<MemberIntranet> filteredMembers = filterMembersByDepartment(parentDeptId, deptId);
-                List<Long> memberIds = filteredMembers.stream().map(MemberIntranet::getId).collect(Collectors.toList());
-                items = items.stream()
-                        .filter(item -> memberIds.contains(item.getMemberId()))
-                        .collect(Collectors.toList());
-            }
+        // 부서 필터링 (멤버 필터가 없을 때만)
+        if (memberId == null && (parentDeptId != null || deptId != null)) {
+            List<MemberIntranet> filteredMembers = filterMembersByDepartment(parentDeptId, deptId);
+            List<Long> memberIds = filteredMembers.stream().map(MemberIntranet::getId).collect(Collectors.toList());
+            items = items.stream()
+                    .filter(item -> memberIds.contains(item.getMemberId()))
+                    .collect(Collectors.toList());
         }
 
         // 총계 계산
-        // 올해: member_id + YYYY DISTINCT (해당 연도 내 신청자 수)
-        // 이번달: member_id + YYYY + MM DISTINCT (해당 월 내 신청자 수)
-        // → startDate~endDate 범위로 이미 필터링된 상태에서 member_id DISTINCT
+        // 건수 기준: member_id + yyyy + mm 조합의 DISTINCT 수 (경비 신청 횟수)
+        // 예: 신의섭이 1월에 1번, 4월에 1번 신청 → 올해 2건, 이번달(1월) 1건
         int totalCount = (int) items.stream()
-                .map(com.ync.schedule.dto.ExpenseItemDto::getMemberId)
-                .filter(id -> id != null)
+                .filter(item -> item.getMemberId() != null && item.getYyyy() != null && item.getMm() != null)
+                .map(item -> item.getMemberId() + "_" + item.getYyyy() + "_" + item.getMm())
                 .distinct()
                 .count();
         BigDecimal totalAmount = items.stream()

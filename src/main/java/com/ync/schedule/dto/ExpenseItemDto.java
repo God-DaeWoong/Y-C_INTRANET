@@ -19,6 +19,8 @@ public class ExpenseItemDto {
     private String projectCode;
     private String note;
     private String welfareFlag;
+    private String yyyy;  // 신청 년도
+    private String mm;    // 신청 월
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -152,6 +154,22 @@ public class ExpenseItemDto {
 
     public void setWelfareFlag(String welfareFlag) {
         this.welfareFlag = welfareFlag;
+    }
+
+    public String getYyyy() {
+        return yyyy;
+    }
+
+    public void setYyyy(String yyyy) {
+        this.yyyy = yyyy;
+    }
+
+    public String getMm() {
+        return mm;
+    }
+
+    public void setMm(String mm) {
+        this.mm = mm;
     }
 
     public LocalDateTime getCreatedAt() {
