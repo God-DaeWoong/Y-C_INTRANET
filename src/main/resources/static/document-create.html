@@ -290,6 +290,276 @@
         .btn-file-remove:hover {
             background: #e53e3e;
         }
+
+        /* 드래그&드롭 영역 스타일 */
+        .drop-zone {
+            border: 2px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            background: #f7fafc;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .drop-zone:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .drop-zone.drag-over {
+            border-color: #667eea;
+            background: #e8edff;
+            transform: scale(1.01);
+        }
+
+        .drop-zone-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .drop-zone-text {
+            color: #4a5568;
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .drop-zone-hint {
+            color: #718096;
+            font-size: 13px;
+        }
+
+        .drop-zone-btn {
+            display: inline-block;
+            margin-top: 16px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .drop-zone-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        /* 파일 목록 개선 */
+        .file-list-container {
+            margin-top: 16px;
+        }
+
+        .file-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .file-list-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .file-list-count {
+            font-size: 13px;
+            color: #718096;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .file-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .file-item-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .file-item-preview {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            background: #edf2f7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            overflow: hidden;
+        }
+
+        .file-item-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .file-item-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .file-item-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #2d3748;
+            word-break: break-all;
+        }
+
+        .file-item-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: #718096;
+        }
+
+        /* 엑셀 미리보기 버튼 */
+        .btn-file-preview {
+            padding: 6px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+
+        .btn-file-preview:hover {
+            background: #5a67d8;
+        }
+
+        /* 엑셀 미리보기 모달 스타일 */
+        .preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .preview-modal.show {
+            display: flex;
+        }
+
+        .preview-modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow: auto;
+            position: relative;
+        }
+
+        .preview-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f7fafc;
+            border-radius: 12px 12px 0 0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .preview-modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .preview-modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #718096;
+            padding: 4px 8px;
+        }
+
+        .preview-modal-close:hover {
+            color: #2d3748;
+        }
+
+        .preview-modal-body {
+            padding: 24px;
+        }
+
+        .preview-excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .preview-excel-table th,
+        .preview-excel-table td {
+            border: 1px solid #e2e8f0;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .preview-excel-table th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+
+        .preview-excel-table tr:nth-child(even) {
+            background: #f7fafc;
+        }
+
+        .preview-loading {
+            text-align: center;
+            padding: 48px;
+            color: #718096;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .file-item-actions {
+            display: flex;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -443,10 +713,18 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="attachments">첨부파일</label>
-                    <input type="file" id="attachments" multiple accept="*/*">
-                    <div class="help-text">여러 파일을 선택할 수 있습니다 (최대 10MB)</div>
-                    <div id="fileList" style="margin-top: 12px;"></div>
+                    <label>첨부파일</label>
+                    <div id="dropZone" class="drop-zone">
+                        <div class="drop-zone-icon">📁</div>
+                        <div class="drop-zone-text">파일을 여기에 드래그하거나</div>
+                        <div class="drop-zone-hint">클릭하여 파일을 선택하세요</div>
+                        <button type="button" class="drop-zone-btn" onclick="document.getElementById('attachments').click()">
+                            파일 선택
+                        </button>
+                    </div>
+                    <input type="file" id="attachments" multiple accept="*/*" style="display: none;">
+                    <div class="help-text">여러 파일을 선택할 수 있습니다 (최대 10MB / 파일)</div>
+                    <div id="fileList" class="file-list-container"></div>
                 </div>
 
                 <div class="form-group">
@@ -475,6 +753,25 @@
         </div>
     </div>
 
+    <!-- 파일 미리보기 모달 -->
+    <div id="previewModal" class="preview-modal">
+        <div class="preview-modal-content">
+            <div class="preview-modal-header">
+                <span class="preview-modal-title" id="previewFileName">파일 미리보기</span>
+                <button class="preview-modal-close" onclick="closePreviewModal()">&times;</button>
+            </div>
+            <div class="preview-modal-body" id="previewContent">
+                <div class="preview-loading">
+                    <div class="loading-spinner"></div>
+                    <p>파일을 불러오는 중...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SheetJS 라이브러리 (엑셀 미리보기용) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
     <script>
         let approvalStepCount = 0;
         let members = [];
@@ -498,11 +795,11 @@
         const attachmentFiles = [];
         const attachmentsInput = document.getElementById('attachments');
         const fileListDiv = document.getElementById('fileList');
+        const dropZone = document.getElementById('dropZone');
 
-        attachmentsInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files);
-
-            files.forEach(file => {
+        // 파일 처리 공통 함수
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
                 // 파일 크기 체크 (10MB)
                 if (file.size > 10 * 1024 * 1024) {
                     alert(`${file.name}은(는) 10MB를 초과합니다.`);
@@ -517,11 +814,76 @@
                 attachmentFiles.push(file);
             });
 
-            // input 초기화 (같은 파일 재선택 가능하도록)
-            e.target.value = '';
-
             updateFileList();
+        }
+
+        // 파일 선택 이벤트
+        attachmentsInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+            e.target.value = '';  // input 초기화 (같은 파일 재선택 가능하도록)
         });
+
+        // 드래그&드롭 이벤트
+        dropZone.addEventListener('click', (e) => {
+            if (e.target.tagName !== 'BUTTON') {
+                attachmentsInput.click();
+            }
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        // 페이지 전체에 드래그 방지 (드롭존 외부)
+        document.addEventListener('dragover', (e) => e.preventDefault());
+        document.addEventListener('drop', (e) => e.preventDefault());
+
+        // 파일 타입별 아이콘 반환
+        function getFileIcon(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            const iconMap = {
+                'pdf': '📄',
+                'doc': '📝', 'docx': '📝',
+                'xls': '📊', 'xlsx': '📊',
+                'ppt': '📑', 'pptx': '📑',
+                'zip': '📦', 'rar': '📦', '7z': '📦',
+                'jpg': '🖼️', 'jpeg': '🖼️', 'png': '🖼️', 'gif': '🖼️', 'bmp': '🖼️', 'webp': '🖼️',
+                'mp4': '🎬', 'avi': '🎬', 'mov': '🎬',
+                'mp3': '🎵', 'wav': '🎵',
+                'txt': '📃',
+                'html': '🌐', 'css': '🎨', 'js': '⚙️'
+            };
+            return iconMap[ext] || '📎';
+        }
+
+        // 이미지 파일인지 확인
+        function isImageFile(file) {
+            return file.type.startsWith('image/');
+        }
+
+        // 엑셀 파일인지 확인
+        function isExcelFile(file) {
+            const excelExtensions = ['xlsx', 'xls', 'csv'];
+            const ext = file.name.split('.').pop().toLowerCase();
+            return excelExtensions.includes(ext);
+        }
+
+        // 이미지 미리보기 URL 생성
+        function createPreviewUrl(file) {
+            return URL.createObjectURL(file);
+        }
 
         function updateFileList() {
             if (attachmentFiles.length === 0) {
@@ -529,15 +891,46 @@
                 return;
             }
 
-            fileListDiv.innerHTML = attachmentFiles.map((file, index) => `
-                <div class="file-item">
-                    <div class="file-item-info">
-                        <span class="file-item-name">📎 ${file.name}</span>
-                        <span class="file-item-size">(${formatFileSize(file.size)})</span>
-                    </div>
-                    <button type="button" class="btn-file-remove" onclick="removeFile(${index})">삭제</button>
+            const headerHtml = `
+                <div class="file-list-header">
+                    <span class="file-list-title">첨부된 파일</span>
+                    <span class="file-list-count">${attachmentFiles.length}개</span>
                 </div>
-            `).join('');
+            `;
+
+            const filesHtml = attachmentFiles.map((file, index) => {
+                const isImage = isImageFile(file);
+                const isExcel = isExcelFile(file);
+                const previewHtml = isImage
+                    ? `<img src="${createPreviewUrl(file)}" alt="${file.name}">`
+                    : getFileIcon(file);
+
+                // 엑셀/이미지 파일이면 미리보기 버튼 추가
+                const previewBtn = (isExcel || isImage)
+                    ? `<button type="button" class="btn-file-preview" onclick="previewFile(${index})">미리보기</button>`
+                    : '';
+
+                return `
+                    <div class="file-item">
+                        <div class="file-item-left">
+                            <div class="file-item-preview">${previewHtml}</div>
+                            <div class="file-item-details">
+                                <span class="file-item-name">${file.name}</span>
+                                <div class="file-item-meta">
+                                    <span>${formatFileSize(file.size)}</span>
+                                    <span>${file.type || '알 수 없음'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="file-item-actions">
+                            ${previewBtn}
+                            <button type="button" class="btn-file-remove" onclick="removeFile(${index})">삭제</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            fileListDiv.innerHTML = headerHtml + filesHtml;
         }
 
         function removeFile(index) {
@@ -984,6 +1377,89 @@
             displayUserInfo();
             loadMembers();
         });
+
+        // 미리보기 모달 외부 클릭 시 닫기
+        document.getElementById('previewModal').addEventListener('click', (e) => {
+            if (e.target.id === 'previewModal') {
+                closePreviewModal();
+            }
+        });
+
+        // 파일 미리보기 함수
+        async function previewFile(index) {
+            const file = attachmentFiles[index];
+            if (!file) return;
+
+            const modal = document.getElementById('previewModal');
+            const content = document.getElementById('previewContent');
+            const title = document.getElementById('previewFileName');
+
+            title.textContent = file.name;
+            content.innerHTML = `
+                <div class="preview-loading">
+                    <div class="loading-spinner"></div>
+                    <p>파일을 불러오는 중...</p>
+                </div>
+            `;
+            modal.classList.add('show');
+
+            try {
+                if (isImageFile(file)) {
+                    // 이미지 미리보기
+                    const imageUrl = URL.createObjectURL(file);
+                    content.innerHTML = `<img src="${imageUrl}" style="max-width: 100%; max-height: 70vh; display: block; margin: 0 auto;" alt="${file.name}">`;
+                } else if (isExcelFile(file)) {
+                    // 엑셀 미리보기
+                    await previewExcelFile(file);
+                }
+            } catch (error) {
+                console.error('미리보기 오류:', error);
+                content.innerHTML = `<p style="color: #e53e3e; text-align: center; padding: 48px;">파일을 미리볼 수 없습니다.</p>`;
+            }
+        }
+
+        // 엑셀 파일 미리보기 함수 (업로드 전 File 객체용)
+        async function previewExcelFile(file) {
+            const content = document.getElementById('previewContent');
+
+            try {
+                // File 객체를 ArrayBuffer로 읽기
+                const arrayBuffer = await file.arrayBuffer();
+
+                // SheetJS로 파싱
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+
+                // HTML 테이블로 변환
+                const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+                const htmlTable = XLSX.utils.sheet_to_html(worksheet, {
+                    header: '',
+                    footer: '',
+                    editable: false
+                });
+
+                // 스타일 적용
+                const styledTable = htmlTable.replace('<table>', '<table class="preview-excel-table">');
+
+                let infoHtml = '';
+                if (range.e.r + 1 > 100) {
+                    infoHtml = `<p style="text-align: center; color: #718096; margin-bottom: 16px;">처음 100행만 표시됩니다. (전체 ${range.e.r + 1}행)</p>`;
+                }
+
+                content.innerHTML = infoHtml + `<div style="overflow-x: auto;">${styledTable}</div>`;
+
+            } catch (error) {
+                console.error('엑셀 파싱 오류:', error);
+                content.innerHTML = `<p style="color: #e53e3e; text-align: center; padding: 48px;">엑셀 파일을 파싱할 수 없습니다.</p>`;
+            }
+        }
+
+        // 미리보기 모달 닫기
+        function closePreviewModal() {
+            document.getElementById('previewModal').classList.remove('show');
+            document.getElementById('previewContent').innerHTML = '';
+        }
     </script>
 </body>
 </html>

@@ -413,6 +413,173 @@
             color: #718096;
             font-size: 14px;
         }
+
+        /* 첨부파일 및 미리보기 스타일 */
+        .attachment-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .attachment-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 10px 12px;
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .attachment-item:hover {
+            background: #edf2f7;
+        }
+
+        .attachment-item.preview-able {
+            cursor: pointer;
+            color: #667eea;
+        }
+
+        .attachment-item.preview-able:hover {
+            background: #e8edff;
+            border-color: #667eea;
+        }
+
+        .attachment-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .btn-preview {
+            padding: 4px 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .btn-preview:hover {
+            background: #5a67d8;
+        }
+
+        .btn-download {
+            padding: 4px 10px;
+            background: #48bb78;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .btn-download:hover {
+            background: #38a169;
+        }
+
+        /* 파일 미리보기 모달 스타일 */
+        .preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .preview-modal.show {
+            display: flex;
+        }
+
+        .preview-modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow: auto;
+            position: relative;
+        }
+
+        .preview-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f7fafc;
+            border-radius: 12px 12px 0 0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .preview-modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .preview-modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #718096;
+            padding: 4px 8px;
+        }
+
+        .preview-modal-close:hover {
+            color: #2d3748;
+        }
+
+        .preview-modal-body {
+            padding: 24px;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 70vh;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .preview-excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .preview-excel-table th,
+        .preview-excel-table td {
+            border: 1px solid #e2e8f0;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .preview-excel-table th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+
+        .preview-excel-table tr:nth-child(even) {
+            background: #f7fafc;
+        }
+
+        .preview-loading {
+            text-align: center;
+            padding: 48px;
+            color: #718096;
+        }
     </style>
 </head>
 <body>
@@ -485,6 +652,25 @@
             </div>
         </div>
     </div>
+
+    <!-- 파일 미리보기 모달 -->
+    <div id="previewModal" class="preview-modal">
+        <div class="preview-modal-content">
+            <div class="preview-modal-header">
+                <span class="preview-modal-title" id="previewFileName">파일 미리보기</span>
+                <button class="preview-modal-close" onclick="closePreviewModal()">&times;</button>
+            </div>
+            <div class="preview-modal-body" id="previewContent">
+                <div class="preview-loading">
+                    <div class="loading-spinner"></div>
+                    <p>파일을 불러오는 중...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SheetJS 라이브러리 (엑셀 미리보기용) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 
     <script>
         let allDocuments = [];
@@ -693,7 +879,7 @@
             return date.toLocaleDateString('ko-KR');
         }
 
-        function showDocumentDetail(documentId) {
+        async function showDocumentDetail(documentId) {
             const doc = allDocuments.find(d => d.id === documentId);
             if (!doc) return;
 
@@ -713,6 +899,43 @@
             const scheduleInfo = parseScheduleInfo(doc.content);
             const cleanContent = removeScheduleInfo(doc.content);
             const scheduleInfoHtml = formatScheduleInfoHtml(scheduleInfo);
+
+            // 첨부파일 정보 가져오기
+            let attachments = [];
+            try {
+                const attachmentResponse = await fetch(`/api/intranet/documents/${doc.id}`);
+                const documentData = await attachmentResponse.json();
+                attachments = documentData.attachments || [];
+            } catch (e) {
+                console.error('첨부파일 로드 실패:', e);
+            }
+
+            // 첨부파일 HTML 생성
+            let attachmentsHtml = '';
+            if (attachments && attachments.length > 0) {
+                attachmentsHtml = `
+                    <div class="detail-section">
+                        <div class="detail-label">첨부파일 (${attachments.length}개)</div>
+                        <div class="attachment-list">
+                            ${attachments.map(att => {
+                                const fileName = getOriginalFileName(att.fileName);
+                                const isPreviewable = isImageFile(fileName) || isExcelFile(fileName);
+                                const previewBtn = isPreviewable
+                                    ? `<button class="btn-preview" onclick="openPreview(${att.id}, '${fileName.replace(/'/g, "\\'")}', event)">미리보기</button>`
+                                    : '';
+                                return `
+                                <div class="attachment-item ${isPreviewable ? 'preview-able' : ''}">
+                                    <span>📎 ${fileName} (${formatFileSize(att.fileSize)})</span>
+                                    <div class="attachment-actions">
+                                        ${previewBtn}
+                                        <a href="/api/intranet/attachments/download/${att.id}" class="btn-download" download>다운로드</a>
+                                    </div>
+                                </div>
+                            `}).join('')}
+                        </div>
+                    </div>
+                `;
+            }
 
             const modalBody = document.getElementById('modalBody');
             modalBody.innerHTML = `
@@ -741,6 +964,7 @@
                     <div class="detail-label">문서 내용</div>
                     <div class="detail-content">${cleanContent || '내용 없음'}</div>
                 </div>
+                ${attachmentsHtml}
                 ${doc.approvals && doc.approvals.length > 0 ? `
                     <div class="detail-section">
                         <div class="detail-label">결재 진행 상황</div>
@@ -923,6 +1147,119 @@
             displayUserInfo();
             loadDocuments();
         });
+
+        // 미리보기 모달 외부 클릭 시 닫기
+        document.getElementById('previewModal').addEventListener('click', (e) => {
+            if (e.target.id === 'previewModal') {
+                closePreviewModal();
+            }
+        });
+
+        // 파일명에서 원본 파일명 추출 (UUID 접두어 제거)
+        function getOriginalFileName(fileName) {
+            if (!fileName) return '';
+            const uuidPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}_/i;
+            return fileName.replace(uuidPattern, '');
+        }
+
+        // 파일 크기 포맷팅
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // 파일 타입 판별 함수들
+        function isImageFile(fileName) {
+            const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+            const ext = fileName.split('.').pop().toLowerCase();
+            return imageExtensions.includes(ext);
+        }
+
+        function isExcelFile(fileName) {
+            const excelExtensions = ['xlsx', 'xls', 'csv'];
+            const ext = fileName.split('.').pop().toLowerCase();
+            return excelExtensions.includes(ext);
+        }
+
+        // 미리보기 모달 열기
+        async function openPreview(attachmentId, fileName, event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const modal = document.getElementById('previewModal');
+            const content = document.getElementById('previewContent');
+            const title = document.getElementById('previewFileName');
+
+            title.textContent = fileName;
+            content.innerHTML = `
+                <div class="preview-loading">
+                    <div class="loading-spinner"></div>
+                    <p>파일을 불러오는 중...</p>
+                </div>
+            `;
+            modal.classList.add('show');
+
+            try {
+                if (isImageFile(fileName)) {
+                    // 이미지 미리보기
+                    content.innerHTML = `<img src="/api/intranet/attachments/download/${attachmentId}" class="preview-image" alt="${fileName}">`;
+                } else if (isExcelFile(fileName)) {
+                    // 엑셀 미리보기
+                    await previewExcel(attachmentId, fileName);
+                }
+            } catch (error) {
+                console.error('미리보기 오류:', error);
+                content.innerHTML = `<p style="color: #e53e3e; text-align: center; padding: 48px;">파일을 미리볼 수 없습니다.</p>`;
+            }
+        }
+
+        // 엑셀 미리보기 함수
+        async function previewExcel(attachmentId, fileName) {
+            const content = document.getElementById('previewContent');
+
+            try {
+                // 파일 다운로드
+                const response = await fetch(`/api/intranet/attachments/download/${attachmentId}`);
+                const blob = await response.blob();
+                const arrayBuffer = await blob.arrayBuffer();
+
+                // SheetJS로 파싱
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+
+                // HTML 테이블로 변환
+                const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+                const htmlTable = XLSX.utils.sheet_to_html(worksheet, {
+                    header: '',
+                    footer: '',
+                    editable: false
+                });
+
+                // 스타일 적용
+                const styledTable = htmlTable.replace('<table>', '<table class="preview-excel-table">');
+
+                let infoHtml = '';
+                if (range.e.r + 1 > 100) {
+                    infoHtml = `<p style="text-align: center; color: #718096; margin-bottom: 16px;">처음 100행만 표시됩니다. (전체 ${range.e.r + 1}행)</p>`;
+                }
+
+                content.innerHTML = infoHtml + `<div style="overflow-x: auto;">${styledTable}</div>`;
+
+            } catch (error) {
+                console.error('엑셀 파싱 오류:', error);
+                content.innerHTML = `<p style="color: #e53e3e; text-align: center; padding: 48px;">엑셀 파일을 파싱할 수 없습니다.</p>`;
+            }
+        }
+
+        // 미리보기 모달 닫기
+        function closePreviewModal() {
+            document.getElementById('previewModal').classList.remove('show');
+            document.getElementById('previewContent').innerHTML = '';
+        }
     </script>
 </body>
 </html>
